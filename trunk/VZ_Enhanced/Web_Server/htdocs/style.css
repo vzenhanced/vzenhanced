@@ -1,0 +1,202 @@
+.columns_container
+{
+	position:relative;
+	width: 100%;
+}
+
+.columns_row
+{
+	z-index: 2;
+	display: table-row;
+	position: absolute;
+	width: 640px;
+	height: 20px;
+	border-bottom: 1px solid #AAAAAA;
+	background-color: #EEEEEE;
+	color: #777777;
+	font-weight: bold;
+	text-shadow: 0px 1px 0px #FFFFFF;
+}
+
+.column
+{
+	display: table-cell;
+	vertical-align: middle;
+	height: 20px;
+	padding-left: 10px; 
+}
+
+.column_left
+{
+	border-right: 1px solid #AAAAAA;
+}
+
+.column_right
+{
+	padding-right: 10px;
+}
+
+.list_container
+{
+	background-color: #FFFFFF;
+	width: 100%;
+	height: 440px;
+	overflow: auto;
+}
+
+.list
+{
+	/*display: table;
+	border-collapse: collapse;*/
+	position: relative;
+	height: 0px;
+	width: 100%;
+	margin-top: 21px;
+}
+
+/* Does not paint nicely with Opera 12
+.list_item_odd,
+.list_item_even
+{
+	display: table-row;
+	width: 100%;
+	border-top: 1px solid #DDDDDD;
+	border-bottom: 1px solid #DDDDDD;
+}
+
+.list_item_even
+{
+	background-color: #FFFFFF;
+}
+
+.list_item_odd
+{
+	background-color: #EEEEEE;
+}
+
+.list_item_odd:hover,
+.list_item_even:hover
+{
+	border-top: 1px double #AAAAAA;
+	border-bottom: 1px double #AAAAAA;
+	background-color: #D0D0D0;
+}
+*/
+
+.list_item_odd,
+.list_item_even
+{
+	position: relative;
+	margin-top: -1px;
+	z-index: 0;
+	width: 100%;
+	border-top: 1px solid #DDDDDD;
+	border-bottom: 1px solid #DDDDDD;
+}
+
+.list_item_even
+{
+	background-color: #FFFFFF;
+}
+
+.list_item_odd
+{
+	background-color: #EEEEEE;
+}
+
+.list_item_odd:hover,
+.list_item_even:hover
+{
+	z-index: 1;
+	border-top-color: #AAAAAA;
+	border-bottom-color: #AAAAAA;
+	background-color: #D0D0D0;
+}
+
+.r_header,
+.r_header:hover,
+.header,
+.header:hover
+{
+	display: table-cell;
+	vertical-align: middle;
+
+	padding-left: 10px;
+	padding-right: 10px;
+	color: #777777;
+	font-size: 14px;
+	font-weight: bold;
+	text-align: center;
+	text-decoration: none;
+	text-shadow: 0px 1px 0px #FFFFFF;
+	
+	border-bottom: 1px solid #AAAAAA;
+}
+
+.r_header,
+.header
+{
+	background-color: #DDDDDD;
+	background-image: linear-gradient(to bottom, #EEEEEE, #CCCCCC);
+}
+
+.header
+{
+	border-right: 1px solid #AAAAAA;
+}
+
+.r_header:hover,
+.header:hover
+{
+	background-color: #C0C0C0;
+	background-image: linear-gradient(to bottom, #DDDDDD, #C0C0C0);
+}
+
+/*.r_header:active,
+.header:active
+{
+	background-color: #EEEEEE;
+	background-image: linear-gradient(to bottom, #CCCCCC, #EEEEEE);
+}*/
+
+.popup_button:active,
+.popup_button:hover,
+.popup_button
+{
+	display: table-cell;
+	vertical-align: middle;
+
+	padding-left: 5px;
+	padding-right: 5px;
+	padding-top: 2px;
+	padding-bottom: 2px;
+	color: #777777;
+	font-size: 12px;
+	font-weight: bold;
+	text-align: center;
+	text-decoration: none;
+	text-shadow: 0px 1px 0px #FFFFFF;
+	border-radius: 12px;
+	border: 1px solid #AAAAAA;
+	background-color: #DDDDDD;
+	background-image: linear-gradient(to bottom, #EEEEEE, #CCCCCC);
+	
+	box-shadow: 0px 0px 4px 0px #AAAAAA;
+}
+
+.popup_button:hover
+{
+	background-color: #C0C0C0;
+	background-image: linear-gradient(to bottom, #DDDDDD, #C0C0C0);
+}
+
+.popup_button:active
+{
+	background-image: linear-gradient(to bottom, #CCCCCC, #EEEEEE);
+}
+
+body
+{
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 12px;
+}
