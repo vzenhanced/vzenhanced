@@ -1,0 +1,64 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>VZ Enhanced</title>
+		<link rel="stylesheet" type="text/css" href="style.css">
+		<script src="websocket.js" charset="UTF-8"></script>
+	</head>
+	<body onload="initialize_page();">
+		<div style="position: absolute; width: 640px; left: 50%; margin-left: -320px; text-align: right;">
+			<a class="popup_button" style="display: inline-block;" id="connection" onclick="connect(); return false;" href="">Connect</a>
+		</div>
+		<div style="position: absolute; border: 1px solid #AAAAAA; width: 640px; height: 480px; top: 140px; left: 50%; margin-left: -320px; border-top-left-radius: 8px; border-top-right-radius: 8px; box-shadow: 2px 2px 5px 0px #AAAAAA; overflow: hidden;">
+			<div style="display: table; width: 100%;">
+				<div style="display: table-row; border: 1px solid #AAAAAA; height: 40px; text-align: center;">
+					<a id="header1" class="header" onclick="toggle_header( this, 'columns_l' ); return false;" href="">Call Log</a>
+					<a class="header" onclick="toggle_header( this, 'columns_cl' ); return false;" href="">Contact List</a>
+					<a class="header" onclick="toggle_header( this, 'columns_fl' ); return false;" href="">Forward List</a>
+					<a class="r_header" onclick="toggle_header( this, 'columns_il' ); return false;" href="">Ignore List</a>
+				</div>
+			</div>
+			<div id="columns_l" class="columns_container">
+				<div id="l_row" class="columns_row">
+					<div class="column column_left" style="width: 150px;">Caller ID</div>
+					<div class="column column_left" style="width: 150px;">Phone Number</div>
+					<div class="column column_right">Time</div>
+				</div>
+				<div id="lo" class="list_container">
+					<div id="call_log" class="list"></div>
+				</div>
+			</div>
+			<div id="columns_cl" class="columns_container" style="display: none;">
+				<div id="cl_row" class="columns_row">
+					<div class="column column_left" style="width: 130px;">First Name</div>
+					<div class="column column_left" style="width: 130px;">Last Name</div>
+					<div class="column column_left" style="width: 140px;">Home Phone Number</div>
+					<div class="column column_right">Cell Phone Number</div>
+				</div>
+				<div id="clo" class="list_container">
+					<div id="contact_list" class="list"></div>
+				</div>
+			</div>
+			<div id="columns_fl" class="columns_container" style="display: none;">
+				<div id="fl_row" class="columns_row">
+					<div class="column column_left" style="width: 220px;">Phone Number</div>
+					<div class="column column_left" style="width: 220px;">Forward To</div>
+					<div class="column column_right">Total Calls</div>
+				</div>
+				<div id="flo" class="list_container">
+					<div id="forward_list" class="list"></div>
+				</div>
+			</div>
+			<div id="columns_il" class="columns_container" style="display: none;">
+				<div id="il_row" class="columns_row">
+					<div class="column column_left" style="width: 300px;">Phone Number</div>
+					<div class="column column_right">Total Calls</div>
+				</div>
+				<div id="ilo" class="list_container">
+					<div id="ignore_list" class="list"></div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
