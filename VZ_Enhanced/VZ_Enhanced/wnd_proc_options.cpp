@@ -2835,7 +2835,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						_SendMessageA( g_hWnd_retries, WM_GETTEXT, 3, ( LPARAM )value );
 						cfg_connection_retries = ( unsigned char )_strtoul( value, NULL, 10 );
 						_SendMessageA( g_hWnd_timeout, WM_GETTEXT, 4, ( LPARAM )value );
-						cfg_connection_timeout = ( unsigned char )_strtoul( value, NULL, 10 );
+						cfg_connection_timeout = ( unsigned short )_strtoul( value, NULL, 10 );
 
 						cfg_connection_auto_login = ( _SendMessageW( g_hWnd_chk_auto_login, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_connection_reconnect = ( _SendMessageW( g_hWnd_chk_reconnect, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
