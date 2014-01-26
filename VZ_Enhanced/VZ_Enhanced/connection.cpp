@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -2554,7 +2554,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 
 
 	int update_contact_reply_length = 0;
-	char update_contact[ 1024 ];
+	char update_contact[ 2048 ];
 
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
@@ -2568,7 +2568,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	{
 		// Update the contact's information.
 		// type="fax" is a dummy value.
-		update_contact_reply_length = __snprintf( update_contact, 1024,
+		update_contact_reply_length = __snprintf( update_contact, 2048,
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
 		"<UABContactList operation=\"update\">" \
 			"<User id=\"%s\" />" \
@@ -2784,7 +2784,6 @@ CLEANUP:
 
 	if ( g_hWnd_contact != NULL )
 	{
-
 		_SendMessageW( g_hWnd_contact, WM_PROPAGATE, MAKEWPARAM( CW_UPDATE, ( ( ( ( picture_only == false && update_status == false ) || picture_status == false ) && contact_update_in_progress != UPDATE_FAIL ) ? UPDATE_FAIL : UPDATE_END ) ), 0 );
 	}
 
@@ -2862,10 +2861,10 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 	}
 	else if ( mi->manage_type == 1 )	// Add a single contact to our contact list.
 	{
-		char add_contact[ 1024 ];
+		char add_contact[ 2048 ];
 
 		// type="fax" is a dummy value.
-		int add_contact_length = __snprintf( add_contact, 1024,
+		int add_contact_length = __snprintf( add_contact, 2048,
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
 		"<UABContactList operation=\"create\">" \
 			"<User id=\"%s\" />" \
@@ -3129,6 +3128,8 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 			ui->remove_picture = false;
 			// Add the contact to the listview. The only values this creates are the wide character phone values. Everything else will have been set.
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_contact_list, ( void * )ui, 0, NULL ) );
+
+			_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Contact was added successfully." );
 		}
 	}
 
@@ -3196,9 +3197,6 @@ THREAD_RETURN Connection( void *pArguments )
 	unsigned short http_status = 0;
 	unsigned int content_length = 0;
 	unsigned int last_buffer_size = 0;
-
-	char *start_host = "wayfarer.timewarnercable.com";
-	char *orignialResourceUri = "aHR0cHM6Ly92cG5zLnRpbWV3YXJuZXJjYWJsZS5jb20vdnBuc3NlcnZpY2UvdjEv";
 
 	char *xml = NULL;
 

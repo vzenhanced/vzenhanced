@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 
 #include "doublylinkedlist.h"
 #include "dllrbt.h"
+#include "range.h"
 
 #include "resource.h"
 
@@ -352,6 +353,9 @@ extern bool skip_log_draw;				// Prevents WM_DRAWITEM from accessing listview it
 extern bool skip_contact_draw;
 extern bool skip_ignore_draw;
 extern bool skip_forward_draw;
+
+extern RANGE *ignore_range_list;
+extern RANGE *forward_range_list;
 
 extern dllrbt_tree *ignore_list;
 extern bool ignore_list_changed;

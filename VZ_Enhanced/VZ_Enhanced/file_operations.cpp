@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "file_operations.h"
 #include "utilities.h"
+
+RANGE *ignore_range_list = NULL;
+RANGE *forward_range_list = NULL;
 
 dllrbt_tree *ignore_list = NULL;
 bool ignore_list_changed = false;
@@ -999,6 +1002,10 @@ void read_ignore_list()
 						{
 							free_ignoreinfo( &ii );
 						}
+						else if ( length1 == 10 && is_num( ii->c_phone_number ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+						{
+							RangeAdd( &ignore_range_list, ii->c_phone_number );
+						}
 					}
 
 					// Move to the next value.
@@ -1097,6 +1104,10 @@ void read_ignore_list()
 						if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) == DLLRBT_STATUS_DUPLICATE_KEY )
 						{
 							free_ignoreinfo( &ii );
+						}
+						else if ( length1 == 10 && is_num( ii->c_phone_number ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+						{
+							RangeAdd( &ignore_range_list, ii->c_phone_number );
 						}
 					}
 				}
@@ -1300,6 +1311,10 @@ void read_forward_list()
 							{
 								free_forwardinfo( &fi );
 							}
+							else if ( length1 == 10 && is_num( fi->c_call_from ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+							{
+								RangeAdd( &forward_range_list, fi->c_call_from );
+							}
 						}
 					}
 
@@ -1428,6 +1443,10 @@ void read_forward_list()
 							if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) == DLLRBT_STATUS_DUPLICATE_KEY )
 							{
 								free_forwardinfo( &fi );
+							}
+							else if ( length1 == 10 && is_num( fi->c_call_from ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+							{
+								RangeAdd( &forward_range_list, fi->c_call_from );
 							}
 						}
 					}

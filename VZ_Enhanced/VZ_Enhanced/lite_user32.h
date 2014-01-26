@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@
 	#define _FillRect				FillRect
 	#define _FlashWindow			FlashWindow
 	#define _GetClientRect			GetClientRect
+	#define _GetClipboardData		GetClipboardData
 	#define _GetCursorPos			GetCursorPos
 	#define _GetDC					GetDC
 	#define _GetDlgItem				GetDlgItem
@@ -143,6 +144,7 @@
 	typedef int ( WINAPI *pFillRect )( HDC hDC, const RECT *lprc, HBRUSH hbr );
 	typedef BOOL ( WINAPI *pFlashWindow )( HWND hWnd, BOOL bInvert );
 	typedef BOOL ( WINAPI *pGetClientRect )( HWND hWnd, LPRECT lpRect );
+	typedef HANDLE ( WINAPI *pGetClipboardData )( UINT uFormat );
 	typedef BOOL ( WINAPI *pGetCursorPos )( LPPOINT lpPoint );
 	typedef HDC ( WINAPI *pGetDC )( HWND hWnd );
 	typedef HWND ( WINAPI *pGetDlgItem )( HWND hDlg, int nIDDlgItem );
@@ -224,6 +226,7 @@
 	extern pFillRect				_FillRect;
 	extern pFlashWindow				_FlashWindow;
 	extern pGetClientRect			_GetClientRect;
+	extern pGetClipboardData		_GetClipboardData
 	extern pGetCursorPos			_GetCursorPos;
 	extern pGetDC					_GetDC;
 	extern pGetDlgItem				_GetDlgItem;

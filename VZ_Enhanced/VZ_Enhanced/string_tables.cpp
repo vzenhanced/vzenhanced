@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -154,7 +154,7 @@ wchar_t *menu_string_table[] =
 
 wchar_t *common_message_string_table[] =
 {
-	L"A contact update is in progress. Would you like to cancel?",
+	L"A contact update is in progress.\r\n\r\nWould you like to cancel the update?",
 	L"Are you sure you want to delete this contact?",
 	L"Are you sure you want to remove the selected entries?",
 	L"Area code is restricted.",
@@ -165,6 +165,8 @@ wchar_t *common_message_string_table[] =
 	L"Phone number was not found in the forward list.",
 	L"Please enter a valid phone number.",
 	L"There was an error while saving the settings.",
+	L"This phone number is forwarded using wildcard digit(s).\r\n\r\nPlease remove it from the Forward List.",
+	L"This phone number is ignored using wildcard digit(s).\r\n\r\nPlease remove it from the Ignore List.",
 	L"You must have at least one column displayed.",
 	L"You must supply a password to log in.",
 	L"You must supply a username and password to log in.",

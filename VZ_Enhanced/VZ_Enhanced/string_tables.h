@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -41,10 +41,12 @@ extern wchar_t *common_message_string_table[];
 #define ST_not_found_in_forward_list			common_message_string_table[ 8 ]
 #define ST_enter_valid_phone_number				common_message_string_table[ 9 ]
 #define ST_error_while_saving_settings			common_message_string_table[ 10 ]
-#define ST_must_have_column						common_message_string_table[ 11 ]
-#define ST_must_enter_pw						common_message_string_table[ 12 ]
-#define ST_must_enter_un_and_pw					common_message_string_table[ 13 ]
-#define ST_must_enter_un						common_message_string_table[ 14 ]
+#define ST_remove_from_forward_list				common_message_string_table[ 11 ]
+#define ST_remove_from_ignore_list				common_message_string_table[ 12 ]
+#define ST_must_have_column						common_message_string_table[ 13 ]
+#define ST_must_enter_pw						common_message_string_table[ 14 ]
+#define ST_must_enter_un_and_pw					common_message_string_table[ 15 ]
+#define ST_must_enter_un						common_message_string_table[ 16 ]
 
 extern wchar_t *call_log_string_table[];
 #define ST_CLL_NUM								call_log_string_table[ 0 ]
