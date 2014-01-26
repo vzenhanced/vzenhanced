@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -1065,7 +1065,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						if ( g_hWnd_dial == NULL )
 						{
-							g_hWnd_dial = _CreateWindowW( L"phone", ST_Dial_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, FALSE );
+							g_hWnd_dial = _CreateWindowW( L"phone", ST_Dial_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )0 );
 						}
 
 						_SendMessageW( g_hWnd_dial, WM_PROPAGATE, 0, ( LPARAM )call_to );
@@ -1078,7 +1078,8 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_ignore_phone_number == NULL )
 						{
-							g_hWnd_ignore_phone_number = _CreateWindowW( L"phone", ST_Ignore_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, FALSE );
+							// Allow wildcard input. (Last parameter of CreateWindow is 1)
+							g_hWnd_ignore_phone_number = _CreateWindowW( L"phone", ST_Ignore_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )1 );
 						}
 
 						_SendMessageW( g_hWnd_ignore_phone_number, WM_PROPAGATE, 2, 0 );
@@ -1117,8 +1118,8 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_forward == NULL )
 						{
-							// Show forward window with the forward edit box enabled. (Last parameter of CreateWindow is TRUE)
-							g_hWnd_forward = _CreateWindowW( L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )TRUE );
+							// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
+							g_hWnd_forward = _CreateWindowW( L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
 						}
 
 						if ( LOWORD( wParam ) == MENU_ADD_FORWARD_LIST )
@@ -1186,8 +1187,8 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							{
 								if ( g_hWnd_forward == NULL )
 								{
-									// Show forward window with the forward edit box enabled. (Last parameter of CreateWindow is TRUE)
-									g_hWnd_forward = _CreateWindowW( L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )TRUE );
+									// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
+									g_hWnd_forward = _CreateWindowW( L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
 								}
 
 								_SendMessageW( g_hWnd_forward, WM_PROPAGATE, 1, lvi.lParam );
@@ -1400,7 +1401,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\n\nCopyright \xA9 2013 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\n\nCopyright \xA9 2013-2014 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 

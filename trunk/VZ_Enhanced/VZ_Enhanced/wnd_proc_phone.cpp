@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013 Eric Kutcher
+	Copyright (C) 2013-2014 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -45,6 +45,82 @@ forwardinfo *edit_fi = NULL;	// Display the numbers we want to edit (when editin
 
 bool forward_focus = false;		// Allows number buttons to insert a value into the correct edit box.
 
+WNDPROC EditProc = NULL;
+
+LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+{
+	switch( msg )
+	{
+		case WM_CHAR:
+		{
+			// If a '*' was entered, set the text and return. Don't perform the default window procedure.
+			if ( wParam == '*' )
+			{
+				_SendMessageW( hWnd, EM_REPLACESEL, FALSE, ( LPARAM )L"*" );
+				return 0;
+			}
+		}
+		break;
+
+		case WM_PASTE:
+		{
+			if ( _OpenClipboard( hWnd ) )
+			{
+				bool ret = true;
+				char phone_number[ 16 ];
+				_memzero( phone_number, 16 );
+				char paste_length = 0;
+
+				// Get ASCII text from the clipboard.
+				HANDLE hglbPaste = _GetClipboardData( CF_TEXT );
+				if ( hglbPaste != NULL )
+				{
+					// Get whatever text data is in the clipboard.
+					char *lpstrPaste = ( char * )GlobalLock( hglbPaste );
+					if ( lpstrPaste != NULL )
+					{
+						// Find the length of the data and limit it to 15 characters.
+						paste_length = ( char )min( 15, lstrlenA( lpstrPaste ) );
+
+						// Copy the data to our phone number buffer.
+						_memcpy_s( phone_number, 16, lpstrPaste, paste_length );
+						phone_number[ paste_length ] = 0;	// Sanity.
+					}
+
+					GlobalUnlock( hglbPaste );
+				}
+
+				_CloseClipboard();
+
+				if ( paste_length > 0 )
+				{
+					// Make sure the phone number contains only numbers or wildcard values.
+					for ( char i = 0; i < paste_length; ++i )
+					{
+						if ( phone_number[ i ] != '*' && !is_digit( phone_number[ i ] ) )
+						{
+							ret = false;
+							break;
+						}
+					}
+
+					// If we have a value and all characters are acceptable, then set the text in the text box and return. Don't perform the default window procedure.
+					if ( ret == true )
+					{
+						_SendMessageA( hWnd, EM_REPLACESEL, FALSE, ( LPARAM )phone_number );
+						return 0;
+					}
+				}
+			}
+		}
+		break;
+	}
+
+	
+	// Everything that we don't handle gets passed back to the parent to process.
+	return _CallWindowProcW( EditProc, hWnd, msg, wParam, lParam );
+}
+
 LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     switch ( msg )
@@ -54,35 +130,36 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			RECT rc;
 			_GetClientRect( hWnd, &rc );
 
-			BOOL enable_forward = ( BOOL )( ( CREATESTRUCT * )lParam )->lpCreateParams;
+			// 0 = default, 1 = allow wildcards, 2 = show forward edit control and allow wildcards
+			CHAR enable_items = ( CHAR )( ( CREATESTRUCT * )lParam )->lpCreateParams;
 
 			HWND hWnd_static = _CreateWindowW( WC_STATIC, NULL, SS_GRAYFRAME | WS_CHILD | WS_VISIBLE, 10, 10, rc.right - 20, rc.bottom - 50, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_phone_static1 = _CreateWindowW( WC_STATIC, ST_Phone_Number_, WS_CHILD | WS_VISIBLE, 20, 20, ( rc.right - rc.left ) - 40, 15, hWnd, NULL, NULL, NULL );
-			HWND g_hWnd_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 35, ( rc.right - rc.left ) - 40, 20, hWnd, ( HMENU )EDIT_NUMBER, NULL, NULL );
+			HWND g_hWnd_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NOHIDESEL | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 35, ( rc.right - rc.left ) - 40, 20, hWnd, ( HMENU )EDIT_NUMBER, NULL, NULL );
 
-			if ( enable_forward == TRUE )
+			if ( enable_items == 2 )
 			{
 				HWND g_hWnd_phone_static2 = _CreateWindowW( WC_STATIC, ST_Forward_to_, WS_CHILD | WS_VISIBLE, 20, 60, ( rc.right - rc.left ) - 40, 15, hWnd, NULL, NULL, NULL );
-				HWND g_hWnd_number2 = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 75, ( rc.right - rc.left ) - 40, 20, hWnd, ( HMENU )EDIT_NUMBER2, NULL, NULL );
+				HWND g_hWnd_number2 = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NOHIDESEL | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 75, ( rc.right - rc.left ) - 40, 20, hWnd, ( HMENU )EDIT_NUMBER2, NULL, NULL );
 				_SendMessageW( g_hWnd_number2, EM_LIMITTEXT, 15, 0 );
 				_SendMessageW( g_hWnd_phone_static2, WM_SETFONT, ( WPARAM )hFont, 0 );
 				_SendMessageW( g_hWnd_number2, WM_SETFONT, ( WPARAM )hFont, 0 );
 			}
 
-			HWND g_hWnd_1 = _CreateWindowW( WC_BUTTON, L"1", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 65 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_1, NULL, NULL );
-			HWND g_hWnd_2 = _CreateWindowW( WC_BUTTON, L"2 ABC", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 65 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_2, NULL, NULL );
-			HWND g_hWnd_3 = _CreateWindowW( WC_BUTTON, L"3 DEF", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 130, 65 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_3, NULL, NULL );
+			HWND g_hWnd_1 = _CreateWindowW( WC_BUTTON, L"1", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 65 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_1, NULL, NULL );
+			HWND g_hWnd_2 = _CreateWindowW( WC_BUTTON, L"2 ABC", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 65 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_2, NULL, NULL );
+			HWND g_hWnd_3 = _CreateWindowW( WC_BUTTON, L"3 DEF", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 130, 65 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_3, NULL, NULL );
 
-			HWND g_hWnd_4 = _CreateWindowW( WC_BUTTON, L"4 GHI", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 95 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_4, NULL, NULL );
-			HWND g_hWnd_5 = _CreateWindowW( WC_BUTTON, L"5 JKL", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 95 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_5, NULL, NULL );
-			HWND g_hWnd_6 = _CreateWindowW( WC_BUTTON, L"6 MNO", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 130, 95 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_6, NULL, NULL );
+			HWND g_hWnd_4 = _CreateWindowW( WC_BUTTON, L"4 GHI", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 95 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_4, NULL, NULL );
+			HWND g_hWnd_5 = _CreateWindowW( WC_BUTTON, L"5 JKL", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 95 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_5, NULL, NULL );
+			HWND g_hWnd_6 = _CreateWindowW( WC_BUTTON, L"6 MNO", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 130, 95 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_6, NULL, NULL );
 
-			HWND g_hWnd_7 = _CreateWindowW( WC_BUTTON, L"7 PQRS", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 125 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_7, NULL, NULL );
-			HWND g_hWnd_8 = _CreateWindowW( WC_BUTTON, L"8 TUV", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 125 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_8, NULL, NULL );
-			HWND g_hWnd_9 = _CreateWindowW( WC_BUTTON, L"9 WXYZ", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 130, 125 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_9, NULL, NULL );
+			HWND g_hWnd_7 = _CreateWindowW( WC_BUTTON, L"7 PQRS", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 125 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_7, NULL, NULL );
+			HWND g_hWnd_8 = _CreateWindowW( WC_BUTTON, L"8 TUV", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 125 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_8, NULL, NULL );
+			HWND g_hWnd_9 = _CreateWindowW( WC_BUTTON, L"9 WXYZ", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 130, 125 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_9, NULL, NULL );
 
-			HWND g_hWnd_0 = _CreateWindowW( WC_BUTTON, L"0", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 155 + ( enable_forward == TRUE ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_0, NULL, NULL );
+			HWND g_hWnd_0 = _CreateWindowW( WC_BUTTON, L"0", WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 155 + ( enable_items == 2 ? 40 : 0 ), 50, 25, hWnd, ( HMENU )BTN_0, NULL, NULL );
 
 			HWND g_hWnd_dial_action = _CreateWindowW( WC_BUTTON, ST_Dial_Phone_Number, WS_CHILD | WS_TABSTOP | WS_VISIBLE, ( rc.right - rc.left - ( _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ) ) - 40 ) / 2, rc.bottom - 32, ( _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ) ) + 40, 23, hWnd, ( HMENU )BTN_ACTION, NULL, NULL );
 
@@ -108,6 +185,12 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			_SendMessageW( g_hWnd_9, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_0, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			if ( enable_items != 0 )
+			{
+				EditProc = ( WNDPROC )_GetWindowLongW( g_hWnd_number, GWL_WNDPROC );
+				_SetWindowLongW( g_hWnd_number, GWL_WNDPROC, ( LONG )EditSubProc );
+			}
 
 			return 0;
 		}
@@ -346,12 +429,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"1" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"1" );
 					}
 				}
@@ -361,12 +442,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"2" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"2" );
 					}
 				}
@@ -376,12 +455,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"3" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"3" );
 					}
 				}
@@ -391,12 +468,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"4" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"4" );
 					}
 				}
@@ -406,12 +481,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"5" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"5" );
 					}
 				}
@@ -421,12 +494,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"6" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"6" );
 					}
 				}
@@ -436,12 +507,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"7" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"7" );
 					}
 				}
@@ -451,12 +520,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"8" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"8" );
 					}
 				}
@@ -466,12 +533,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"9" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"9" );
 					}
 				}
@@ -481,12 +546,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				{
 					if ( forward_focus == false )
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"0" );
 					}
 					else
 					{
-						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_SETSEL, -1, -1 );
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), EM_REPLACESEL, FALSE, ( LPARAM )L"0" );
 					}
 				}

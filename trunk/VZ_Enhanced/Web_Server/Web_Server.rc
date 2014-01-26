@@ -72,7 +72,7 @@ BEGIN
             VALUE "FileDescription", "Web server plugin for VZ Enhanced."
             VALUE "FileVersion", "1, 0, 0, 0"
             VALUE "InternalName", "Web Server"
-            VALUE "LegalCopyright", "Copyright (C) 2013"
+            VALUE "LegalCopyright", "Copyright © 2013-2014 Eric Kutcher"
             VALUE "OriginalFilename", "Web_Server.dll"
             VALUE "ProductName", "Web Server"
             VALUE "ProductVersion", "1, 0, 0, 0"

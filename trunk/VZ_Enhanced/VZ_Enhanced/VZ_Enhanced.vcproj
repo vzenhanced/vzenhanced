@@ -263,6 +263,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\range.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\ssl_client.cpp"
 				>
 			</File>
@@ -398,6 +402,10 @@
 			</File>
 			<File
 				RelativePath=".\parsing.h"
+				>
+			</File>
+			<File
+				RelativePath=".\range.h"
 				>
 			</File>
 			<File

@@ -16,12 +16,21 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _FILE_OPERATIONS_H
-#define _FILE_OPERATIONS_H
+#ifndef _RANGE_H
+#define _RANGE_H
 
-void read_config();
-void save_config();
+struct RANGE
+{
+	RANGE *next;
+	RANGE *child;
+	char value;
+};
 
-void PreloadIndexFile();
+RANGE *RangeCreateNode( char value );
+void RangeAdd( RANGE **root, const char *value, char length = 10 );
+bool RangeRemove( RANGE **head, const char *value, RANGE *parent = NULL );
+bool RangeSearch( RANGE **head, const char *value, char found_value[ 32 ] );
+bool RangeCompare( const char *range, const char *value );
+void RangeDelete( RANGE **head );
 
 #endif
