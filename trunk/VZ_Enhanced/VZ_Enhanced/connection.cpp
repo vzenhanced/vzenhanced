@@ -24,11 +24,10 @@
 
 #include "lite_advapi32.h"
 
-#include <psapi.h>
-
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced"	//"VoiceZone-Air-1.5.0.16"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.2"
+//#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define DEFAULT_BUFLEN	8192
 #define DEFAULT_PORT	443
@@ -291,9 +290,9 @@ SOCKET Client_Connection( const char *server, unsigned short port, int timeout )
 	}
 
 	_memzero( &hints, sizeof( hints ) );
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
 	__snprintf( cport, 6, "%hu", port );
 
@@ -308,17 +307,17 @@ SOCKET Client_Connection( const char *server, unsigned short port, int timeout )
 		return INVALID_SOCKET;
 	}
 
-	 // Attempt to connect to an address until one succeeds
-    for ( ptr = result; ptr != NULL; ptr = ptr->ai_next )
+	// Attempt to connect to an address until one succeeds
+	for ( ptr = result; ptr != NULL; ptr = ptr->ai_next )
 	{
-        // Create a SOCKET for connecting to server
-        client_socket = _socket( ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol );
-        if ( client_socket == INVALID_SOCKET )
+		// Create a SOCKET for connecting to server
+		client_socket = _socket( ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol );
+		if ( client_socket == INVALID_SOCKET )
 		{
 			_closesocket( client_socket );
 			client_socket = INVALID_SOCKET;
 			break;
-        }
+		}
 
 		// Set a timeout for the connection.
 		if ( timeout != 0 )
@@ -332,16 +331,16 @@ SOCKET Client_Connection( const char *server, unsigned short port, int timeout )
 			}
 		}
 
-        // Connect to server.
-        if ( _connect( client_socket, ptr->ai_addr, ( int )ptr->ai_addrlen ) == SOCKET_ERROR )
+		// Connect to server.
+		if ( _connect( client_socket, ptr->ai_addr, ( int )ptr->ai_addrlen ) == SOCKET_ERROR )
 		{
-            _closesocket( client_socket );
+			_closesocket( client_socket );
 			client_socket = INVALID_SOCKET;
-            continue;
-        }
+			continue;
+		}
 
-        break;
-    }
+		break;
+	}
 
 	if ( result != NULL )
 	{
@@ -853,7 +852,7 @@ int ConstructVPNSPOST( char *send_buffer, char *resource, char *data, int data_l
 	"POST %s " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	/*"Referer: app:/voicezone.html\r\n" \*/
+	"Referer: app:/voicezone.html\r\n" \
 	"App-Name: %s\r\n" \
 	"Origin: app://\r\n" \
 	"Cookie: %s; %s\r\n" \
@@ -912,7 +911,7 @@ bool UploadMedia( wchar_t *file_path, HWND hWnd_update, unsigned char media_type
 	"POST %s " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	/*"Referer: app:/voicezone.html\r\n" \*/
+	"Referer: app:/voicezone.html\r\n" \
 	"App-Name: %s\r\n" \
 	"Origin: app://\r\n" \
 	"Cookie: %s; %s\r\n" \
@@ -1283,7 +1282,7 @@ THREAD_RETURN ExportContactList( void *pArguments )
 				"GET %s " \
 				"HTTP/1.1\r\n" \
 				"Host: %s\r\n" \
-				/*"Referer: app:/voicezone.html\r\n" \*/
+				"Referer: app:/voicezone.html\r\n" \
 				"App-Name: %s\r\n" \
 				"Cookie: %s\r\n" \
 				"Connection: close\r\n\r\n", list_resource, list_host, APPLICATION_NAME, wayfarer_cookies );
@@ -1481,7 +1480,7 @@ void DownloadContactPictures( updateinfo *ui )
 				"GET %s " \
 				"HTTP/1.1\r\n" \
 				"Host: %s\r\n" \
-				/*"Referer: app:/voicezone.html\r\n" \*/
+				"Referer: app:/voicezone.html\r\n" \
 				"App-Name: %s\r\n" \
 				"Cookie: %s\r\n" \
 				"Connection: close\r\n\r\n", resource, host, APPLICATION_NAME, wayfarer_cookies );
@@ -1768,7 +1767,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"GET /wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=%s&Ecom%%5FPassword=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"Cookie: %s\r\n" \
 		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host, wayfarer_cookies );
 	}
@@ -1778,7 +1777,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"GET /wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=%s&Ecom%%5FPassword=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host );
 	}
 
@@ -1808,7 +1807,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"Cookie: %s\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
@@ -1821,7 +1820,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
 		"Connection: keep-alive\r\n\r\n" \
@@ -1888,7 +1887,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"GET %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"Cookie: %s\r\n" \
 		"Connection: close\r\n\r\n", resource, host, saml_cookies );
 
@@ -1919,7 +1918,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"Cookie: %s\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
@@ -1932,7 +1931,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
 		"Connection: close\r\n\r\n" \
@@ -2664,7 +2663,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 			"GET %s?UserId=%s&ContactId=%s " \
 			"HTTP/1.1\r\n" \
 			"Host: %s\r\n" \
-			/*"Referer: app:/voicezone.html\r\n" \*/
+			"Referer: app:/voicezone.html\r\n" \
 			"App-Name: %s\r\n" \
 			"Cookie: %s; %s\r\n" \
 			"Connection: close\r\n\r\n", resource, account_id, old_ci->contact.contact_entry_id, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies );
@@ -2854,7 +2853,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"GET %s?UserId=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"App-Name: %s\r\n" \
 		"Cookie: %s; %s\r\n" \
 		"Connection: close\r\n\r\n", resource, account_id, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies );
@@ -2947,7 +2946,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"GET %s?UserId=%s&ContactId=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		/*"Referer: app:/voicezone.html\r\n" \*/
+		"Referer: app:/voicezone.html\r\n" \
 		"App-Name: %s\r\n" \
 		"Cookie: %s; %s\r\n" \
 		"Connection: close\r\n\r\n", resource, account_id, ci->contact.contact_entry_id, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies );
@@ -3266,7 +3265,7 @@ THREAD_RETURN Connection( void *pArguments )
 	"POST %sregistration " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	/*"Referer: app:/voicezone.html\r\n" \*/
+	"Referer: app:/voicezone.html\r\n" \
 	"App-Name: %s\r\n" \
 	"Origin: app://\r\n" \
 	"Cookie: %s\r\n" \
@@ -3329,7 +3328,7 @@ THREAD_RETURN Connection( void *pArguments )
 	"POST %sregistration " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	/*"Referer: app:/voicezone.html\r\n" \*/
+	"Referer: app:/voicezone.html\r\n" \
 	"App-Name: %s\r\n" \
 	"Origin: app://\r\n" \
 	"Cookie: %s; %s\r\n" \
@@ -3372,7 +3371,7 @@ THREAD_RETURN Connection( void *pArguments )
 	"GET /vpnspush/v1_5/join?id=%s&clientId=%s " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	/*"Referer: app:/voicezone.html\r\n" \*/
+	"Referer: app:/voicezone.html\r\n" \
 	"App-Name: %s\r\n" \
 	"Cookie: %s\r\n" \
 	"Connection: close\r\n\r\n", service_phone_number, client_id, host, APPLICATION_NAME, wayfarer_cookies );
@@ -3400,7 +3399,7 @@ THREAD_RETURN Connection( void *pArguments )
 	"GET /vpnspush/v1_5/check " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	/*"Referer: app:/voicezone.html\r\n" \*/
+	"Referer: app:/voicezone.html\r\n" \
 	"Cookie: %s; %s\r\n" \
 	"Connection: keep-alive\r\n\r\n", host, session_cookies, wayfarer_cookies );
 
@@ -3418,10 +3417,18 @@ THREAD_RETURN Connection( void *pArguments )
 		_SendMessageW( g_hWnd_login, WM_PROPAGATE, LOGGED_IN, 0 );	// Logged in
 	}
 
-	LARGE_INTEGER pf, pc_last, pc_current, pc_last_reg;
-	QueryPerformanceFrequency( &pf );
-	QueryPerformanceCounter( &pc_last );
-	QueryPerformanceCounter( &pc_last_reg );
+	LARGE_INTEGER li_current, li_update, li_register;
+	SYSTEMTIME SystemTime, LastSystemTime;
+	FILETIME FileTime, LastFileTime;
+
+	GetLocalTime( &LastSystemTime );
+	SystemTimeToFileTime( &LastSystemTime, &LastFileTime );
+
+	li_update.LowPart = LastFileTime.dwLowDateTime;
+	li_update.HighPart = LastFileTime.dwHighDateTime;
+
+	li_register.LowPart = LastFileTime.dwLowDateTime;
+	li_register.HighPart = LastFileTime.dwHighDateTime;
 
 	while ( true )
 	{
@@ -3430,6 +3437,9 @@ THREAD_RETURN Connection( void *pArguments )
 			if ( main_con.state != CONNECTION_KILL && login_state != LOGGED_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code from VPNS server." ); }
 			goto CLEANUP;
 		}
+
+		GetLocalTime( &SystemTime );
+		SystemTimeToFileTime( &SystemTime, &FileTime );
 
 		xml = _StrStrA( response, "\r\n\r\n" );
 		if ( xml != NULL && *( xml + 4 ) != NULL )
@@ -3444,12 +3454,6 @@ THREAD_RETURN Connection( void *pArguments )
 			// True only if all of the values were found.
 			if ( GetCallerIDInformation( xml, &call_to, &call_from, &caller_id, &call_reference_id ) == true )
 			{
-				SYSTEMTIME SystemTime;
-				GetLocalTime( &SystemTime );
-
-				FILETIME FileTime;
-				SystemTimeToFileTime( &SystemTime, &FileTime );
-
 				displayinfo *di = ( displayinfo * )GlobalAlloc( GMEM_FIXED, sizeof( displayinfo ) );
 
 				di->ci.call_to = call_to;
@@ -3478,10 +3482,13 @@ THREAD_RETURN Connection( void *pArguments )
 			}
 		}
 
-		QueryPerformanceCounter( &pc_current );
+		li_current.LowPart = FileTime.dwLowDateTime;
+		li_current.HighPart = FileTime.dwHighDateTime;
 
-		// More than 25 minutes have elapsed. Log in again to update the wayfarer cookies.
-		if ( ( ( pc_current.LowPart - pc_last.LowPart ) / pf.LowPart ) >= ( 25 * 60 ) )
+		// More than 25 minutes have elapsed. Log in again to update the wayfarer cookie.
+		// What we're doing here is preemptively updating the wayfarer cookie before it expires.
+		// This allows us to quickly process the incoming call without the need to handle any possible authentication errors.
+		if ( ( li_current.QuadPart - li_update.QuadPart ) >= ( 25 * 60 * FILETIME_TICKS_PER_SECOND ) )
 		{
 			// Reauthorize to get a new wayfarer cookie.
 			HANDLE hThread = ( HANDLE )_CreateThread( NULL, 0, Authorization, ( void * )NULL, 0, NULL );
@@ -3492,24 +3499,34 @@ THREAD_RETURN Connection( void *pArguments )
 				CloseHandle( hThread );
 			}
 
-			// Update the wayfarer cookies for the server ping.
+			// Update the wayfarer cookie for the server ping.
 			send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
 			"GET /vpnspush/v1_5/check " \
 			"HTTP/1.1\r\n" \
 			"Host: %s\r\n" \
-			/*"Referer: app:/voicezone.html\r\n" \*/
+			"Referer: app:/voicezone.html\r\n" \
 			"Cookie: %s; %s\r\n" \
 			"Connection: keep-alive\r\n\r\n", host, session_cookies, wayfarer_cookies );
 
-			QueryPerformanceCounter( &pc_last );	// Reset the last performance time.
+			// Reset the last wayfarer cookie update time.
+			GetLocalTime( &LastSystemTime );
+			SystemTimeToFileTime( &LastSystemTime, &LastFileTime );
+
+			li_update.LowPart = LastFileTime.dwLowDateTime;
+			li_update.HighPart = LastFileTime.dwHighDateTime;
 		}
 
 		// Update (refresh) registration after 20 hours.
-		if ( ( ( pc_current.LowPart - pc_last_reg.LowPart ) / pf.LowPart ) >= ( 20 * 60 * 60 ) )
+		if ( ( li_current.QuadPart - li_register.QuadPart ) >= ( 20 * 60 * 60 * FILETIME_TICKS_PER_SECOND ) )
 		{
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateRegistration, ( void * )NULL, 0, NULL ) );
 
-			QueryPerformanceCounter( &pc_last_reg );	// Reset the last performance time.
+			// Reset the last registration time.
+			GetLocalTime( &LastSystemTime );
+			SystemTimeToFileTime( &LastSystemTime, &LastFileTime );
+
+			li_register.LowPart = LastFileTime.dwLowDateTime;
+			li_register.HighPart = LastFileTime.dwHighDateTime;
 		}
 	}
 

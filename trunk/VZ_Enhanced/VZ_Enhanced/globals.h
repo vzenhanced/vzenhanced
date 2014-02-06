@@ -56,7 +56,7 @@
 #define WM_EXIT				WM_APP + 4
 #define WM_ALERT			WM_APP + 5
 
-#define FILETIME_TICKS_PER_SECOND	10000000
+#define FILETIME_TICKS_PER_SECOND	10000000LL
 
 ///// Contact Window messages /////
 #define CW_MODIFY			0	// Add or Update contacts.

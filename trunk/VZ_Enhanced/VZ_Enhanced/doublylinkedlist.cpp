@@ -18,6 +18,8 @@
 
 #include "doublylinkedlist.h"
 
+#define STRICT
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 DoublyLinkedList *DLL_CreateNode( void *data, void *shared )
