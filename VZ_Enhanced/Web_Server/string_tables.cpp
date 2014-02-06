@@ -39,7 +39,7 @@ wchar_t *server_string_table[] =
 	L"Port:",
 	L"Public/Private key pair:",
 	L"Require authentication:",
-	L"Select the root directory in which to server web pages.",
+	L"Select the root directory in which to serve web pages.",
 	L"SSL 2.0",
 	L"SSL 3.0",
 	L"SSL version:",

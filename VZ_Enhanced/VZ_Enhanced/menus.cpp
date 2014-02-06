@@ -760,7 +760,7 @@ void HandleRightClick( HWND hWnd )
 					li.HighPart = FileTime.dwHighDateTime;
 
 					// See if the elapsed time is less than 30 seconds.
-					if ( ( li.QuadPart - di->time.QuadPart ) <= 30 * FILETIME_TICKS_PER_SECOND )
+					if ( ( li.QuadPart - di->time.QuadPart ) <= ( 30 * FILETIME_TICKS_PER_SECOND ) )
 					{
 						if ( l_incoming_menu_showing == false )
 						{
