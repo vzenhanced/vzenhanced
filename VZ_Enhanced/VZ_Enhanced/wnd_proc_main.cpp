@@ -1274,7 +1274,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_account == NULL )
 						{
-							g_hWnd_account = _CreateWindowW( L"account", ST_Account_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 280 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 270 ) / 2 ), 280, 270, NULL, NULL, NULL, NULL );
+							g_hWnd_account = _CreateWindowW( L"account", ST_Account_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 290 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 270 ) / 2 ), 290, 270, NULL, NULL, NULL, NULL );
 							_ShowWindow( g_hWnd_account, SW_SHOWNORMAL );
 						}
 						_SetForegroundWindow( g_hWnd_account );

@@ -122,6 +122,13 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	ncm.cbSize = sizeof( NONCLIENTMETRICS );
 	_SystemParametersInfoW( SPI_GETNONCLIENTMETRICS, sizeof( NONCLIENTMETRICS ), &ncm, 0 );
 
+	/*// Force the font to be 8 points.
+	HDC hdc_screen = _GetDC( NULL );
+	int logical_height = -MulDiv( 8, _GetDeviceCaps( hdc_screen, LOGPIXELSY ), 72 );
+	_ReleaseDC( NULL, hdc_screen );
+
+	ncm.lfMessageFont.lfHeight = logical_height;*/
+
 	// Set our global font to the LOGFONT value obtained from the system.
 	hFont = _CreateFontIndirectW( &ncm.lfMessageFont );
 

@@ -963,7 +963,7 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
     {
 		case WM_CREATE:
 		{
-			g_hWnd_chk_auto_login = _CreateWindowW( WC_BUTTON, ST_Automatically_log_in, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 0, 110, 20, hWnd, ( HMENU )BTN_AUTO_LOGIN, NULL, NULL );
+			g_hWnd_chk_auto_login = _CreateWindowW( WC_BUTTON, ST_Automatically_log_in, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 0, 200, 20, hWnd, ( HMENU )BTN_AUTO_LOGIN, NULL, NULL );
 			
 			
 			g_hWnd_chk_reconnect = _CreateWindowW( WC_BUTTON, ST_Reconnect_upon_connection_loss_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 30, 200, 20, hWnd, ( HMENU )BTN_RECONNECT, NULL, NULL );
@@ -1187,7 +1187,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			_SendMessageW( g_hWnd_ud_transparency, UDM_SETRANGE32, 0, 255 );
 
 
-			g_hWnd_chk_border = _CreateWindowW( WC_BUTTON, ST_Hide_window_border, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 165, 120, 20, hWnd, ( HMENU )BTN_BORDER, NULL, NULL );
+			g_hWnd_chk_border = _CreateWindowW( WC_BUTTON, ST_Hide_window_border, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 165, 140, 20, hWnd, ( HMENU )BTN_BORDER, NULL, NULL );
 
 
 			g_hWnd_chk_play_sound = _CreateWindowW( WC_BUTTON, ST_Play_sound_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 195, 80, 20, hWnd, ( HMENU )BTN_PLAY_SOUND, NULL, NULL );
@@ -1206,18 +1206,18 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 
 			g_hWnd_font = _CreateWindowW( WC_STATIC, ST_Font_, WS_CHILD | WS_VISIBLE, 155, 105, 50, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_btn_font = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 270, 102, 40, 20, hWnd, ( HMENU )BTN_CHOOSE_FONT, NULL, NULL );
+			g_hWnd_btn_font = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 275, 102, 35, 20, hWnd, ( HMENU )BTN_CHOOSE_FONT, NULL, NULL );
 
 			g_hWnd_font_color = _CreateWindowW( WC_STATIC, ST_Font_color_, WS_CHILD | WS_VISIBLE, 155, 130, 90, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_btn_font_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 270, 127, 40, 20, hWnd, ( HMENU )BTN_FONT_COLOR, NULL, NULL );
+			g_hWnd_btn_font_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 275, 127, 35, 20, hWnd, ( HMENU )BTN_FONT_COLOR, NULL, NULL );
 
-			g_hWnd_chk_shadow = _CreateWindowW( WC_BUTTON, ST_Font_shadow_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 155, 155, 110, 15, hWnd, ( HMENU )BTN_SHADOW, NULL, NULL );
-			g_hWnd_btn_font_shadow_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 270, 152, 40, 20, hWnd, ( HMENU )BTN_FONT_SHADOW_COLOR, NULL, NULL );
+			g_hWnd_chk_shadow = _CreateWindowW( WC_BUTTON, ST_Font_shadow_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 155, 155, 120, 15, hWnd, ( HMENU )BTN_SHADOW, NULL, NULL );
+			g_hWnd_btn_font_shadow_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 275, 152, 35, 20, hWnd, ( HMENU )BTN_FONT_SHADOW_COLOR, NULL, NULL );
 
 
 			g_hWnd_group_justify = _CreateWindowW( WC_STATIC, ST_Justify_text_, WS_CHILD | WS_VISIBLE, 155, 180, 80, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_rad_left_justify = _CreateWindowW( WC_BUTTON, ST_Left, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 155, 195, 40, 20, hWnd, ( HMENU )RADIO_LEFT, NULL, NULL );
-			g_hWnd_rad_center_justify = _CreateWindowW( WC_BUTTON, ST_Center, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 200, 195, 50, 20, hWnd, ( HMENU )RADIO_CENTER, NULL, NULL );
+			g_hWnd_rad_center_justify = _CreateWindowW( WC_BUTTON, ST_Center, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 200, 195, 55, 20, hWnd, ( HMENU )RADIO_CENTER, NULL, NULL );
 			g_hWnd_rad_right_justify = _CreateWindowW( WC_BUTTON, ST_Right, BS_AUTORADIOBUTTON  | WS_CHILD | WS_VISIBLE, 260, 195, 60, 20, hWnd, ( HMENU )RADIO_RIGHT, NULL, NULL );
 
 			g_hWnd_group_time_format = _CreateWindowW( WC_STATIC, ST_Time_format_, WS_CHILD | WS_VISIBLE, 155, 225, 80, 15, hWnd, NULL, NULL, NULL );
@@ -1231,10 +1231,10 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			g_hWnd_static_example = _CreateWindowW( WC_STATIC, NULL, SS_OWNERDRAW | WS_BORDER | WS_CHILD | WS_VISIBLE, 325, 45, 195, 45, hWnd, NULL, NULL, NULL );
 
 			g_hWnd_static_background_color = _CreateWindowW( WC_STATIC, ST_Background_color_, WS_CHILD | WS_VISIBLE, 325, 105, 120, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_background_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 480, 102, 40, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR, NULL, NULL );
+			g_hWnd_background_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 485, 102, 35, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR, NULL, NULL );
 
-			g_hWnd_chk_gradient = _CreateWindowW( WC_BUTTON, ST_Gradient_background_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 325, 130, 155, 15, hWnd, ( HMENU )BTN_GRADIENT, NULL, NULL );
-			g_hWnd_btn_background_color2 = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 480, 127, 40, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR2, NULL, NULL );
+			g_hWnd_chk_gradient = _CreateWindowW( WC_BUTTON, ST_Gradient_background_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 325, 130, 160, 15, hWnd, ( HMENU )BTN_GRADIENT, NULL, NULL );
+			g_hWnd_btn_background_color2 = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 485, 127, 35, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR2, NULL, NULL );
 
 
 			g_hWnd_group_gradient_direction = _CreateWindowW( WC_STATIC, ST_Gradient_direction_, WS_CHILD | WS_VISIBLE, 325, 155, 120, 15, hWnd, NULL, NULL, NULL );

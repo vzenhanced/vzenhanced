@@ -594,7 +594,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			{
 				char *phone_number = ( char * )lParam;
 
-				if ( phone_number != NULL )
+				if ( phone_number != NULL && is_num( phone_number ) == 0 )	// Don't allow range numbers or anything with weird symbols.
 				{
 					_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )phone_number );
 				}
@@ -645,7 +645,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER ) );
 				}
 			}
-			else if ( wParam == 4 )
+			else if ( wParam == 4 )	// An incoming number to forward.
 			{
 				edit_di = ( displayinfo * )lParam;
 

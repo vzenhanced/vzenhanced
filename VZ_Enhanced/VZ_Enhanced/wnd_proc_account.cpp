@@ -33,15 +33,15 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 			HWND hWnd_static = _CreateWindowW( WC_STATIC, NULL, SS_GRAYFRAME | WS_CHILD | WS_VISIBLE, 10, 10, rc.right - 20, 195, hWnd, NULL, NULL, NULL );
 
-			HWND hWnd_static1 = _CreateWindowW( WC_STATIC, ST_Account_ID_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 20, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static2 = _CreateWindowW( WC_STATIC, ST_Account_Type_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 40, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static3 = _CreateWindowW( WC_STATIC, ST_Account_Status_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 60, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static4 = _CreateWindowW( WC_STATIC, ST_Principal_ID_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 80, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static5 = _CreateWindowW( WC_STATIC, ST_Service_Type_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 100, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static6 = _CreateWindowW( WC_STATIC, ST_Service_Status_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 120, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static7 = _CreateWindowW( WC_STATIC, ST_Service_Context_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 140, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static8 = _CreateWindowW( WC_STATIC, ST_Phone_Number_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 160, 90, 20, hWnd, NULL, NULL, NULL );
-			HWND hWnd_static9 = _CreateWindowW( WC_STATIC, ST_Privacy_Value_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 180, 90, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static1 = _CreateWindowW( WC_STATIC, ST_Account_ID_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 20, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static2 = _CreateWindowW( WC_STATIC, ST_Account_Type_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 40, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static3 = _CreateWindowW( WC_STATIC, ST_Account_Status_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 60, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static4 = _CreateWindowW( WC_STATIC, ST_Principal_ID_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 80, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static5 = _CreateWindowW( WC_STATIC, ST_Service_Type_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 100, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static6 = _CreateWindowW( WC_STATIC, ST_Service_Status_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 120, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static7 = _CreateWindowW( WC_STATIC, ST_Service_Context_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 140, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static8 = _CreateWindowW( WC_STATIC, ST_Phone_Number_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 160, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static9 = _CreateWindowW( WC_STATIC, ST_Privacy_Value_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 180, 95, 20, hWnd, NULL, NULL, NULL );
 
 			wchar_t *val = NULL;
 			int val_length = 0;
@@ -53,7 +53,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, account_id, -1, val, val_length );
 			}
 
-			HWND hWnd_edit1 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 110, 20, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit1 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 115, 20, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -65,7 +65,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, account_type, -1, val, val_length );
 			}
 
-			HWND hWnd_edit2 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 110, 40, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit2 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 115, 40, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -77,7 +77,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, account_status, -1, val, val_length );
 			}
 
-			HWND hWnd_edit3 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 110, 60, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit3 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 115, 60, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -89,7 +89,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, principal_id, -1, val, val_length );
 			}
 
-			HWND hWnd_edit4 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 110, 80, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit4 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 115, 80, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -101,7 +101,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, service_type, -1, val, val_length );
 			}
 
-			HWND hWnd_edit5 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 110, 100, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit5 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 115, 100, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -113,7 +113,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, service_status, -1, val, val_length );
 			}
 
-			HWND hWnd_edit6 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 110, 120, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit6 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 115, 120, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -125,7 +125,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, service_context, -1, val, val_length );
 			}
 
-			HWND hWnd_edit7 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 110, 140, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit7 = _CreateWindowW( WC_EDIT, val, ES_READONLY | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE, 115, 140, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -137,7 +137,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, service_phone_number, -1, val, val_length );
 			}
 
-			HWND hWnd_edit8 = _CreateWindowW( WC_EDIT, val, ES_READONLY | WS_CHILD | ES_AUTOHSCROLL | WS_VISIBLE, 110, 160, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit8 = _CreateWindowW( WC_EDIT, val, ES_READONLY | WS_CHILD | ES_AUTOHSCROLL | WS_VISIBLE, 115, 160, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
@@ -149,7 +149,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				MultiByteToWideChar( CP_UTF8, 0, service_privacy_value, -1, val, val_length );
 			}
 
-			HWND hWnd_edit9 = _CreateWindowW( WC_EDIT, val, ES_READONLY | WS_CHILD | ES_AUTOHSCROLL | WS_VISIBLE, 110, 180, 145, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_edit9 = _CreateWindowW( WC_EDIT, val, ES_READONLY | WS_CHILD | ES_AUTOHSCROLL | WS_VISIBLE, 115, 180, 150, 20, hWnd, NULL, NULL, NULL );
 
 			GlobalFree( val );
 			val = NULL;
