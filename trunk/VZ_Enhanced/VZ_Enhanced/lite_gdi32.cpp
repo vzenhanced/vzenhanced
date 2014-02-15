@@ -30,6 +30,7 @@
 	pDeleteObject				_DeleteObject;
 	pGdiAlphaBlend				_GdiAlphaBlend;
 	pGdiGradientFill			_GdiGradientFill;
+	//pGetDeviceCaps				_GetDeviceCaps;
 	pGetStockObject				_GetStockObject;
 	pPatBlt						_PatBlt;
 	pSelectObject				_SelectObject;
@@ -64,6 +65,7 @@
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_gdi32, ( void ** )&_DeleteObject, "DeleteObject" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_gdi32, ( void ** )&_GdiAlphaBlend, "GdiAlphaBlend" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_gdi32, ( void ** )&_GdiGradientFill, "GdiGradientFill" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_gdi32, ( void ** )&_GetDeviceCaps, "GetDeviceCaps" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_gdi32, ( void ** )&_GetStockObject, "GetStockObject" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_gdi32, ( void ** )&_PatBlt, "PatBlt" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_gdi32, ( void ** )&_SelectObject, "SelectObject" ) )

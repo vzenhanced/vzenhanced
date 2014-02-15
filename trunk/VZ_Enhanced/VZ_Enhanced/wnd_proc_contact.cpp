@@ -77,54 +77,54 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 			HWND hWnd_static = _CreateWindowW( WC_STATIC, NULL, SS_GRAYFRAME | WS_CHILD | WS_VISIBLE, 10, 10, rc.right - 20, rc.bottom - 50, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static1 = _CreateWindowW( WC_STATIC, ST_Title_, WS_CHILD | WS_VISIBLE, 20, 22, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static1 = _CreateWindowW( WC_STATIC, ST_Title_, WS_CHILD | WS_VISIBLE, 20, 22, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_title = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 20, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static2 = _CreateWindowW( WC_STATIC, ST_First_Name_, WS_CHILD | WS_VISIBLE, 20, 47, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static2 = _CreateWindowW( WC_STATIC, ST_First_Name_, WS_CHILD | WS_VISIBLE, 20, 47, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_first_name = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 45, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static3 = _CreateWindowW( WC_STATIC, ST_Last_Name_, WS_CHILD | WS_VISIBLE, 20, 72, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static3 = _CreateWindowW( WC_STATIC, ST_Last_Name_, WS_CHILD | WS_VISIBLE, 20, 72, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_last_name = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 70, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static4 = _CreateWindowW( WC_STATIC, ST_Nickname_, WS_CHILD | WS_VISIBLE, 20, 97, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static4 = _CreateWindowW( WC_STATIC, ST_Nickname_, WS_CHILD | WS_VISIBLE, 20, 97, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_nickname = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 95, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static5 = _CreateWindowW( WC_STATIC, ST_Company_, WS_CHILD | WS_VISIBLE, 20, 122, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static5 = _CreateWindowW( WC_STATIC, ST_Company_, WS_CHILD | WS_VISIBLE, 20, 122, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_company = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 120, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static6 = _CreateWindowW( WC_STATIC, ST_Job_Title_, WS_CHILD | WS_VISIBLE, 20, 147, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static6 = _CreateWindowW( WC_STATIC, ST_Job_Title_, WS_CHILD | WS_VISIBLE, 20, 147, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_job_title = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 145, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static7 = _CreateWindowW( WC_STATIC, ST_Department_, WS_CHILD | WS_VISIBLE, 20, 172, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static7 = _CreateWindowW( WC_STATIC, ST_Department_, WS_CHILD | WS_VISIBLE, 20, 172, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_department = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 170, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static8 = _CreateWindowW( WC_STATIC, ST_Profession_, WS_CHILD | WS_VISIBLE, 20, 197, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static8 = _CreateWindowW( WC_STATIC, ST_Profession_, WS_CHILD | WS_VISIBLE, 20, 197, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_profession = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 195, 100, 20, hWnd, NULL, NULL, NULL );
 
 
 
-			HWND g_hWnd_static9 = _CreateWindowW( WC_STATIC, ST_Home_Phone_, WS_CHILD | WS_VISIBLE, 220, 22, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static9 = _CreateWindowW( WC_STATIC, ST_Home_Phone_, WS_CHILD | WS_VISIBLE, 220, 22, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_home_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 20, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static10 = _CreateWindowW( WC_STATIC, ST_Cell_Phone_, WS_CHILD | WS_VISIBLE, 220, 47, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static10 = _CreateWindowW( WC_STATIC, ST_Cell_Phone_, WS_CHILD | WS_VISIBLE, 220, 47, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_cell_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 45, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static11 = _CreateWindowW( WC_STATIC, ST_Office_Phone_, WS_CHILD | WS_VISIBLE, 220, 72, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static11 = _CreateWindowW( WC_STATIC, ST_Office_Phone_, WS_CHILD | WS_VISIBLE, 220, 72, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_office_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 70, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static12 = _CreateWindowW( WC_STATIC, ST_Other_Phone_, WS_CHILD | WS_VISIBLE, 220, 97, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static12 = _CreateWindowW( WC_STATIC, ST_Other_Phone_, WS_CHILD | WS_VISIBLE, 220, 97, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_other_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 95, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static13 = _CreateWindowW( WC_STATIC, ST_Work_Phone_, WS_CHILD | WS_VISIBLE, 220, 122, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static13 = _CreateWindowW( WC_STATIC, ST_Work_Phone_, WS_CHILD | WS_VISIBLE, 220, 122, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_work_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 120, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static14 = _CreateWindowW( WC_STATIC, ST_Fax_, WS_CHILD | WS_VISIBLE, 220, 147, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static14 = _CreateWindowW( WC_STATIC, ST_Fax_, WS_CHILD | WS_VISIBLE, 220, 147, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_fax_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 145, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static15 = _CreateWindowW( WC_STATIC, ST_Email_Address_, WS_CHILD | WS_VISIBLE, 220, 172, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static15 = _CreateWindowW( WC_STATIC, ST_Email_Address_, WS_CHILD | WS_VISIBLE, 220, 172, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_email_address = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 170, 100, 20, hWnd, NULL, NULL, NULL );
 
-			HWND g_hWnd_static16 = _CreateWindowW( WC_STATIC, ST_Web_Page_, WS_CHILD | WS_VISIBLE, 220, 197, 70, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static16 = _CreateWindowW( WC_STATIC, ST_Web_Page_, WS_CHILD | WS_VISIBLE, 220, 197, 75, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_web_page = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 195, 100, 20, hWnd, NULL, NULL, NULL );
 
 
