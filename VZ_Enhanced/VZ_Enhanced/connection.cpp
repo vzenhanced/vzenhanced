@@ -78,6 +78,7 @@ char *service_status = NULL;
 char *service_context = NULL;
 char *service_phone_number = NULL;
 char *service_privacy_value = NULL;
+char *service_features = NULL;
 
 char *worker_send_buffer = NULL;
 char *connection_send_buffer = NULL;
@@ -175,6 +176,8 @@ void free_shared_variables()
 	service_phone_number = NULL;
 	GlobalFree( service_privacy_value );
 	service_privacy_value = NULL;
+	GlobalFree( service_features );
+	service_features = NULL;
 
 	GlobalFree( worker_send_buffer );
 	worker_send_buffer = NULL;
@@ -372,7 +375,17 @@ SSL *Client_Connection_Secure( const char *server, unsigned short port, int time
 		}
 	}
 
-	SSL *ssl = SSL_new( 0 );	// Default protocol.
+	DWORD protocol = 0;
+	switch ( cfg_connection_ssl_version )
+	{
+		case 4:	protocol |= SP_PROT_TLS1_2_CLIENT;
+		case 3:	protocol |= SP_PROT_TLS1_1_CLIENT;
+		case 2:	protocol |= SP_PROT_TLS1_CLIENT;
+		case 1:	protocol |= SP_PROT_SSL3_CLIENT;
+		case 0:	{ if ( cfg_connection_ssl_version < 4 ) { protocol |= SP_PROT_SSL2_CLIENT; } }
+	}
+
+	SSL *ssl = SSL_new( protocol );
 	if ( ssl == NULL )
 	{
 		_shutdown( client_socket, SD_BOTH );
@@ -3298,7 +3311,7 @@ THREAD_RETURN Connection( void *pArguments )
 	{
 		xml += 4;
 
-		if ( GetAccountInformation( xml, &client_id, &account_id, &account_status, &account_type, &principal_id, &service_type, &service_status, &service_context, &service_phone_number, &service_privacy_value, &service_notifications ) == false )
+		if ( GetAccountInformation( xml, &client_id, &account_id, &account_status, &account_type, &principal_id, &service_type, &service_status, &service_context, &service_phone_number, &service_privacy_value, &service_notifications, &service_features ) == false )
 		{
 			if ( main_con.state != CONNECTION_KILL && login_state != LOGGED_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse account information." ); }
 			goto CLEANUP;
@@ -3550,6 +3563,11 @@ CLEANUP:
 		login_state = LOGGED_OUT;
 		_SendMessageW( g_hWnd_login, WM_PROPAGATE, LOGGED_OUT, 0 );
 	}
+
+	// Reset so we can log back in from a clean log off.
+	main_con.state = CONNECTION_ACTIVE;
+	worker_con.state = CONNECTION_ACTIVE;
+	incoming_con.state = CONNECTION_ACTIVE;
 
 	// Free shared variables among connection threads.
 	free_shared_variables();

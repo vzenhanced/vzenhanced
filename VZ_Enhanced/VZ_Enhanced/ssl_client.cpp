@@ -232,7 +232,7 @@ static SECURITY_STATUS ClientHandshakeLoop( SSL *ssl, bool fDoInitialRead )
 					scRet = SEC_E_INTERNAL_ERROR;
 					break;
 				}
-					else if( cbData == 0 )
+				else if ( cbData == 0 )
 				{
 					scRet = SEC_E_INTERNAL_ERROR;
 					break;

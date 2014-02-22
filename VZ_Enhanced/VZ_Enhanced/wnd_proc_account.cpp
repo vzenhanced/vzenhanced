@@ -31,7 +31,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			RECT rc;
 			_GetClientRect( hWnd, &rc );
 
-			HWND hWnd_static = _CreateWindowW( WC_STATIC, NULL, SS_GRAYFRAME | WS_CHILD | WS_VISIBLE, 10, 10, rc.right - 20, 195, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static = _CreateWindowW( WC_STATIC, NULL, SS_GRAYFRAME | WS_CHILD | WS_VISIBLE, 10, 10, rc.right - 20, 215, hWnd, NULL, NULL, NULL );
 
 			HWND hWnd_static1 = _CreateWindowW( WC_STATIC, ST_Account_ID_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 20, 95, 20, hWnd, NULL, NULL, NULL );
 			HWND hWnd_static2 = _CreateWindowW( WC_STATIC, ST_Account_Type_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 40, 95, 20, hWnd, NULL, NULL, NULL );
@@ -42,6 +42,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			HWND hWnd_static7 = _CreateWindowW( WC_STATIC, ST_Service_Context_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 140, 95, 20, hWnd, NULL, NULL, NULL );
 			HWND hWnd_static8 = _CreateWindowW( WC_STATIC, ST_Phone_Number_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 160, 95, 20, hWnd, NULL, NULL, NULL );
 			HWND hWnd_static9 = _CreateWindowW( WC_STATIC, ST_Privacy_Value_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 180, 95, 20, hWnd, NULL, NULL, NULL );
+			HWND hWnd_static10 = _CreateWindowW( WC_STATIC, ST_Features_, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 20, 200, 95, 20, hWnd, NULL, NULL, NULL );
 
 			wchar_t *val = NULL;
 			int val_length = 0;
@@ -154,6 +155,18 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			GlobalFree( val );
 			val = NULL;
 
+			if ( service_features != NULL )
+			{
+				val_length = MultiByteToWideChar( CP_UTF8, 0, service_features, -1, NULL, 0 );	// Include the NULL terminator.
+				val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
+				MultiByteToWideChar( CP_UTF8, 0, service_features, -1, val, val_length );
+			}
+
+			HWND hWnd_edit10 = _CreateWindowW( WC_EDIT, val, ES_READONLY | WS_CHILD | ES_AUTOHSCROLL | WS_VISIBLE, 115, 200, 150, 20, hWnd, NULL, NULL, NULL );
+
+			GlobalFree( val );
+			val = NULL;
+
 			HWND ok = _CreateWindowW( WC_BUTTON, ST_OK, BS_DEFPUSHBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, ( rc.right - rc.left - ( _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ) ) ) / 2, rc.bottom - 32, _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ), 23, hWnd, ( HMENU )BTN_EXIT_INFO, NULL, NULL );
 
 			_SendMessageW( hWnd_static1, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -165,6 +178,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			_SendMessageW( hWnd_static7, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( hWnd_static8, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( hWnd_static9, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( hWnd_static10, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( hWnd_edit1, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( hWnd_edit2, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -175,6 +189,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			_SendMessageW( hWnd_edit7, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( hWnd_edit8, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( hWnd_edit9, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( hWnd_edit10, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( ok, WM_SETFONT, ( WPARAM )hFont, 0 );
 

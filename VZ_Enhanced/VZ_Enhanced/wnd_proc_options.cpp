@@ -81,6 +81,8 @@
 
 #define BTN_SILENT_STARTUP		1039
 
+#define CB_SSL_VERSION			1040
+
 HWND g_hWnd_options_tab = NULL;
 
 HWND g_hWnd_chk_tray_icon = NULL;
@@ -98,6 +100,9 @@ HWND g_hWnd_ud_retries = NULL;
 HWND g_hWnd_static_timeout = NULL;
 HWND g_hWnd_timeout = NULL;
 HWND g_hWnd_ud_timeout = NULL;
+
+HWND g_hWnd_static_ssl_version = NULL;
+HWND g_hWnd_ssl_version = NULL;
 
 
 HWND g_hWnd_chk_enable_popups = NULL;
@@ -739,6 +744,7 @@ void Set_Window_Settings()
 	_SendMessageW( g_hWnd_ud_time, UDM_SETPOS, 0, cfg_popup_time );
 	_SendMessageW( g_hWnd_ud_transparency, UDM_SETPOS, 0, cfg_popup_transparency );
 
+	_SendMessageW( g_hWnd_ssl_version, CB_SETCURSEL, cfg_connection_ssl_version, 0 );
 
 	if ( cfg_minimize_to_tray == true )
 	{
@@ -989,6 +995,15 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 			// Keep this unattached. Looks ugly inside the text box.
 			g_hWnd_ud_timeout = _CreateWindowW( UPDOWN_CLASS, NULL, /*UDS_ALIGNRIGHT |*/ UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_SETBUDDYINT | WS_CHILD | WS_VISIBLE, 50, 139, 50, 22, hWnd, NULL, NULL, NULL );
 
+			g_hWnd_static_ssl_version = _CreateWindowW( WC_STATIC, ST_SSL_version_, WS_CHILD | WS_VISIBLE, 0, 175, 150, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_ssl_version = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_COMBOBOX, NULL, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 0, 190, 100, 20, hWnd, ( HMENU )CB_SSL_VERSION, NULL, NULL );
+			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_SSL_2_0 );
+			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_SSL_3_0 );
+			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_TLS_1_0 );
+			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_TLS_1_1 );
+			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_TLS_1_2 );
+
+
 			_SendMessageW( g_hWnd_timeout, EM_LIMITTEXT, 3, 0 );
 			_SendMessageW( g_hWnd_ud_timeout, UDM_SETBUDDY, ( WPARAM )g_hWnd_timeout, 0 );
             _SendMessageW( g_hWnd_ud_timeout, UDM_SETBASE, 10, 0 );
@@ -1002,6 +1017,9 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
 			_SendMessageW( g_hWnd_static_timeout, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_timeout, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			_SendMessageW( g_hWnd_static_ssl_version, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_ssl_version, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			return 0;
 		}
@@ -1097,6 +1115,21 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 				{
 					options_state_changed = true;
 					_EnableWindow( g_hWnd_apply, TRUE );
+				}
+				break;
+
+				case CB_SSL_VERSION:
+				{
+					if ( HIWORD( wParam ) == CBN_SELCHANGE )
+					{
+						if ( cfg_connection_ssl_version != ( unsigned char )_SendMessageW( g_hWnd_ssl_version, CB_GETCURSEL, 0, 0 ) )
+						{
+							_MessageBoxW( hWnd, ST_must_restart_program, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						}
+
+						options_state_changed = true;
+						_EnableWindow( g_hWnd_apply, TRUE );
+					}
 				}
 				break;
 			}
@@ -2836,6 +2869,8 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						cfg_connection_retries = ( unsigned char )_strtoul( value, NULL, 10 );
 						_SendMessageA( g_hWnd_timeout, WM_GETTEXT, 4, ( LPARAM )value );
 						cfg_connection_timeout = ( unsigned short )_strtoul( value, NULL, 10 );
+
+						cfg_connection_ssl_version = ( unsigned char )_SendMessageW( g_hWnd_ssl_version, CB_GETCURSEL, 0, 0 );
 
 						cfg_connection_auto_login = ( _SendMessageW( g_hWnd_chk_auto_login, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_connection_reconnect = ( _SendMessageW( g_hWnd_chk_reconnect, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );

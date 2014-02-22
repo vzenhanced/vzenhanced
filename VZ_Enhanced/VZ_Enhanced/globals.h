@@ -387,6 +387,7 @@ extern char *service_status;
 extern char *service_context;
 extern char *service_phone_number;
 extern char *service_privacy_value;
+extern char *service_features;
 
 // Saved configuration variables
 extern wchar_t *cfg_username;
@@ -537,6 +538,7 @@ extern bool cfg_download_pictures;
 extern unsigned char cfg_connection_retries;
 
 extern unsigned short cfg_connection_timeout;
+extern unsigned char cfg_connection_ssl_version;
 
 extern char *tab_order[ NUM_TABS ];
 
