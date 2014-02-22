@@ -192,6 +192,8 @@ unsigned char cfg_connection_retries = 3;
 
 unsigned short cfg_connection_timeout = 15;	// Seconds.
 
+unsigned char cfg_connection_ssl_version = 2;	// TLS 1.0
+
 char *tab_order[ NUM_TABS ] = { &cfg_tab_order1, &cfg_tab_order2, &cfg_tab_order3, &cfg_tab_order4 };
 
 char *list_columns[ NUM_COLUMNS ] =			 { &cfg_column_order1, &cfg_column_order2, &cfg_column_order3, &cfg_column_order4, &cfg_column_order5, &cfg_column_order6, &cfg_column_order7, &cfg_column_order8, &cfg_column_order9 };

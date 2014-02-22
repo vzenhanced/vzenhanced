@@ -44,7 +44,7 @@ void read_config()
 		DWORD fz = GetFileSize( hFile_cfg, NULL );
 
 		// Our config file is going to be small. If it's something else, we're not going to read it.
-		if ( fz >= 294 && fz < 10240 )
+		if ( fz >= 295 && fz < 10240 )
 		{
 			char *cfg_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * fz + 1 );
 
@@ -70,6 +70,8 @@ void read_config()
 				next += sizeof( unsigned char );
 				_memcpy_s( &cfg_connection_timeout, sizeof( unsigned short ), next, sizeof( unsigned short ) );
 				next += sizeof( unsigned short );
+				_memcpy_s( &cfg_connection_ssl_version, sizeof( unsigned char ), next, sizeof( unsigned char ) );
+				next += sizeof( unsigned char );
 
 				_memcpy_s( &cfg_pos_x, sizeof( int ), next, sizeof( int ) );
 				next += sizeof( int );
@@ -484,7 +486,7 @@ void save_config()
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_cfg != INVALID_HANDLE_VALUE )
 	{
-		int size = ( sizeof( int ) * 53 ) + ( sizeof( bool ) * 15 ) + ( sizeof( char ) * 57 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
+		int size = ( sizeof( int ) * 53 ) + ( sizeof( bool ) * 15 ) + ( sizeof( char ) * 58 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
 		int pos = 0;
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
@@ -505,6 +507,8 @@ void save_config()
 		pos += sizeof( unsigned char );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_connection_timeout, sizeof( unsigned short ) );
 		pos += sizeof( unsigned short );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_connection_ssl_version, sizeof( unsigned char ) );
+		pos += sizeof( unsigned char );
 		
 		_memcpy_s( write_buf + pos, size - pos, &cfg_pos_x, sizeof( int ) );
 		pos += sizeof( int );

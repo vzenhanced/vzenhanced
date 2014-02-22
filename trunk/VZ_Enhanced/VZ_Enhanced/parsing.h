@@ -37,7 +37,7 @@ bool ParseCookies( char *decoded_buffer, dllrbt_tree **cookie_tree, char **cooki
 
 bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **parameters, int &parameter_length );
 
-bool GetAccountInformation( char *xml, char **client_id, char **account_id, char **account_status, char **account_type, char **principal_id, char **service_type, char **service_status, char **service_context, char **service_phone_number, char **service_privacy_value, char **service_notifications, bool client_id_only = false );
+bool GetAccountInformation( char *xml, char **client_id, char **account_id, char **account_status, char **account_type, char **principal_id, char **service_type, char **service_status, char **service_context, char **service_phone_number, char **service_privacy_value, char **service_notifications, char **service_features, bool client_id_only = false );
 bool GetCallerIDInformation( char *xml, char **call_to, char **call_from, char **caller_id, char **call_reference_id );
 
 bool GetContactListLocation( char *xml, char **contact_list_location );

@@ -1257,7 +1257,7 @@ StackTree *GetElementAttributeValue( StackTree *tree, char *element_name, int el
 	return NULL;
 }
 
-bool GetAccountInformation( char *xml, char **client_id, char **account_id, char **account_status, char **account_type, char **principal_id, char **service_type, char **service_status, char **service_context, char **service_phone_number, char **service_privacy_value, char **service_notifications, bool client_id_only )
+bool GetAccountInformation( char *xml, char **client_id, char **account_id, char **account_status, char **account_type, char **principal_id, char **service_type, char **service_status, char **service_context, char **service_phone_number, char **service_privacy_value, char **service_notifications, char **service_features, bool client_id_only )
 {
 	unsigned char status = 0;
 
@@ -1318,9 +1318,11 @@ bool GetAccountInformation( char *xml, char **client_id, char **account_id, char
 			{
 				stree = stree->child;
 
+				StackTree *ftree = stree;	// Save this so we can search for features.
+
 				int notification_length = 0;
 				int notification_count = 0;
-				int buffer_size = 9;
+				int buffer_size = 8;
 				char **notification_array = ( char ** )GlobalAlloc( GMEM_FIXED, sizeof( char * ) * buffer_size );
 
 				for ( int i = 0; i < buffer_size; ++i )
@@ -1388,6 +1390,8 @@ bool GetAccountInformation( char *xml, char **client_id, char **account_id, char
 						offset += notification_length;
 						_memcpy_s( *service_notifications + offset, service_notification_length - offset, "\" />", 4 );
 						offset += 4;
+
+						GlobalFree( notification_array[ i ] );
 					}
 					else
 					{
@@ -1396,6 +1400,81 @@ bool GetAccountInformation( char *xml, char **client_id, char **account_id, char
 				}
 
 				*( *service_notifications + ( service_notification_length - 1 ) ) = 0;	// Sanity.
+
+				GlobalFree( notification_array );
+
+				int feature_length = 0;
+				int feature_count = 0;
+				buffer_size = 4;
+				char **feature_array = ( char ** )GlobalAlloc( GMEM_FIXED, sizeof( char * ) * buffer_size );
+
+				for ( int i = 0; i < buffer_size; ++i )
+				{
+					int length = 0;
+					char *feature = NULL;
+					stree = GetElementAttributeValue( ftree, "Feature", 7, "type", 4, &feature, &length );
+					feature_length += length;
+
+					if ( feature == NULL )
+					{
+						break;
+					}
+					else if ( i == buffer_size - 1 )
+					{
+						buffer_size += 4;
+						char **realloc_array = ( char ** )GlobalReAlloc( feature_array, sizeof( char * ) * buffer_size, GMEM_MOVEABLE );
+						if ( realloc_array == NULL )
+						{
+							break;
+						}
+
+						feature_array = realloc_array;
+					}
+
+					feature_array[ feature_count ] = feature;
+					++feature_count;
+
+					if ( ftree != NULL && ftree->sibling != NULL )
+					{
+						ftree = ftree->sibling;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				feature_array[ feature_count ] = NULL;	// Sanity.
+
+				offset = 0;
+				int service_feature_length = ( ( feature_count > 0 ? ( feature_count - 1 ) : feature_count ) * 2 ) + feature_length + 1;
+				*service_features = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * service_feature_length );
+
+				for ( int i = 0; i < feature_count; ++i )
+				{
+					if ( feature_array[ i ] != NULL )
+					{
+						feature_length = lstrlenA( feature_array[ i ] );
+						_memcpy_s( *service_features + offset, service_feature_length - offset, feature_array[ i ], feature_length );
+						offset += feature_length;
+
+						if ( i < feature_count - 1 )
+						{
+							_memcpy_s( *service_features + offset, service_feature_length - offset, ", ", 2 );
+							offset += 2;
+						}
+
+						GlobalFree( feature_array[ i ] );
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				*( *service_features + ( service_feature_length - 1 ) ) = 0;	// Sanity.
+
+				GlobalFree( feature_array );
 
 				status = 2;
 			}
@@ -1539,11 +1618,15 @@ void ParseImportResponse( char *xml, int &success_count, int &failure_count )
 			if ( c_success_count != NULL )
 			{
 				success_count = _strtoul( c_success_count, NULL, 10 );
+
+				GlobalFree( c_success_count );
 			}
 
 			if ( c_failure_count != NULL )
 			{
 				failure_count = _strtoul( c_failure_count, NULL, 10 );
+
+				GlobalFree( c_failure_count );
 			}
 		}
 	}
@@ -1739,9 +1822,9 @@ bool BuildContactList( char *xml )
 	if ( items != NULL )
 	{
 		item_count = _strtoul( items, NULL, 10 );
-	}
 
-	GlobalFree( items );
+		GlobalFree( items );
+	}
 
 	if ( rtree != NULL && rtree->child != NULL )
 	{
