@@ -1037,8 +1037,6 @@ THREAD_RETURN ImportContactList( void *pArguments )
 		_SendMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_UPDATE, UPDATE_BEGIN ), 0 );
 	}
 
-	char *upload_buffer = NULL;
-
 	char *response = NULL;
 	unsigned int response_length = 0;
 	unsigned short http_status = 0;
@@ -1182,9 +1180,6 @@ CLEANUP:
 
 	GlobalFree( response );
 	response = NULL;
-
-	//GlobalFree( upload_buffer );
-	//upload_buffer = NULL;
 
 	if ( iei != NULL )
 	{
@@ -1576,8 +1571,6 @@ CLEANUP:
 // Returns the upload_status.
 bool UploadContactPicture( updateinfo *ui )
 {
-	char *upload_buffer = NULL;
-
 	char *response = NULL;
 	unsigned int response_length = 0;
 	unsigned short http_status = 0;
@@ -1585,7 +1578,7 @@ bool UploadContactPicture( updateinfo *ui )
 	unsigned int last_buffer_size = 0;
 
 	contactinfo *old_ci = NULL;	// Do not free this.
-	contactinfo *new_ci = NULL;
+	contactinfo *new_ci = NULL;	// Do not free this.
 
 	bool upload_status = false;
 
@@ -1597,7 +1590,8 @@ bool UploadContactPicture( updateinfo *ui )
 	old_ci = ( contactinfo * )ui->old_ci;
 	new_ci = ( contactinfo * )ui->new_ci;
 
-	if ( old_ci == NULL && new_ci == NULL )
+	// old_ci and new_ci must not be NULL.
+	if ( old_ci == NULL || new_ci == NULL )
 	{
 		goto CLEANUP;
 	}
@@ -1728,16 +1722,12 @@ bool UploadContactPicture( updateinfo *ui )
 		upload_status = true;
 	}
 
-	
 CLEANUP:
 
 	CleanupConnection( &worker_con );
 
 	GlobalFree( response );
 	response = NULL;
-
-	GlobalFree( upload_buffer );
-	upload_buffer = NULL;
 
 	// If we never updated the old_ci picture_path to the new_ci picture_path, then free the new_ci picture_path.
 	if ( new_ci != NULL && new_ci->picture_path != NULL && upload_status == false )
@@ -2533,7 +2523,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	unsigned int last_buffer_size = 0;
 
 	updateinfo *ui = NULL;
-	contactinfo *old_ci = NULL;
+	contactinfo *old_ci = NULL;	// Do not free this.
 	contactinfo *new_ci = NULL;
 
 	bool picture_only = false;	// If we only update the picture.
@@ -2548,11 +2538,11 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 		goto CLEANUP;
 	}
 
-	old_ci = ( contactinfo * )ui->old_ci;	// Do not free this.
+	old_ci = ( contactinfo * )ui->old_ci;
 	new_ci = ( contactinfo * )ui->new_ci;
 
 	// old_ci and new_ci must not be NULL.
-	if ( old_ci == NULL && new_ci == NULL )
+	if ( old_ci == NULL || new_ci == NULL )
 	{
 		goto CLEANUP;
 	}
