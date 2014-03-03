@@ -92,6 +92,242 @@ char *fields_tolower( char *decoded_buffer )
 	return end_of_header;
 }
 
+// Allocates a new string if characters need encoding. Otherwise, it returns NULL.
+char *encode_xml_entities( const char *string )
+{
+	char *encoded_string = NULL;
+	char *q = NULL;
+	const char *p = NULL;
+	int c = 0;
+
+	if ( string == NULL )
+	{
+		return NULL;
+	}
+
+	// Get the character count and offset it for any entities.
+	for ( c = 0, p = string; *p != NULL; ++p ) 
+	{
+		switch ( *p ) 
+		{
+			case '&':
+			{
+				c += 5;	// "&amp;"
+			}
+			break;
+
+			case '\'':
+			{
+				c += 6;	// "&apos;"
+			}
+			break;
+
+			case '"':
+			{
+				c += 6;	// "&quot;"
+			}
+			break;
+
+			case '<':
+			{
+				c += 4;	// "&lt;"
+			}
+			break;
+
+			case '>':
+			{
+				c += 4;	// "&gt;"
+			}
+			break;
+
+			default:
+			{
+				++c;
+			}
+			break;
+		}
+	}
+
+	// If the string has no special characters to encode, then return NULL.
+	if ( c <= ( p - string ) )
+	{
+		return NULL;
+	}
+
+	q = encoded_string = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( c + 1 ) );
+
+	for ( p = string; *p != NULL; ++p ) 
+	{
+		switch ( *p ) 
+		{
+			case '&':
+			{
+				_memcpy_s( q, 5, "&amp;", 5 );
+				q += 5;
+			}
+			break;
+
+			case '\'':
+			{
+				_memcpy_s( q, 6, "&apos;", 6 );
+				q += 6;
+			}
+			break;
+
+			case '"':
+			{
+				_memcpy_s( q, 6, "&quot;", 6 );
+				q += 6;
+			}
+			break;
+
+			case '<':
+			{
+				_memcpy_s( q, 4, "&lt;", 4 );
+				q += 4;
+			}
+			break;
+
+			case '>':
+			{
+				_memcpy_s( q, 4, "&gt;", 4 );
+				q += 4;
+			}
+			break;
+
+			default:
+			{
+				*q = *p;
+				++q;
+			}
+			break;
+		}
+	}
+
+	*q = 0;	// Sanity.
+
+	return encoded_string;
+}
+
+// Overwrites the string argument and returns it when done.
+char *decode_xml_entities( char *string )
+{
+	char *p = NULL;
+	char *q = NULL;
+
+	if ( string == NULL )
+	{
+		return NULL;
+	}
+
+	for ( p = q = string; *p != NULL; ++p, ++q ) 
+	{
+		if ( *p == '&' )	// Entity name representation
+		{
+			if ( !_StrCmpNIA( p + 1, "amp;", 4 ) )
+			{
+				*q = '&';
+				p += 4;
+			}
+			else if ( !_StrCmpNIA( p + 1, "apos;", 5 ) )
+			{
+				*q = '\'';
+				p += 5;
+			}
+			else if ( !_StrCmpNIA( p + 1, "quot;", 5 ) )
+			{
+				*q = '"';
+				p += 5;
+			}
+			else if ( !_StrCmpNIA( p + 1, "lt;", 3 ) )
+			{
+				*q = '<';
+				p += 3;
+			}
+			else if ( !_StrCmpNIA( p + 1, "gt;", 3 ) )
+			{
+				*q = '>';
+				p += 3;
+			}
+			else if ( *( p + 1 ) == '#' )	// Decimal representation
+			{
+				if ( !_StrCmpNIA( p + 2, "38;", 3 ) )
+				{
+					*q = '&';
+					p += 4;
+				}
+				else if ( !_StrCmpNIA( p + 2, "39;", 3 ) )
+				{
+					*q = '\'';
+					p += 4;
+				}
+				else if ( !_StrCmpNIA( p + 2, "34;", 3 ) )
+				{
+					*q = '"';
+					p += 4;
+				}
+				else if ( !_StrCmpNIA( p + 2, "60;", 3 ) )
+				{
+					*q = '<';
+					p += 4;
+				}
+				else if ( !_StrCmpNIA( p + 2, "62;", 3 ) )
+				{
+					*q = '>';
+					p += 4;
+				}
+				else if ( *( p + 2 ) == 'x' || *( p + 2 ) == 'X' )	// Hexadecimal representation.
+				{
+					if ( !_StrCmpNIA( p + 3, "26;", 3 ) )
+					{
+						*q = '&';
+						p += 5;
+					}
+					else if ( !_StrCmpNIA( p + 3, "27;", 3 ) )
+					{
+						*q = '\'';
+						p += 5;
+					}
+					else if ( !_StrCmpNIA( p + 3, "22;", 3 ) )
+					{
+						*q = '"';
+						p += 5;
+					}
+					else if ( !_StrCmpNIA( p + 3, "3c;", 3 ) )
+					{
+						*q = '<';
+						p += 5;
+					}
+					else if ( !_StrCmpNIA( p + 3, "3e;", 3 ) )
+					{
+						*q = '>';
+						p += 5;
+					}
+					else
+					{
+						*q = *p;
+					}
+				}
+				else
+				{
+					*q = *p;
+				}
+			}
+			else
+			{
+				*q = *p;
+			}
+		}
+		else
+		{
+			*q = *p;
+		}
+	}
+
+	*q = 0;	// Sanity.
+
+	return string;
+}
 
 bool ParseURL( char *url, char **host, char **resource )
 {
@@ -1508,6 +1744,8 @@ bool GetCallerIDInformation( char *xml, char **call_to, char **call_from, char *
 		GetElementAttributeValue( rtree, "From", 4, "name", 4, caller_id );
 		GetElementAttributeValue( rtree, "To", 2, "id", 2, call_to );
 
+		decode_xml_entities( *caller_id );
+
 		status = true;
 	}
 
@@ -1950,6 +2188,20 @@ bool BuildContactList( char *xml )
 				GetElementValue( stree, "FirstName", 9, &ci->contact.first_name );
 
 				GetElementValue( stree, "Title", 5, &ci->contact.title );
+
+				decode_xml_entities( ci->contact.web_page );
+				decode_xml_entities( ci->contact.email_address );
+
+				decode_xml_entities( ci->contact.category );
+				decode_xml_entities( ci->contact.department );
+				decode_xml_entities( ci->contact.designation );
+				decode_xml_entities( ci->contact.business_name );
+
+				decode_xml_entities( ci->contact.nickname );
+				decode_xml_entities( ci->contact.last_name );
+				decode_xml_entities( ci->contact.first_name );
+
+				decode_xml_entities( ci->contact.title );
 
 				EnterCriticalSection( &pe_cs );
 				if ( contact_list == NULL )

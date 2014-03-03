@@ -26,7 +26,7 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.2"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.5"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define DEFAULT_BUFLEN	8192
@@ -2568,6 +2568,32 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	// Update the old contact with its new information. Skip this if we're only updating the picture.
 	if ( picture_only == false )
 	{
+		char *o_title = encode_xml_entities( old_ci->contact.title );
+		char *o_first_name = encode_xml_entities( old_ci->contact.first_name );
+		char *o_last_name = encode_xml_entities( old_ci->contact.last_name );
+		char *o_nickname = encode_xml_entities( old_ci->contact.nickname );
+
+		char *o_business_name = encode_xml_entities( old_ci->contact.business_name );
+		char *o_designation = encode_xml_entities( old_ci->contact.designation );
+		char *o_department = encode_xml_entities( old_ci->contact.department );
+		char *o_category = encode_xml_entities( old_ci->contact.category );
+		
+		char *o_email_address = encode_xml_entities( old_ci->contact.email_address );
+		char *o_web_page = encode_xml_entities( old_ci->contact.web_page );
+
+		char *n_title = encode_xml_entities( new_ci->contact.title );
+		char *n_first_name = encode_xml_entities( new_ci->contact.first_name );
+		char *n_last_name = encode_xml_entities( new_ci->contact.last_name );
+		char *n_nickname = encode_xml_entities( new_ci->contact.nickname );
+
+		char *n_business_name = encode_xml_entities( new_ci->contact.business_name );
+		char *n_designation = encode_xml_entities( new_ci->contact.designation );
+		char *n_department = encode_xml_entities( new_ci->contact.department );
+		char *n_category = encode_xml_entities( new_ci->contact.category );
+		
+		char *n_email_address = encode_xml_entities( new_ci->contact.email_address );
+		char *n_web_page = encode_xml_entities( new_ci->contact.web_page );
+
 		// Update the contact's information.
 		// type="fax" is a dummy value.
 		update_contact_reply_length = __snprintf( update_contact, 2048,
@@ -2611,31 +2637,57 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 			"</ContactEntry>" \
 		"</UABContactList>",
 		SAFESTRA( account_id ), SAFESTRA( old_ci->contact.contact_entry_id ),
-		SAFTSTR2A( new_ci->contact.title, old_ci->contact.title ),
-		SAFTSTR2A( new_ci->contact.first_name, old_ci->contact.first_name ),
-		SAFTSTR2A( new_ci->contact.last_name, old_ci->contact.last_name ),
-		SAFTSTR2A( new_ci->contact.nickname, old_ci->contact.nickname ),
-		SAFTSTR2A( new_ci->contact.business_name, old_ci->contact.business_name ),
-		SAFTSTR2A( new_ci->contact.designation, old_ci->contact.designation ),
-		SAFTSTR2A( new_ci->contact.department, old_ci->contact.department ),
-		SAFTSTR2A( new_ci->contact.category, old_ci->contact.category ),
+		SAFESTR2A( ( n_title != NULL ? n_title : new_ci->contact.title ), ( o_title != NULL ? o_title : old_ci->contact.title ) ),
+		SAFESTR2A( ( n_first_name != NULL ? n_first_name : new_ci->contact.first_name ), ( o_first_name != NULL ? o_first_name : old_ci->contact.first_name ) ),
+		SAFESTR2A( ( n_last_name != NULL ? n_last_name : new_ci->contact.last_name ), ( o_last_name != NULL ? o_last_name : old_ci->contact.last_name ) ),
+		SAFESTR2A( ( n_nickname != NULL ? n_nickname : new_ci->contact.nickname ), ( o_nickname != NULL ? o_nickname : old_ci->contact.nickname ) ),
+		SAFESTR2A( ( n_business_name != NULL ? n_business_name : new_ci->contact.business_name ), ( o_business_name != NULL ? o_business_name : old_ci->contact.business_name ) ),
+		SAFESTR2A( ( n_designation != NULL ? n_designation : new_ci->contact.designation ), ( o_designation != NULL ? o_designation : old_ci->contact.designation ) ),
+		SAFESTR2A( ( n_department != NULL ? n_department : new_ci->contact.department ), ( o_department != NULL ? o_department : old_ci->contact.department ) ),
+		SAFESTR2A( ( n_category != NULL ? n_category : new_ci->contact.category ), ( o_category != NULL ? o_category : old_ci->contact.category ) ),
 		SAFESTRA( old_ci->contact.home_phone_number_id ),
-		SAFTSTR2A( new_ci->contact.home_phone_number, old_ci->contact.home_phone_number ),
+		SAFESTR2A( new_ci->contact.home_phone_number, old_ci->contact.home_phone_number ),
 		SAFESTRA( old_ci->contact.work_phone_number_id ),
-		SAFTSTR2A( new_ci->contact.work_phone_number, old_ci->contact.work_phone_number ),
+		SAFESTR2A( new_ci->contact.work_phone_number, old_ci->contact.work_phone_number ),
 		SAFESTRA( old_ci->contact.office_phone_number_id ),
-		SAFTSTR2A( new_ci->contact.office_phone_number, old_ci->contact.office_phone_number ),
+		SAFESTR2A( new_ci->contact.office_phone_number, old_ci->contact.office_phone_number ),
 		SAFESTRA( old_ci->contact.cell_phone_number_id ),
-		SAFTSTR2A( new_ci->contact.cell_phone_number, old_ci->contact.cell_phone_number ),
+		SAFESTR2A( new_ci->contact.cell_phone_number, old_ci->contact.cell_phone_number ),
 		SAFESTRA( old_ci->contact.fax_number_id ),
-		SAFTSTR2A( new_ci->contact.fax_number, old_ci->contact.fax_number ),
+		SAFESTR2A( new_ci->contact.fax_number, old_ci->contact.fax_number ),
 		SAFESTRA( old_ci->contact.other_phone_number_id ),
-		SAFTSTR2A( new_ci->contact.other_phone_number, old_ci->contact.other_phone_number ),
+		SAFESTR2A( new_ci->contact.other_phone_number, old_ci->contact.other_phone_number ),
 		SAFESTRA( old_ci->contact.email_address_id ),
-		SAFTSTR2A( new_ci->contact.email_address, old_ci->contact.email_address ),
+		SAFESTR2A( ( n_email_address != NULL ? n_email_address : new_ci->contact.email_address ), ( o_email_address != NULL ? o_email_address : old_ci->contact.email_address ) ),
 		SAFESTRA( old_ci->contact.web_page_id ),
-		SAFTSTR2A( new_ci->contact.web_page, old_ci->contact.web_page ),
+		SAFESTR2A( ( n_web_page != NULL ? n_web_page : new_ci->contact.web_page ), ( o_web_page != NULL ? o_web_page : old_ci->contact.web_page ) ),
 		SAFESTRA( old_ci->contact.ringtone ) );
+
+		GlobalFree( o_title );
+		GlobalFree( o_first_name );
+		GlobalFree( o_last_name );
+		GlobalFree( o_nickname );
+
+		GlobalFree( o_business_name );
+		GlobalFree( o_designation );
+		GlobalFree( o_department );
+		GlobalFree( o_category );
+
+		GlobalFree( o_email_address );
+		GlobalFree( o_web_page );
+
+		GlobalFree( n_title );
+		GlobalFree( n_first_name );
+		GlobalFree( n_last_name );
+		GlobalFree( n_nickname );
+
+		GlobalFree( n_business_name );
+		GlobalFree( n_designation );
+		GlobalFree( n_department );
+		GlobalFree( n_category );
+
+		GlobalFree( n_email_address );
+		GlobalFree( n_web_page );
 
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, update_contact, update_contact_reply_length );
 
@@ -2865,6 +2917,19 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 	{
 		char add_contact[ 2048 ];
 
+		char *t_title = encode_xml_entities( ci->contact.title );
+		char *t_first_name = encode_xml_entities( ci->contact.first_name );
+		char *t_last_name = encode_xml_entities( ci->contact.last_name );
+		char *t_nickname = encode_xml_entities( ci->contact.nickname );
+
+		char *t_business_name = encode_xml_entities( ci->contact.business_name );
+		char *t_designation = encode_xml_entities( ci->contact.designation );
+		char *t_department = encode_xml_entities( ci->contact.department );
+		char *t_category = encode_xml_entities( ci->contact.category );
+		
+		char *t_email_address = encode_xml_entities( ci->contact.email_address );
+		char *t_web_page = encode_xml_entities( ci->contact.web_page );
+
 		// type="fax" is a dummy value.
 		int add_contact_length = __snprintf( add_contact, 2048,
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
@@ -2906,10 +2971,23 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 				"<RingTone>%s</RingTone>" \
 			"</ContactEntry>" \
 			"</UABContactList>",
-			SAFESTRA( account_id ), SAFESTRA( ci->contact.title ), SAFESTRA( ci->contact.first_name ), SAFESTRA( ci->contact.last_name ), SAFESTRA( ci->contact.nickname ),
-			SAFESTRA( ci->contact.business_name ), SAFESTRA( ci->contact.designation ), SAFESTRA( ci->contact.department ), SAFESTRA( ci->contact.category ),
+			SAFESTRA( account_id ), SAFESTR2A( t_title, ci->contact.title ), SAFESTR2A( t_first_name, ci->contact.first_name ), SAFESTR2A( t_last_name, ci->contact.last_name ), SAFESTR2A( t_nickname, ci->contact.nickname ),
+			SAFESTR2A( t_business_name, ci->contact.business_name ), SAFESTR2A( t_designation, ci->contact.designation ), SAFESTR2A( t_department, ci->contact.department ), SAFESTR2A( t_category, ci->contact.category ),
 			SAFESTRA( ci->contact.home_phone_number ), SAFESTRA( ci->contact.work_phone_number ), SAFESTRA( ci->contact.office_phone_number ), SAFESTRA( ci->contact.cell_phone_number ), SAFESTRA( ci->contact.fax_number ), SAFESTRA( ci->contact.other_phone_number ),
-			SAFESTRA( ci->contact.email_address ), SAFESTRA( ci->contact.web_page ), SAFESTRA( ci->contact.ringtone ) );
+			SAFESTR2A( t_email_address, ci->contact.email_address ), SAFESTR2A( t_web_page, ci->contact.web_page ), SAFESTRA( ci->contact.ringtone ) );
+
+		GlobalFree( t_title );
+		GlobalFree( t_first_name );
+		GlobalFree( t_last_name );
+		GlobalFree( t_nickname );
+
+		GlobalFree( t_business_name );
+		GlobalFree( t_designation );
+		GlobalFree( t_department );
+		GlobalFree( t_category );
+
+		GlobalFree( t_email_address );
+		GlobalFree( t_web_page );
 
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, add_contact, add_contact_length );
 
