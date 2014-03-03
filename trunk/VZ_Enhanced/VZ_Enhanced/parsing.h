@@ -29,6 +29,9 @@ struct COOKIE_CONTAINER
 
 char *fields_tolower( char *decoded_buffer );
 
+char *encode_xml_entities( const char *string );
+char *decode_xml_entities( char *string );
+
 bool ParseURL( char *url, char **host, char **resource );
 
 bool ParseXApplicationErrorCode( char *decoded_buffer, char **error_code );

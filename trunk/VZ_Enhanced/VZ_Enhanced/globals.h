@@ -87,10 +87,10 @@
 #define NUM_COLUMNS4		3
 
 #define SAFESTRA( s ) ( s != NULL ? s : "" )
-#define SAFTSTR2A( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : "" ) )
+#define SAFESTR2A( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : "" ) )
 
 #define SAFESTRW( s ) ( s != NULL ? s : L"" )
-#define SAFTSTR2W( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : L"" ) )
+#define SAFESTR2W( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : L"" ) )
 
 #define is_close( a, b ) ( _abs( a - b ) < SNAP_WIDTH )
 

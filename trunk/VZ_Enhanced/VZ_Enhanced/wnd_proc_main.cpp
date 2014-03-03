@@ -1965,7 +1965,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						// White text.
 						_SetTextColor( hdcMem, RGB( 0xFF, 0xFF, 0xFF ) );
-						_DrawTextW( hdcMem, buf, -1, &rc, DT_SINGLELINE | DT_END_ELLIPSIS );
+						_DrawTextW( hdcMem, buf, -1, &rc, DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS );
 						_BitBlt( dis->hDC, dis->rcItem.left + last_rc.left, last_rc.top, width, height, hdcMem, 0, 0, SRCCOPY );
 					}
 					else	// Draw normal text.
@@ -1984,7 +1984,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						{
 							_SetTextColor( hdcMem, ( ( ( displayinfo * )lvi.lParam )->ci.ignore == true ? RGB( 0xFF, 0x00, 0x00 ) : ( ( displayinfo * )lvi.lParam )->ci.forward == true ? RGB( 0xFF, 0x80, 0x00 ) : RGB( 0x00, 0x00, 0x00 ) ) );
 						}
-						_DrawTextW( hdcMem, buf, -1, &rc, DT_SINGLELINE | DT_END_ELLIPSIS );
+						_DrawTextW( hdcMem, buf, -1, &rc, DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS );
 						_BitBlt( dis->hDC, dis->rcItem.left + last_rc.left, last_rc.top, width, height, hdcMem, 0, 0, SRCAND );
 					}
 

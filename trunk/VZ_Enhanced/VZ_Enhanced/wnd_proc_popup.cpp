@@ -155,7 +155,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					{
 						rc_line.right = client_rc.right - 5;
 						rc_line.bottom = client_rc.bottom - 5;
-						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_CALCRECT );
+						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_NOPREFIX | DT_CALCRECT );
 						rc_line.right = client_rc.right - 5;
 						rc_line.left = 5;
 					}
@@ -163,7 +163,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					{
 						rc_line.right = client_rc.right - 5;
 						rc_line.bottom = client_rc.bottom - 5;
-						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_CALCRECT );
+						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_NOPREFIX | DT_CALCRECT );
 						rc_line.right = client_rc.right - 5;
 						rc_line.left = 5;
 						LONG tmp_height = rc_line.bottom - rc_line.top;
@@ -174,7 +174,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					{
 						rc_line.right = client_rc.right - 5;
 						rc_line.bottom = client_rc.bottom - 5;
-						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_CALCRECT );
+						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_NOPREFIX | DT_CALCRECT );
 						rc_line.top = client_rc.bottom - ( rc_line.bottom - rc_line.top ) - 5;
 						rc_line.bottom = client_rc.bottom - 5;
 						rc_line.left = 5;
@@ -191,14 +191,14 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 						_SetTextColor( hdcMem, p_s->font_shadow_color );
 
-						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_shadow_line, ( p_s->popup_justify == 0 ? DT_LEFT : ( p_s->popup_justify == 1 ? DT_CENTER : DT_RIGHT ) ) );
+						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_shadow_line, DT_NOPREFIX | ( p_s->popup_justify == 0 ? DT_LEFT : ( p_s->popup_justify == 1 ? DT_CENTER : DT_RIGHT ) ) );
 					}
 
 					_SelectObject( hdcMem, p_s->font );
 
 					_SetTextColor( hdcMem, p_s->font_color );
 
-					_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, ( p_s->popup_justify == 0 ? DT_LEFT : ( p_s->popup_justify == 1 ? DT_CENTER : DT_RIGHT ) ) );
+					_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_NOPREFIX | ( p_s->popup_justify == 0 ? DT_LEFT : ( p_s->popup_justify == 1 ? DT_CENTER : DT_RIGHT ) ) );
 
 					_SelectObject( hdcMem, ohf );	// Reset the old font.
 				}

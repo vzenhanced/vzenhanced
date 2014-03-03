@@ -36,10 +36,10 @@
 #define FILETIME_TICKS_PER_SECOND	10000000
 
 #define SAFESTRA( s ) ( s != NULL ? s : "" )
-#define SAFTSTR2A( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : "" ) )
+#define SAFESTR2A( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : "" ) )
 
 #define SAFESTRW( s ) ( s != NULL ? s : L"" )
-#define SAFTSTR2W( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : L"" ) )
+#define SAFESTR2W( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : L"" ) )
 
 typedef bool ( WINAPI *pWebIgnoreIncomingCall )( displayinfo *di );
 typedef bool ( WINAPI *pWebForwardIncomingCall )( displayinfo *di, char *forward_to );
