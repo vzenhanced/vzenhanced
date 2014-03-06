@@ -269,8 +269,8 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						ci->call_reference_id = NULL;
 						ci->caller_id = NULL;
 						ci->forward_to = NULL;
-						ci->ignore = false;
-						ci->forward = false;
+						ci->ignored = false;
+						ci->forwarded = false;
 
 						// ci will be freed in CallPhoneNumber.
 						CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CallPhoneNumber, ( void * )ci, 0, NULL ) );
@@ -328,7 +328,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 								edit_di->process_incoming = false;
 								edit_di->ci.forward_to = forward_to;
-								edit_di->ci.forward = true;
+								edit_di->ci.forwarded = true;
 
 								// Forward to phone number
 								edit_di->forward_to = FormatPhoneNumber( edit_di->ci.forward_to );

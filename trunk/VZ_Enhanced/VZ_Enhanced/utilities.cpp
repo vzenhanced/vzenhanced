@@ -110,24 +110,24 @@ char cfg_tab_order4 = 3;		// 3 Ignore List
 
 int cfg_column_width1 = 35;
 int cfg_column_width2 = 100;
-int cfg_column_width3 = 70;
-int cfg_column_width4 = 100;
-int cfg_column_width5 = 70;
-int cfg_column_width6 = 100;
-int cfg_column_width7 = 300;
-int cfg_column_width8 = 100;
-int cfg_column_width9 = 205;
+int cfg_column_width3 = 205;
+int cfg_column_width4 = 70;
+int cfg_column_width5 = 100;
+int cfg_column_width6 = 70;
+int cfg_column_width7 = 100;
+int cfg_column_width8 = 300;
+int cfg_column_width9 = 100;
 
 // Column / Virtual position
 char cfg_column_order1 = 0;		// 0 # (always 0)
 char cfg_column_order2 = 1;		// 1 Caller ID
-char cfg_column_order3 = -1;	// 2 Forwarded
-char cfg_column_order4 = -1;	// 3 Forward to Phone Number
-char cfg_column_order5 = -1;	// 4 Ignored
-char cfg_column_order6 = 2;		// 5 Phone Number
-char cfg_column_order7 = -1;	// 6 Reference
-char cfg_column_order8 = -1;	// 7 Sent to Phone Number
-char cfg_column_order9 = 3;		// 8 Time
+char cfg_column_order3 = 3;		// 2 Date and Time
+char cfg_column_order4 = -1;	// 3 Forwarded
+char cfg_column_order5 = -1;	// 4 Forward to Phone Number
+char cfg_column_order6 = -1;	// 5 Ignored
+char cfg_column_order7 = 2;		// 6 Phone Number
+char cfg_column_order8 = -1;	// 7 Reference
+char cfg_column_order9 = -1;	// 8 Sent to Phone Number
 
 int cfg_column2_width1 = 35;
 int cfg_column2_width2 = 120;
@@ -394,8 +394,8 @@ void free_displayinfo( displayinfo **di )
 	GlobalFree( ( *di )->caller_id );
 	GlobalFree( ( *di )->reference );
 	GlobalFree( ( *di )->sent_to );
-	GlobalFree( ( *di )->w_forwarded );
-	GlobalFree( ( *di )->w_ignored );
+	GlobalFree( ( *di )->w_forward );
+	GlobalFree( ( *di )->w_ignore );
 	GlobalFree( ( *di )->w_time );
 	// Then free the displayinfo structure.
 	GlobalFree( *di );
@@ -647,13 +647,13 @@ void SetDefaultColumnOrder( unsigned char list )
 		{
 			cfg_column_order1 = 0;		// # (always 0)
 			cfg_column_order2 = 1;		// Caller ID
-			cfg_column_order3 = -1;		// Forwarded
-			cfg_column_order4 = -1;		// Forward to Phone Number
-			cfg_column_order5 = -1;		// Ignored
-			cfg_column_order6 = 2;		// Phone Number
-			cfg_column_order7 = -1;		// Reference
-			cfg_column_order8 = -1;		// Sent to Phone Number
-			cfg_column_order9 = 3;		// Time
+			cfg_column_order3 = 3;		// Date and Time
+			cfg_column_order4 = -1;		// Forwarded
+			cfg_column_order5 = -1;		// Forward to Phone Number
+			cfg_column_order6 = -1;		// Ignored
+			cfg_column_order7 = 2;		// Phone Number
+			cfg_column_order8 = -1;		// Reference
+			cfg_column_order9 = -1;		// Sent to Phone Number
 		}
 		break;
 
@@ -745,13 +745,13 @@ void CheckColumnWidths()
 {
 	if ( cfg_column_width1 < 0 || cfg_column_width1 > 2560 ) { cfg_column_width1 = 35; }
 	if ( cfg_column_width2 < 0 || cfg_column_width2 > 2560 ) { cfg_column_width2 = 100; }
-	if ( cfg_column_width3 < 0 || cfg_column_width3 > 2560 ) { cfg_column_width3 = 70; }
-	if ( cfg_column_width4 < 0 || cfg_column_width4 > 2560 ) { cfg_column_width4 = 100; }
-	if ( cfg_column_width5 < 0 || cfg_column_width5 > 2560 ) { cfg_column_width5 = 70; }
-	if ( cfg_column_width6 < 0 || cfg_column_width6 > 2560 ) { cfg_column_width6 = 100; }
-	if ( cfg_column_width7 < 0 || cfg_column_width7 > 2560 ) { cfg_column_width7 = 300; }
-	if ( cfg_column_width8 < 0 || cfg_column_width8 > 2560 ) { cfg_column_width8 = 100; }
-	if ( cfg_column_width9 < 0 || cfg_column_width9 > 2560 ) { cfg_column_width9 = 205; }
+	if ( cfg_column_width3 < 0 || cfg_column_width3 > 2560 ) { cfg_column_width3 = 205; }
+	if ( cfg_column_width4 < 0 || cfg_column_width4 > 2560 ) { cfg_column_width4 = 70; }
+	if ( cfg_column_width5 < 0 || cfg_column_width5 > 2560 ) { cfg_column_width5 = 100; }
+	if ( cfg_column_width6 < 0 || cfg_column_width6 > 2560 ) { cfg_column_width6 = 70; }
+	if ( cfg_column_width7 < 0 || cfg_column_width7 > 2560 ) { cfg_column_width7 = 100; }
+	if ( cfg_column_width8 < 0 || cfg_column_width8 > 2560 ) { cfg_column_width8 = 300; }
+	if ( cfg_column_width9 < 0 || cfg_column_width9 > 2560 ) { cfg_column_width9 = 100; }
 
 
 	if ( cfg_column2_width1 < 0 || cfg_column2_width1 > 2560 ) { cfg_column2_width1 = 35; }
@@ -911,7 +911,7 @@ void CreatePopup( displayinfo *fi )
 	FileTimeToSystemTime( &ft, &st );
 	if ( cfg_popup_time_format == 0 )	// 12 hour
 	{
-		__snwprintf( time_line, 16, L"%d:%02d %s", ( st.wHour > 12 ? st.wHour - 12 : st.wHour ), st.wMinute, ( st.wHour >= 12 ? L"PM" : L"AM" ) );
+		__snwprintf( time_line, 16, L"%d:%02d %s", ( st.wHour > 12 ? st.wHour - 12 : ( st.wHour != 0 ? st.wHour : 12 ) ), st.wMinute, ( st.wHour >= 12 ? L"PM" : L"AM" ) );
 	}
 	else	// 24 hour
 	{
@@ -1576,21 +1576,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 			if ( ii != NULL )
 			{
-				// Update each displayinfo item to indicate that it is no longer ignored.
-				DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )ii->c_phone_number, true );
-				if ( ll != NULL )
-				{
-					DoublyLinkedList *di_node = ll;
-					while ( di_node != NULL )
-					{
-						displayinfo *mdi = ( displayinfo * )di_node->data;
-						mdi->ignored = false;
-						GlobalFree( mdi->w_ignored );
-						mdi->w_ignored = GlobalStrDupW( ST_No );
-
-						di_node = di_node->next;
-					}
-				}
+				char range_number[ 32 ];
+				_memzero( range_number, 32 );
 
 				// If the number we've removed is a range, then remove it from the range list.
 				if ( is_num( ii->c_phone_number ) == 1 )
@@ -1605,18 +1592,59 @@ THREAD_RETURN remove_items( void *pArguments )
 						while ( di_node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )di_node->data;
-							
-							if ( RangeCompare( ii->c_phone_number, mdi->ci.call_from ) == true )
+
+							// Process display values that are set to be ignored.
+							if ( mdi->ignore == true )
 							{
-								mdi->ignored = false;
-								GlobalFree( mdi->w_ignored );
-								mdi->w_ignored = GlobalStrDupW( ST_No );
+								// First, see if the display value falls within another range.
+								if ( RangeSearch( &ignore_range_list, mdi->ci.call_from, range_number ) == true )
+								{
+									// If it does, then we'll skip the display value.
+									break;
+								}
+
+								// Next, see if the display value exists as a non-range value.
+								if ( dllrbt_find( ignore_list, ( void * )mdi->ci.call_from, false ) != NULL )
+								{
+									// If it does, then we'll skip the display value.
+									break;
+								}
+
+								// Finally, see if the display item falls within the range we've removed.
+								if ( RangeCompare( ii->c_phone_number, mdi->ci.call_from ) == true )
+								{
+									mdi->ignore = false;
+									GlobalFree( mdi->w_ignore );
+									mdi->w_ignore = GlobalStrDupW( ST_No );
+								}
 							}
 
 							di_node = di_node->next;
 						}
 
 						node = node->next;
+					}
+				}
+				else
+				{
+					// See if the value we remove falls within a range. If it doesn't, then set its new display values.
+					if ( RangeSearch( &ignore_range_list, ii->c_phone_number, range_number ) == false )
+					{
+						// Update each displayinfo item to indicate that it is no longer ignored.
+						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )ii->c_phone_number, true );
+						if ( ll != NULL )
+						{
+							DoublyLinkedList *di_node = ll;
+							while ( di_node != NULL )
+							{
+								displayinfo *mdi = ( displayinfo * )di_node->data;
+								mdi->ignore = false;
+								GlobalFree( mdi->w_ignore );
+								mdi->w_ignore = GlobalStrDupW( ST_No );
+
+								di_node = di_node->next;
+							}
+						}
 					}
 				}
 
@@ -1638,21 +1666,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 			if ( fi != NULL )
 			{
-				// Update each displayinfo item to indicate that it is no longer forwarded.
-				DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )fi->c_call_from, true );
-				if ( ll != NULL )
-				{
-					DoublyLinkedList *di_node = ll;
-					while ( di_node != NULL )
-					{
-						displayinfo *mdi = ( displayinfo * )di_node->data;
-						mdi->forwarded = false;
-						GlobalFree( mdi->w_forwarded );
-						mdi->w_forwarded = GlobalStrDupW( ST_No );
-
-						di_node = di_node->next;
-					}
-				}
+				char range_number[ 32 ];
+				_memzero( range_number, 32 );
 
 				// If the number we've removed is a range, then remove it from the range list.
 				if ( is_num( fi->c_call_from ) == 1 )
@@ -1667,18 +1682,59 @@ THREAD_RETURN remove_items( void *pArguments )
 						while ( di_node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )di_node->data;
-							
-							if ( RangeCompare( fi->c_call_from, mdi->ci.call_from ) == true )
+
+							// Process display values that are set to be forwarded.
+							if ( mdi->forward == true )
 							{
-								mdi->forwarded = false;
-								GlobalFree( mdi->w_forwarded );
-								mdi->w_forwarded = GlobalStrDupW( ST_No );
+								// First, see if the display value falls within another range.
+								if ( RangeSearch( &forward_range_list, mdi->ci.call_from, range_number ) == true )
+								{
+									// If it does, then we'll skip the display value.
+									break;
+								}
+
+								// Next, see if the display value exists as a non-range value.
+								if ( dllrbt_find( forward_list, ( void * )mdi->ci.call_from, false ) != NULL )
+								{
+									// If it does, then we'll skip the display value.
+									break;
+								}
+
+								// Finally, see if the display item falls within the range we've removed.
+								if ( RangeCompare( fi->c_call_from, mdi->ci.call_from ) == true )
+								{
+									mdi->forward = false;
+									GlobalFree( mdi->w_forward );
+									mdi->w_forward = GlobalStrDupW( ST_No );
+								}
 							}
 
 							di_node = di_node->next;
 						}
 
 						node = node->next;
+					}
+				}
+				else
+				{
+					// See if the value we remove falls within a range. If it doesn't, then set its new display values.
+					if ( RangeSearch( &forward_range_list, fi->c_call_from, range_number ) == false )
+					{
+						// Update each displayinfo item to indicate that it is no longer forwarded.
+						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )fi->c_call_from, true );
+						if ( ll != NULL )
+						{
+							DoublyLinkedList *di_node = ll;
+							while ( di_node != NULL )
+							{
+								displayinfo *mdi = ( displayinfo * )di_node->data;
+								mdi->forward = false;
+								GlobalFree( mdi->w_forward );
+								mdi->w_forward = GlobalStrDupW( ST_No );
+
+								di_node = di_node->next;
+							}
+						}
 					}
 				}
 
@@ -1828,15 +1884,15 @@ void FormatDisplayInfo( displayinfo *di )
 	#ifndef NTDLL_USE_STATIC_LIB
 		buffer_length = 64;	// Should be enough to hold most translated values.
 	#else
-		buffer_length = _scwprintf( L"%s, %s %d, %04d %d:%02d:%02d %s", GetDay( st.wDayOfWeek ), GetMonth( st.wMonth ), st.wDay, st.wYear, ( st.wHour > 12 ? st.wHour - 12 : st.wHour ), st.wMinute, st.wSecond, ( st.wHour >= 12 ? L"PM" : L"AM" ) ) + 1;	// Include the NULL character.
+		buffer_length = _scwprintf( L"%s, %s %d, %04d %d:%02d:%02d %s", GetDay( st.wDayOfWeek ), GetMonth( st.wMonth ), st.wDay, st.wYear, ( st.wHour > 12 ? st.wHour - 12 : ( st.wHour != 0 ? st.wHour : 12 ) ), st.wMinute, st.wSecond, ( st.wHour >= 12 ? L"PM" : L"AM" ) ) + 1;	// Include the NULL character.
 	#endif
 
 	di->w_time = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * buffer_length );
 
-	__snwprintf( di->w_time, buffer_length, L"%s, %s %d, %04d %d:%02d:%02d %s", GetDay( st.wDayOfWeek ), GetMonth( st.wMonth ), st.wDay, st.wYear, ( st.wHour > 12 ? st.wHour - 12 : st.wHour ), st.wMinute, st.wSecond, ( st.wHour >= 12 ? L"PM" : L"AM" ) );
+	__snwprintf( di->w_time, buffer_length, L"%s, %s %d, %04d %d:%02d:%02d %s", GetDay( st.wDayOfWeek ), GetMonth( st.wMonth ), st.wDay, st.wYear, ( st.wHour > 12 ? st.wHour - 12 : ( st.wHour != 0 ? st.wHour : 12 ) ), st.wMinute, st.wSecond, ( st.wHour >= 12 ? L"PM" : L"AM" ) );
 
-	di->w_forwarded = ( di->forwarded == true ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
-	di->w_ignored = ( di->ignored == true ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
+	di->w_forward = ( di->forward == true ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
+	di->w_ignore = ( di->ignore == true ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
 
 	// Forward to phone number
 	di->forward_to = FormatPhoneNumber( di->ci.forward_to );
@@ -1892,8 +1948,8 @@ THREAD_RETURN update_call_log( void *pArguments )
 	if ( ii != NULL )
 	{
 		di->process_incoming = false;
-		di->ignored = true;
-		di->ci.ignore = true;
+		di->ignore = true;
+		di->ci.ignored = true;
 
 		CloseHandle( ( HANDLE )_CreateThread( NULL, 0, IgnoreIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
 
@@ -1923,12 +1979,12 @@ THREAD_RETURN update_call_log( void *pArguments )
 	if ( fi != NULL )
 	{
 		di->process_incoming = false;
-		di->forwarded = true;
+		di->forward = true;
 		di->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
-		di->ci.forward = true;
+		di->ci.forwarded = true;
 
 		// Ignore list has priority. If it's set, then we don't forward.
-		if ( di->ignored == false )
+		if ( di->ignore == false )
 		{
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ForwardIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
 
@@ -2452,9 +2508,9 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 						while ( di_node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )di_node->data;
-							mdi->ignored = true;
-							GlobalFree( mdi->w_ignored );
-							mdi->w_ignored = GlobalStrDupW( ST_Yes );
+							mdi->ignore = true;
+							GlobalFree( mdi->w_ignore );
+							mdi->w_ignore = GlobalStrDupW( ST_Yes );
 
 							di_node = di_node->next;
 						}
@@ -2465,7 +2521,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					{
 						RangeAdd( &ignore_range_list, ii->c_phone_number );
 
-						// Update each displayinfo item to indicate that it is no longer ignored.
+						// Update each displayinfo item to indicate that it is now ignored.
 						node_type *node = dllrbt_get_head( call_log );
 						while ( node != NULL )
 						{
@@ -2476,9 +2532,9 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 								if ( RangeCompare( ii->c_phone_number, mdi->ci.call_from ) == true )
 								{
-									mdi->ignored = true;
-									GlobalFree( mdi->w_ignored );
-									mdi->w_ignored = GlobalStrDupW( ST_Yes );
+									mdi->ignore = true;
+									GlobalFree( mdi->w_ignore );
+									mdi->w_ignore = GlobalStrDupW( ST_Yes );
 								}
 
 								di_node = di_node->next;
@@ -2576,6 +2632,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 			}
 
 			bool remove_state_changed = false;	// If true, then go through the ignore list listview and remove the items that have changed state.
+			bool skip_range_warning = false;	// Skip the range warning if we've already displayed it.
 
 			// Go through each item in the listview.
 			for ( int i = 0; i < item_count; ++i )
@@ -2599,58 +2656,58 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 				displayinfo *di = ( displayinfo * )lvi.lParam;
 
-				if ( di->ignored == true && iui->action == 1 )		// Remove from ignore_list.
+				if ( di->ignore == true && iui->action == 1 )		// Remove from ignore_list.
 				{
-					bool skip_ignore = false;
+					char range_number[ 32 ];
+					_memzero( range_number, 32 );
 
-					// See if the phone number is in our ignore_list.
-					dllrbt_iterator *itr = dllrbt_find( ignore_list, ( void * )di->ci.call_from, false );
-					if ( itr != NULL )
+					// First, see if the phone number is in our range list.
+					if ( RangeSearch( &ignore_range_list, di->ci.call_from, range_number ) == false )
 					{
-						// Update each displayinfo item to indicate that it is no longer ignored.
-						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-						if ( ll != NULL )
+						// If not, then see if the phone number is in our ignore_list.
+						dllrbt_iterator *itr = dllrbt_find( ignore_list, ( void * )di->ci.call_from, false );
+						if ( itr != NULL )
 						{
-							DoublyLinkedList *di_node = ll;
-							while ( di_node != NULL )
+							// Update each displayinfo item to indicate that it is no longer ignored.
+							DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
+							if ( ll != NULL )
 							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-								mdi->ignored = false;
-								GlobalFree( mdi->w_ignored );
-								mdi->w_ignored = GlobalStrDupW( ST_No );
+								DoublyLinkedList *di_node = ll;
+								while ( di_node != NULL )
+								{
+									displayinfo *mdi = ( displayinfo * )di_node->data;
+									mdi->ignore = false;
+									GlobalFree( mdi->w_ignore );
+									mdi->w_ignore = GlobalStrDupW( ST_No );
 
-								di_node = di_node->next;
+									di_node = di_node->next;
+								}
 							}
+
+							// If an ignore list listview item also shows up in the call log listview, then we'll remove it after this loop.
+							ignoreinfo *ii = ( ignoreinfo * )( ( node_type * )itr )->val;
+							ii->state = 1;
+							remove_state_changed = true;	// This will let us go through the ignore list listview and free items with a state == 1.
+
+							dllrbt_remove( ignore_list, itr );	// Remove the node from the tree. The tree will rebalance itself.
+
+							ignore_list_changed = true;	// Causes us to save the ignore_list on shutdown.
 						}
 
-						// If an ignore list listview item also shows up in the call log listview, then we'll remove it after this loop.
-						ignoreinfo *ii = ( ignoreinfo * )( ( node_type * )itr )->val;
-						ii->state = 1;
-						remove_state_changed = true;	// This will let us go through the ignore list listview and free items with a state == 1.
-
-						dllrbt_remove( ignore_list, itr );	// Remove the node from the tree. The tree will rebalance itself.
-
-						ignore_list_changed = true;	// Causes us to save the ignore_list on shutdown.
-					}
-					else	// See if the phone number is in our range list.
-					{
-						char range_number[ 32 ];
-						_memzero( range_number, 32 );
-						skip_ignore = RangeSearch( &ignore_range_list, di->ci.call_from, range_number );
-					}
-
-					if ( skip_ignore == false )
-					{
-						di->ignored = false;
-						GlobalFree( di->w_ignored );
-						di->w_ignored = GlobalStrDupW( ST_No );
+						di->ignore = false;
+						GlobalFree( di->w_ignore );
+						di->w_ignore = GlobalStrDupW( ST_No );
 					}
 					else
 					{
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_ignore_list );
+						if ( skip_range_warning == false )
+						{
+							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_ignore_list );
+							skip_range_warning = true;
+						}
 					}
 				}
-				else if ( di->ignored == false && iui->action == 0 )	// Add to ignore_list.
+				else if ( di->ignore == false && iui->action == 0 )	// Add to ignore_list.
 				{
 					ignoreinfo *ii = ( ignoreinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreinfo ) );
 
@@ -2696,17 +2753,17 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 						while ( node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )node->data;
-							mdi->ignored = true;
-							GlobalFree( mdi->w_ignored );
-							mdi->w_ignored = GlobalStrDupW( ST_Yes );
+							mdi->ignore = true;
+							GlobalFree( mdi->w_ignore );
+							mdi->w_ignore = GlobalStrDupW( ST_Yes );
 
 							node = node->next;
 						}
 					}
 
-					di->ignored = true;
-					GlobalFree( di->w_ignored );
-					di->w_ignored = GlobalStrDupW( ST_Yes );
+					di->ignore = true;
+					GlobalFree( di->w_ignore );
+					di->w_ignore = GlobalStrDupW( ST_Yes );
 
 					if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) == DLLRBT_STATUS_DUPLICATE_KEY )
 					{
@@ -2853,9 +2910,9 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						while ( di_node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )di_node->data;
-							mdi->forwarded = true;
-							GlobalFree( mdi->w_forwarded );
-							mdi->w_forwarded = GlobalStrDupW( ST_Yes );
+							mdi->forward = true;
+							GlobalFree( mdi->w_forward );
+							mdi->w_forward = GlobalStrDupW( ST_Yes );
 
 							// This doesn't need to be updated.
 							/*if ( mdi->ci.forward_to != NULL )
@@ -2873,7 +2930,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					{
 						RangeAdd( &forward_range_list, fi->c_call_from );
 
-						// Update each displayinfo item to indicate that it is no longer forwarded.
+						// Update each displayinfo item to indicate that it is now forwarded.
 						node_type *node = dllrbt_get_head( call_log );
 						while ( node != NULL )
 						{
@@ -2884,9 +2941,9 @@ THREAD_RETURN update_forward_list( void *pArguments )
 								
 								if ( RangeCompare( fi->c_call_from, mdi->ci.call_from ) == true )
 								{
-									mdi->forwarded = true;
-									GlobalFree( mdi->w_forwarded );
-									mdi->w_forwarded = GlobalStrDupW( ST_Yes );
+									mdi->forward = true;
+									GlobalFree( mdi->w_forward );
+									mdi->w_forward = GlobalStrDupW( ST_Yes );
 								}
 
 								di_node = di_node->next;
@@ -3016,6 +3073,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 			}
 
 			bool remove_state_changed = false;	// If true, then go through the forward list listview and remove the items that have changed state.
+			bool skip_range_warning = false;	// Skip the range warning if we've already displayed it.
 
 			// Go through each item in the listview.
 			for ( int i = 0; i < item_count; ++i )
@@ -3039,65 +3097,65 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 				displayinfo *di = ( displayinfo * )lvi.lParam;
 
-				if ( di->forwarded == true && fui->action == 1 )		// Remove from forward_list.
+				if ( di->forward == true && fui->action == 1 )		// Remove from forward_list.
 				{
-					bool skip_forward = false;
+					char range_number[ 32 ];
+					_memzero( range_number, 32 );
 
-					// See if the phone number is in our forward_list.
-					dllrbt_iterator *itr = dllrbt_find( forward_list, ( void * )di->ci.call_from, false );
-					if ( itr != NULL )
+					// First, see if the phone number is in our range list.
+					if ( RangeSearch( &forward_range_list, di->ci.call_from, range_number ) == false )
 					{
-						// Update each displayinfo item to indicate that it is no longer forwarded.
-						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-						if ( ll != NULL )
+						// If not, then see if the phone number is in our forward_list.
+						dllrbt_iterator *itr = dllrbt_find( forward_list, ( void * )di->ci.call_from, false );
+						if ( itr != NULL )
 						{
-							DoublyLinkedList *di_node = ll;
-							while ( di_node != NULL )
+							// Update each displayinfo item to indicate that it is no longer forwarded.
+							DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
+							if ( ll != NULL )
 							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-								mdi->forwarded = false;
-								GlobalFree( mdi->w_forwarded );
-								mdi->w_forwarded = GlobalStrDupW( ST_No );
-
-								// This doesn't need to be updated.
-								/*if ( mdi->ci.forward_to != NULL )
+								DoublyLinkedList *di_node = ll;
+								while ( di_node != NULL )
 								{
-									GlobalFree( mdi->ci.forward_to );
-									mdi->ci.forward_to = NULL;
-								}*/
+									displayinfo *mdi = ( displayinfo * )di_node->data;
+									mdi->forward = false;
+									GlobalFree( mdi->w_forward );
+									mdi->w_forward = GlobalStrDupW( ST_No );
 
-								di_node = di_node->next;
+									// This doesn't need to be updated.
+									/*if ( mdi->ci.forward_to != NULL )
+									{
+										GlobalFree( mdi->ci.forward_to );
+										mdi->ci.forward_to = NULL;
+									}*/
+
+									di_node = di_node->next;
+								}
 							}
+
+							// If a forward list listview item also shows up in the call log listview, then we'll remove it after this loop.
+							forwardinfo *fi = ( forwardinfo * )( ( node_type * )itr )->val;
+							fi->state = 1;	// Remove item.
+							remove_state_changed = true;	// This will let us go through the forward list listview and free items with a state == 1.
+
+							dllrbt_remove( forward_list, itr );	// Remove the node from the tree. The tree will rebalance itself.
+
+							forward_list_changed = true;	// Causes us to save the forward_list on shutdown.
 						}
 
-						// If a forward list listview item also shows up in the call log listview, then we'll remove it after this loop.
-						forwardinfo *fi = ( forwardinfo * )( ( node_type * )itr )->val;
-						fi->state = 1;	// Remove item.
-						remove_state_changed = true;	// This will let us go through the forward list listview and free items with a state == 1.
-
-						dllrbt_remove( forward_list, itr );	// Remove the node from the tree. The tree will rebalance itself.
-
-						forward_list_changed = true;	// Causes us to save the forward_list on shutdown.
-					}
-					else	// See if the phone number is in our range list.
-					{
-						char range_number[ 32 ];
-						_memzero( range_number, 32 );
-						skip_forward = RangeSearch( &forward_range_list, di->ci.call_from, range_number );
-					}
-
-					if ( skip_forward == false )
-					{
-						di->forwarded = false;
-						GlobalFree( di->w_forwarded );
-						di->w_forwarded = GlobalStrDupW( ST_No );
+						di->forward = false;
+						GlobalFree( di->w_forward );
+						di->w_forward = GlobalStrDupW( ST_No );
 					}
 					else
 					{
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_forward_list );
+						if ( skip_range_warning == false )
+						{
+							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_forward_list );
+							skip_range_warning = true;
+						}
 					}
 				}
-				else if ( di->forwarded == false && fui->action == 0 )	// Add to forward_list.
+				else if ( di->forward == false && fui->action == 0 )	// Add to forward_list.
 				{
 					forwardinfo *fi = ( forwardinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardinfo ) );
 
@@ -3146,9 +3204,9 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						while ( node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )node->data;
-							mdi->forwarded = true;
-							GlobalFree( mdi->w_forwarded );
-							mdi->w_forwarded = GlobalStrDupW( ST_Yes );
+							mdi->forward = true;
+							GlobalFree( mdi->w_forward );
+							mdi->w_forward = GlobalStrDupW( ST_Yes );
 
 							// This doesn't need to be updated.
 							/*if ( mdi->ci.forward_to != NULL )
@@ -3161,9 +3219,9 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						}
 					}
 
-					di->forwarded = true;
-					GlobalFree( di->w_forwarded );
-					di->w_forwarded = GlobalStrDupW( ST_Yes );
+					di->forward = true;
+					GlobalFree( di->w_forward );
+					di->w_forward = GlobalStrDupW( ST_Yes );
 
 					if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) == DLLRBT_STATUS_DUPLICATE_KEY )
 					{
@@ -3224,6 +3282,228 @@ THREAD_RETURN update_forward_list( void *pArguments )
 	}
 
 	Processing_Window( hWnd, true );
+
+	// Release the mutex if we're killing the thread.
+	if ( worker_mutex != NULL )
+	{
+		ReleaseSemaphore( worker_mutex, 1, NULL );
+	}
+
+	in_worker_thread = false;
+
+	// We're done. Let other threads continue.
+	LeaveCriticalSection( &pe_cs );
+
+	_ExitThread( 0 );
+	return 0;
+}
+
+// Allocates a new string if characters need escaping. Otherwise, it returns NULL.
+char *escape_csv( const char *string )
+{
+	char *escaped_string = NULL;
+	char *q = NULL;
+	const char *p = NULL;
+	int c = 0;
+
+	if ( string == NULL )
+	{
+		return NULL;
+	}
+
+	// Get the character count and offset it for any quotes.
+	for ( c = 0, p = string; *p != NULL; ++p ) 
+	{
+		if ( *p != '\"' )
+		{
+			++c;
+		}
+		else
+		{
+			c += 2;
+		}
+	}
+
+	// If the string has no special characters to escape, then return NULL.
+	if ( c <= ( p - string ) )
+	{
+		return NULL;
+	}
+
+	q = escaped_string = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( c + 1 ) );
+
+	for ( p = string; *p != NULL; ++p ) 
+	{
+		if ( *p != '\"' )
+		{
+			*q = *p;
+			++q;
+		}
+		else
+		{
+			*q++ = '\"';
+			*q++ = '\"';
+		}
+	}
+
+	*q = 0;	// Sanity.
+
+	return escaped_string;
+}
+
+THREAD_RETURN save_call_log( void *file_path )
+{
+	// This will block every other thread from entering until the first thread is complete.
+	EnterCriticalSection( &pe_cs );
+
+	in_worker_thread = true;
+
+	Processing_Window( g_hWnd_list, false );
+
+	// Open our config file if it exists.
+	HANDLE hFile_call_log = CreateFile( ( wchar_t * )file_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( hFile_call_log != INVALID_HANDLE_VALUE )
+	{
+		int size = ( 32768 + 1 );
+		int pos = 0;
+		DWORD write = 0;
+		char unix_timestamp[ 21 ];
+		_memzero( unix_timestamp, 21 );
+
+		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
+
+		// Write the UTF-8 BOM and CSV column titles.
+		WriteFile( hFile_call_log, "\xEF\xBB\xBF\"Caller ID\",\"Phone Number\",\"Date and Time\",\"Unix Timestamp\",Ignore,Forward,\"Forwarded to\",\"Sent to\"", 102, &write, NULL );
+
+		node_type *node = dllrbt_get_head( call_log );
+		while ( node != NULL )
+		{
+			DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
+			while ( di_node != NULL )
+			{
+				displayinfo *di = ( displayinfo * )di_node->data;
+
+				if ( di != NULL )
+				{
+					int phone_number_length1 = lstrlenA( di->ci.call_from );
+					int phone_number_length2 = lstrlenA( di->ci.forward_to );
+					int phone_number_length3 = lstrlenA( di->ci.call_to );
+
+					wchar_t *w_ignore = ( di->ignore == true ? ST_Yes : ST_No );
+					wchar_t *w_forward = ( di->forward == true ? ST_Yes : ST_No );
+
+					int ignore_length = WideCharToMultiByte( CP_UTF8, 0, w_ignore, -1, NULL, 0, NULL, NULL );
+					char *utf8_ignore = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ignore_length ); // Size includes the null character.
+					ignore_length = WideCharToMultiByte( CP_UTF8, 0, w_ignore, -1, utf8_ignore, ignore_length, NULL, NULL ) - 1;
+
+					int forward_length = WideCharToMultiByte( CP_UTF8, 0, w_forward, -1, NULL, 0, NULL, NULL );
+					char *utf8_forward = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * forward_length ); // Size includes the null character.
+					forward_length = WideCharToMultiByte( CP_UTF8, 0, w_forward, -1, utf8_forward, forward_length, NULL, NULL ) - 1;
+
+					char *escaped_caller_id = escape_csv( di->ci.caller_id );
+
+					int caller_id_length = lstrlenA( ( escaped_caller_id != NULL ? escaped_caller_id : di->ci.caller_id ) );
+
+					int time_length = WideCharToMultiByte( CP_UTF8, 0, di->w_time, -1, NULL, 0, NULL, NULL );
+					char *utf8_time = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * time_length ); // Size includes the null character.
+					time_length = WideCharToMultiByte( CP_UTF8, 0, di->w_time, -1, utf8_time, time_length, NULL, NULL ) - 1;
+
+					// Convert the time into a 32bit Unix timestamp.
+					LARGE_INTEGER date;
+					date.HighPart = di->time.HighPart;
+					date.LowPart = di->time.LowPart;
+
+					date.QuadPart -= ( 11644473600000 * 10000 );
+
+					// Divide the 64bit value.
+					__asm
+					{
+						xor edx, edx;				//; Zero out the register so we don't divide a full 64bit value.
+						mov eax, date.HighPart;		//; We'll divide the high order bits first.
+						mov ecx, FILETIME_TICKS_PER_SECOND;
+						div ecx;
+						mov date.HighPart, eax;		//; Store the high order quotient.
+						mov eax, date.LowPart;		//; Now we'll divide the low order bits.
+						div ecx;
+						mov date.LowPart, eax;		//; Store the low order quotient.
+						//; Any remainder will be stored in edx. We're not interested in it though.
+					}
+
+					int timestamp_length = __snprintf( unix_timestamp, 21, "%llu", date.QuadPart );
+
+					// See if the next entry can fit in the buffer. If it can't, then we dump the buffer.
+					if ( pos + phone_number_length1 + phone_number_length2 + phone_number_length3 + caller_id_length + time_length + timestamp_length + ignore_length + forward_length + 13 > size )
+					{
+						// Dump the buffer.
+						WriteFile( hFile_call_log, write_buf, pos, &write, NULL );
+						pos = 0;
+					}
+
+					// Add to the buffer.
+					write_buf[ pos++ ] = '\r';
+					write_buf[ pos++ ] = '\n';
+
+					write_buf[ pos++ ] = '\"';
+					_memcpy_s( write_buf + pos, size - pos, ( escaped_caller_id != NULL ? escaped_caller_id : di->ci.caller_id ), caller_id_length );
+					pos += caller_id_length;
+					write_buf[ pos++ ] = '\"';
+					write_buf[ pos++ ] = ',';
+
+					_memcpy_s( write_buf + pos, size - pos, di->ci.call_from, phone_number_length1 );
+					pos += phone_number_length1;
+					write_buf[ pos++ ] = ',';
+
+					write_buf[ pos++ ] = '\"';
+					_memcpy_s( write_buf + pos, size - pos, utf8_time, time_length );
+					pos += time_length;
+					write_buf[ pos++ ] = '\"';
+					write_buf[ pos++ ] = ',';
+
+					_memcpy_s( write_buf + pos, size - pos, unix_timestamp, timestamp_length );
+					pos += timestamp_length;
+					write_buf[ pos++ ] = ',';
+
+					_memcpy_s( write_buf + pos, size - pos, utf8_ignore, ignore_length );
+					pos += ignore_length;
+					write_buf[ pos++ ] = ',';
+
+					_memcpy_s( write_buf + pos, size - pos, utf8_forward, forward_length );
+					pos += forward_length;
+					write_buf[ pos++ ] = ',';
+
+					_memcpy_s( write_buf + pos, size - pos, di->ci.forward_to, phone_number_length2 );
+					pos += phone_number_length2;
+					write_buf[ pos++ ] = ',';
+
+					_memcpy_s( write_buf + pos, size - pos, di->ci.call_to, phone_number_length3 );
+					pos += phone_number_length3;
+
+					GlobalFree( utf8_forward );
+					GlobalFree( utf8_ignore );
+					GlobalFree( utf8_time );
+					GlobalFree( escaped_caller_id );
+				}
+
+				di_node = di_node->next;
+			}
+
+			node = node->next;
+		}
+
+		// If there's anything remaining in the buffer, then write it to the file.
+		if ( pos > 0 )
+		{
+			WriteFile( hFile_call_log, write_buf, pos, &write, NULL );
+		}
+
+		GlobalFree( write_buf );
+
+		CloseHandle( hFile_call_log );
+	}
+
+	GlobalFree( file_path );
+
+	Processing_Window( g_hWnd_list, true );
 
 	// Release the mutex if we're killing the thread.
 	if ( worker_mutex != NULL )

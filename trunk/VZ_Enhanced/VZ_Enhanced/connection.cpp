@@ -26,7 +26,7 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.5"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.6"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define DEFAULT_BUFLEN	8192
@@ -3542,21 +3542,21 @@ THREAD_RETURN Connection( void *pArguments )
 				di->ci.call_reference_id = call_reference_id;
 				di->ci.caller_id = caller_id;
 				di->ci.forward_to = NULL;
-				di->ci.ignore = false;
-				di->ci.forward = false;
+				di->ci.ignored = false;
+				di->ci.forwarded = false;
 				di->caller_id = NULL;
 				di->phone_number = NULL;
 				di->reference = NULL;
 				di->forward_to = NULL;
 				di->sent_to = NULL;
-				di->w_forwarded = NULL;
-				di->w_ignored = NULL;
+				di->w_forward = NULL;
+				di->w_ignore = NULL;
 				di->w_time = NULL;
 				di->time.LowPart = FileTime.dwLowDateTime;
 				di->time.HighPart = FileTime.dwHighDateTime;
 				di->process_incoming = true;
-				di->ignored = false;
-				di->forwarded = false;
+				di->ignore = false;
+				di->forward = false;
 
 				// This will also ignore or forward the call if it's in our lists.
 				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_call_log, ( void * )di, 0, NULL ) );

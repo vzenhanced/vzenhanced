@@ -220,7 +220,7 @@ bool WebIgnoreIncomingCall( displayinfo *di )
 	}
 
 	di->process_incoming = false;
-	di->ci.ignore = true;
+	di->ci.ignored = true;
 
 	_InvalidateRect( g_hWnd_list, NULL, TRUE );
 
@@ -238,7 +238,7 @@ bool WebForwardIncomingCall( displayinfo *di, char *forward_to )
 
 	di->process_incoming = false;
 	di->ci.forward_to = forward_to;
-	di->ci.forward = true;
+	di->ci.forwarded = true;
 
 	// Forward to phone number
 	di->forward_to = FormatPhoneNumber( di->ci.forward_to );

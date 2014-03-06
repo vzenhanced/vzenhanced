@@ -181,25 +181,6 @@ function get_call_log()
 function format_timestamp( ts )
 {
 	// Friday, October 11, 2013 5:35:27 PM
-	/*var date = new Date( ( ts + ( minute_offset * 60 ) ) * 1000 );
-	var h = date.getHours();
-	if ( h > 12 )
-	{
-		h = h - 12;
-	}
-	var m = date.getMinutes();
-	if ( m < 10 )
-	{
-		m = '0' + m;
-	}
-	var s = date.getSeconds();
-	if ( s < 10 )
-	{
-		s = '0' + s;
-	}
-
-	return days[ date.getDay() ] + ", " + months[ date.getMonth() ] + " " + date.getDate() + ", " + date.getFullYear() + " " + h + ":" + m + ":" + s + " " + ( date.getHours() < 12 ? "AM" : "PM" );*/
-
 	var date = new Date( ( ts + ( minute_offset * 60 ) ) * 1000 );
 	return days[ date.getDay() ] + ", " + months[ date.getMonth() ] + " " + date.getDate() + ", " + date.getFullYear() + " " + date.toLocaleTimeString();
 }

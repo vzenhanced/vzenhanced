@@ -108,17 +108,28 @@ void CreateMenus()
 	mii.dwTypeData = ST__Log_In___;
 	mii.cch = 10;
 	mii.wID = MENU_LOGIN;
+	mii.fState = MFS_ENABLED;
 	_InsertMenuItemW( hMenuSub_file, 0, TRUE, &mii );
 
 	mii.fType = MFT_SEPARATOR;
 	_InsertMenuItemW( hMenuSub_file, 1, TRUE, &mii );
 
 	mii.fType = MFT_STRING;
+	mii.dwTypeData = ST__Save_Call_Log___;
+	mii.cch = 17;
+	mii.wID = MENU_SAVE_CALL_LOG;
+	mii.fState = MFS_DISABLED;
+	_InsertMenuItemW( hMenuSub_file, 2, TRUE, &mii );
+
+	mii.fType = MFT_SEPARATOR;
+	_InsertMenuItemW( hMenuSub_file, 3, TRUE, &mii );
+
+	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST_E_xit;
 	mii.cch = 5;
 	mii.wID = MENU_EXIT;
 	mii.fState = MFS_ENABLED;
-	_InsertMenuItemW( hMenuSub_file, 2, TRUE, &mii );
+	_InsertMenuItemW( hMenuSub_file, 4, TRUE, &mii );
 
 
 	// EDIT MENUS
@@ -159,9 +170,9 @@ void CreateMenus()
 	mii.fState = MFS_DISABLED;
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 1, TRUE, &mii );
 
-	mii.dwTypeData = ST_Edit_Forward_Entry___;
+	mii.dwTypeData = ST_Edit_Forward_List_Entry___;
 	mii.wID = MENU_EDIT_FORWARD_LIST;
-	mii.cch = 21;
+	mii.cch = 26;
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 1, TRUE, &mii );
 
 	mii.dwTypeData = ST_Remove_Selected;
@@ -527,6 +538,23 @@ void HandleRightClick( HWND hWnd )
 
 						if ( sel_count > 1 )
 						{
+							mii.dwTypeData = ST_Copy_Dates_and_Times;
+							mii.cch = 20;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Date_and_Time;
+							mii.cch = 18;
+						}
+					}
+					break;
+
+					case 3:
+					{
+						mii.wID = MENU_COPY_SEL_COL3;
+
+						if ( sel_count > 1 )
+						{
 							mii.dwTypeData = ST_Copy_Forward_States;
 							mii.cch = 19;
 						}
@@ -538,15 +566,15 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 3:
+					case 4:
 					{
-						mii2.wID = MENU_CALL_PHONE_COL13;
+						mii2.wID = MENU_CALL_PHONE_COL14;
 						mii2.dwTypeData = ST_Call_Forwarded_to_Phone_Number___;
 						mii2.cch = 33;
 
 						show_call_menu = true;
 
-						mii.wID = MENU_COPY_SEL_COL3;
+						mii.wID = MENU_COPY_SEL_COL4;
 
 						if ( sel_count > 1 )
 						{
@@ -561,9 +589,9 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 4:
+					case 5:
 					{
-						mii.wID = MENU_COPY_SEL_COL4;
+						mii.wID = MENU_COPY_SEL_COL5;
 
 						if ( sel_count > 1 )
 						{
@@ -578,15 +606,15 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 5:
+					case 6:
 					{
-						mii2.wID = MENU_CALL_PHONE_COL15;
+						mii2.wID = MENU_CALL_PHONE_COL16;
 						mii2.dwTypeData = ST_Call_Phone_Number___;
 						mii2.cch = 20;
 
 						show_call_menu = true;
 
-						mii.wID = MENU_COPY_SEL_COL5;
+						mii.wID = MENU_COPY_SEL_COL6;
 
 						if ( sel_count > 1 )
 						{
@@ -601,9 +629,9 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 6:
+					case 7:
 					{
-						mii.wID = MENU_COPY_SEL_COL6;
+						mii.wID = MENU_COPY_SEL_COL7;
 
 						if ( sel_count > 1 )
 						{
@@ -618,15 +646,15 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 7:
+					case 8:
 					{
-						mii2.wID = MENU_CALL_PHONE_COL17;
+						mii2.wID = MENU_CALL_PHONE_COL18;
 						mii2.dwTypeData = ST_Call_Sent_to_Phone_Number___;
 						mii2.cch = 28;
 
 						show_call_menu = true;
 
-						mii.wID = MENU_COPY_SEL_COL7;
+						mii.wID = MENU_COPY_SEL_COL8;
 
 						if ( sel_count > 1 )
 						{
@@ -637,23 +665,6 @@ void HandleRightClick( HWND hWnd )
 						{
 							mii.dwTypeData = ST_Copy_Sent_to_Phone_Number;
 							mii.cch = 25;
-						}
-					}
-					break;
-
-					case 8:
-					{
-						mii.wID = MENU_COPY_SEL_COL8;
-
-						if ( sel_count > 1 )
-						{
-							mii.dwTypeData = ST_Copy_Times;
-							mii.cch = 10;
-						}
-						else
-						{
-							mii.dwTypeData = ST_Copy_Time;
-							mii.cch = 9;
 						}
 					}
 					break;
@@ -1726,7 +1737,7 @@ void UpdateMenus( unsigned char action )
 			{
 				_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
-				if ( ( ( displayinfo * )lvi.lParam )->forwarded == true )
+				if ( ( ( displayinfo * )lvi.lParam )->forward == true )
 				{
 					mii3.dwTypeData = ST_Remove_from_Forward_List;
 					mii3.cch = 24;
@@ -1739,7 +1750,7 @@ void UpdateMenus( unsigned char action )
 					_SetMenuItemInfoW( g_hMenuSub_list_context, 0, TRUE, &mii3 );
 				}
 
-				if ( ( ( displayinfo * )lvi.lParam )->ignored == true )
+				if ( ( ( displayinfo * )lvi.lParam )->ignore == true )
 				{
 					mii3.dwTypeData = ST_Remove_from_Ignore_List;
 					mii3.cch = 23;
