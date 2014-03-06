@@ -32,13 +32,13 @@ HWND g_hWnd_column_tab = NULL;
 
 HWND g_hWnd_chk_call_log_num = NULL;
 HWND g_hWnd_chk_caller_id = NULL;
+HWND g_hWnd_chk_date_and_time = NULL;
 HWND g_hWnd_chk_forwarded = NULL;
 HWND g_hWnd_chk_forwarding_phone_number = NULL;
 HWND g_hWnd_chk_ignored = NULL;
 HWND g_hWnd_chk_phone_number = NULL;
 HWND g_hWnd_chk_reference = NULL;
 HWND g_hWnd_chk_sent_to_phone_number = NULL;
-HWND g_hWnd_chk_time = NULL;
 
 HWND g_hWnd_chk_contact_list_num = NULL;
 HWND g_hWnd_chk_cell_phone = NULL;
@@ -86,35 +86,35 @@ LRESULT CALLBACK CallLogColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPAR
 
 			g_hWnd_chk_call_log_num = _CreateWindowW( WC_BUTTON, ST_Entry_NUM, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
 			g_hWnd_chk_caller_id = _CreateWindowW( WC_BUTTON, ST_Caller_ID, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_forwarded = _CreateWindowW( WC_BUTTON, ST_Forward, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_forwarding_phone_number = _CreateWindowW( WC_BUTTON, ST_Forwarded_to, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_ignored = _CreateWindowW( WC_BUTTON, ST_Ignore, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_phone_number = _CreateWindowW( WC_BUTTON, ST_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 120, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_reference = _CreateWindowW( WC_BUTTON, ST_Reference, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_sent_to_phone_number = _CreateWindowW( WC_BUTTON, ST_Sent_to, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_time = _CreateWindowW( WC_BUTTON, ST_Time, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_date_and_time = _CreateWindowW( WC_BUTTON, ST_CLL_Date_and_Time, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_forwarded = _CreateWindowW( WC_BUTTON, ST_CLL_Forward, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_forwarding_phone_number = _CreateWindowW( WC_BUTTON, ST_CLL_Forwarded_to, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_ignored = _CreateWindowW( WC_BUTTON, ST_CLL_Ignore, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 120, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_phone_number = _CreateWindowW( WC_BUTTON, ST_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_reference = _CreateWindowW( WC_BUTTON, ST_CLL_Reference, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_sent_to_phone_number = _CreateWindowW( WC_BUTTON, ST_CLL_Sent_to, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
 
 			_SendMessageW( hWnd_static, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_chk_call_log_num, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_caller_id, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_chk_date_and_time, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_forwarded, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_forwarding_phone_number, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_ignored, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_phone_number, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_reference, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_sent_to_phone_number, WM_SETFONT, ( WPARAM )hFont, 0 );
-			_SendMessageW( g_hWnd_chk_time, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_chk_call_log_num, BM_SETCHECK, ( cfg_column_order1 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
 			_SendMessageW( g_hWnd_chk_caller_id, BM_SETCHECK, ( cfg_column_order2 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
-			_SendMessageW( g_hWnd_chk_forwarded, BM_SETCHECK, ( cfg_column_order3 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
-			_SendMessageW( g_hWnd_chk_forwarding_phone_number, BM_SETCHECK, ( cfg_column_order4 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
-			_SendMessageW( g_hWnd_chk_ignored, BM_SETCHECK, ( cfg_column_order5 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
-			_SendMessageW( g_hWnd_chk_phone_number, BM_SETCHECK, ( cfg_column_order6 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
-			_SendMessageW( g_hWnd_chk_reference, BM_SETCHECK, ( cfg_column_order7 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
-			_SendMessageW( g_hWnd_chk_sent_to_phone_number, BM_SETCHECK, ( cfg_column_order8 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
-			_SendMessageW( g_hWnd_chk_time, BM_SETCHECK, ( cfg_column_order9 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_chk_date_and_time, BM_SETCHECK, ( cfg_column_order3 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_chk_forwarded, BM_SETCHECK, ( cfg_column_order4 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_chk_forwarding_phone_number, BM_SETCHECK, ( cfg_column_order5 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_chk_ignored, BM_SETCHECK, ( cfg_column_order6 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_chk_phone_number, BM_SETCHECK, ( cfg_column_order7 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_chk_reference, BM_SETCHECK, ( cfg_column_order8 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_chk_sent_to_phone_number, BM_SETCHECK, ( cfg_column_order9 != -1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 			return 0;
 		}
@@ -160,23 +160,23 @@ LRESULT CALLBACK ContactListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, 
 			HWND hWnd_static = _CreateWindowW( WC_STATIC, ST_Show_columns_, WS_CHILD | WS_VISIBLE, 0, 0, 120, 20, hWnd, NULL, NULL, NULL );
 
 			g_hWnd_chk_contact_list_num = _CreateWindowW( WC_BUTTON, ST_Entry_NUM, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_cell_phone = _CreateWindowW( WC_BUTTON, ST_Cell_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_company = _CreateWindowW( WC_BUTTON, ST_Company, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_department = _CreateWindowW( WC_BUTTON, ST_Department, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_email_address = _CreateWindowW( WC_BUTTON, ST_Email_Address, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_fax_number = _CreateWindowW( WC_BUTTON, ST_Fax_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 120, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_first_name = _CreateWindowW( WC_BUTTON, ST_First_Name, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_home_phone = _CreateWindowW( WC_BUTTON, ST_Home_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_cell_phone = _CreateWindowW( WC_BUTTON, ST_CL_Cell_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_company = _CreateWindowW( WC_BUTTON, ST_CL_Company, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_department = _CreateWindowW( WC_BUTTON, ST_CL_Department, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_email_address = _CreateWindowW( WC_BUTTON, ST_CL_Email_Address, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_fax_number = _CreateWindowW( WC_BUTTON, ST_CL_Fax_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 120, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_first_name = _CreateWindowW( WC_BUTTON, ST_CL_First_Name, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_home_phone = _CreateWindowW( WC_BUTTON, ST_CL_Home_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
 			
-			g_hWnd_chk_job_title = _CreateWindowW( WC_BUTTON, ST_Job_Title, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_last_name = _CreateWindowW( WC_BUTTON, ST_Last_Name, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_nickname = _CreateWindowW( WC_BUTTON, ST_Nickname, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_office_phone = _CreateWindowW( WC_BUTTON, ST_Office_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 120, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_other_phone = _CreateWindowW( WC_BUTTON, ST_Other_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_profession = _CreateWindowW( WC_BUTTON, ST_Profession, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_title = _CreateWindowW( WC_BUTTON, ST_Title, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_web_page = _CreateWindowW( WC_BUTTON, ST_Web_Page, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_work_phone_number = _CreateWindowW( WC_BUTTON, ST_Work_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_job_title = _CreateWindowW( WC_BUTTON, ST_CL_Job_Title, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_last_name = _CreateWindowW( WC_BUTTON, ST_CL_Last_Name, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_nickname = _CreateWindowW( WC_BUTTON, ST_CL_Nickname, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_office_phone = _CreateWindowW( WC_BUTTON, ST_CL_Office_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 125, 120, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_other_phone = _CreateWindowW( WC_BUTTON, ST_CL_Other_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_profession = _CreateWindowW( WC_BUTTON, ST_CL_Profession, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_title = _CreateWindowW( WC_BUTTON, ST_CL_Title, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_web_page = _CreateWindowW( WC_BUTTON, ST_CL_Web_Page, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_work_phone_number = _CreateWindowW( WC_BUTTON, ST_CL_Work_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 100, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
 
 			_SendMessageW( hWnd_static, WM_SETFONT, ( WPARAM )hFont, 0 );
 
@@ -262,7 +262,7 @@ LRESULT CALLBACK ForwardListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, 
 			HWND hWnd_static = _CreateWindowW( WC_STATIC, ST_Show_columns_, WS_CHILD | WS_VISIBLE, 0, 0, 120, 20, hWnd, NULL, NULL, NULL );
 
 			g_hWnd_chk_forwardlist_num = _CreateWindowW( WC_BUTTON, ST_Entry_NUM, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 20, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
-			g_hWnd_chk_forwardlist_to_phone = _CreateWindowW( WC_BUTTON, ST_Forward_to, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
+			g_hWnd_chk_forwardlist_to_phone = _CreateWindowW( WC_BUTTON, ST_FL_Forward_to, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 40, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
 			g_hWnd_chk_forwardlist_from_phone = _CreateWindowW( WC_BUTTON, ST_Phone_Number, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 60, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
 			g_hWnd_chk_forwardlist_total_calls = _CreateWindowW( WC_BUTTON, ST_Total_Calls, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 80, 120, 20, hWnd, ( HMENU )BTN_CHANGE_STATE, NULL, NULL );
 
@@ -444,13 +444,13 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					bool column1_array[ NUM_COLUMNS ];
 					column1_array[ 0 ] = ( _SendMessageW( g_hWnd_chk_call_log_num, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 					column1_array[ 1 ] = ( _SendMessageW( g_hWnd_chk_caller_id, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-					column1_array[ 2 ] = ( _SendMessageW( g_hWnd_chk_forwarded, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-					column1_array[ 3 ] = ( _SendMessageW( g_hWnd_chk_forwarding_phone_number, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-					column1_array[ 4 ] = ( _SendMessageW( g_hWnd_chk_ignored, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-					column1_array[ 5 ] = ( _SendMessageW( g_hWnd_chk_phone_number, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-					column1_array[ 6 ] = ( _SendMessageW( g_hWnd_chk_reference, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-					column1_array[ 7 ] = ( _SendMessageW( g_hWnd_chk_sent_to_phone_number, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-					column1_array[ 8 ] = ( _SendMessageW( g_hWnd_chk_time, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+					column1_array[ 2 ] = ( _SendMessageW( g_hWnd_chk_date_and_time, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+					column1_array[ 3 ] = ( _SendMessageW( g_hWnd_chk_forwarded, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+					column1_array[ 4 ] = ( _SendMessageW( g_hWnd_chk_forwarding_phone_number, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+					column1_array[ 5 ] = ( _SendMessageW( g_hWnd_chk_ignored, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+					column1_array[ 6 ] = ( _SendMessageW( g_hWnd_chk_phone_number, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+					column1_array[ 7 ] = ( _SendMessageW( g_hWnd_chk_reference, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+					column1_array[ 8 ] = ( _SendMessageW( g_hWnd_chk_sent_to_phone_number, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
 					for ( char i = 0; i < NUM_COLUMNS; ++i )
 					{

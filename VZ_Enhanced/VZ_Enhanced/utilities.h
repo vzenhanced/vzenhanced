@@ -49,6 +49,8 @@ THREAD_RETURN update_forward_list( void *pArguments );
 THREAD_RETURN update_contact_list( void *pArguments );
 THREAD_RETURN update_call_log( void *pArguments );
 
+THREAD_RETURN save_call_log( void *file_path );
+
 void UpdateColumnOrders();
 void CheckColumnOrders( unsigned char list, char *column_arr[], unsigned char num_columns );
 void CheckColumnWidths();
@@ -62,7 +64,6 @@ void free_displayinfo( displayinfo **di );
 void free_contactinfo( contactinfo **ci );
 void free_forwardinfo( forwardinfo **fi );
 void free_ignoreinfo( ignoreinfo **ii );
-
 
 wchar_t *FormatPhoneNumber( char *phone_number );
 void FormatDisplayInfo( displayinfo *di );

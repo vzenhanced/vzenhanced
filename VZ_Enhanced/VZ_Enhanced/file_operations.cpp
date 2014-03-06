@@ -1477,7 +1477,7 @@ void save_forward_list()
 		int pos = 0;
 		DWORD write = 0;
 
-		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 43 bytes.
+		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 44 bytes.
 
 		node_type *node = dllrbt_get_head( forward_list );
 		while ( node != NULL )
@@ -1491,7 +1491,7 @@ void save_forward_list()
 				int total_calls_length = lstrlenA( fi->c_total_calls );
 
 				// See if the next number can fit in the buffer. If it can't, then we dump the buffer.
-				if ( pos + phone_number_length1 + phone_number_length2 + total_calls_length + 3 > size )
+				if ( pos + phone_number_length1 + phone_number_length2 + total_calls_length + 4 > size )
 				{
 					// Dump the buffer.
 					WriteFile( hFile_forward, write_buf, pos, &write, NULL );
@@ -1499,7 +1499,7 @@ void save_forward_list()
 				}
 
 				// Ignore numbers that are greater than 15 digits (bytes).
-				if ( phone_number_length1 + phone_number_length2 + total_calls_length + 3 <= 43 )
+				if ( phone_number_length1 + phone_number_length2 + total_calls_length + 4 <= 44 )
 				{
 					// Add to the buffer.
 					_memcpy_s( write_buf + pos, size - pos, fi->c_call_from, phone_number_length1 );

@@ -1250,7 +1250,7 @@ int WriteCallLog( SOCKET_CONTEXT *socket_context )
 				break;
 			}
 
-			json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"I\":%c,\"F\":%c}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, ( di->ci.ignore == true ? '1' : '0' ), ( di->ci.forward == true ? '1' : '0' ) );
+			json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"I\":%c,\"F\":%c}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, ( di->ci.ignored == true ? '1' : '0' ), ( di->ci.forwarded == true ? '1' : '0' ) );
 
 			if ( escaped_caller_id != NULL )
 			{

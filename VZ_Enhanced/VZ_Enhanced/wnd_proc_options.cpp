@@ -1923,7 +1923,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 					if ( popup_time_format == 0 )	// 12 hour
 					{
-						__snwprintf( time_line, 16, L"%d:%02d %s", ( SystemTime.wHour > 12 ? SystemTime.wHour - 12 : SystemTime.wHour ), SystemTime.wMinute, ( SystemTime.wHour >= 12 ? L"PM" : L"AM" ) );
+						__snwprintf( time_line, 16, L"%d:%02d %s", ( SystemTime.wHour > 12 ? SystemTime.wHour - 12 : ( SystemTime.wHour != 0 ? SystemTime.wHour : 12 ) ), SystemTime.wMinute, ( SystemTime.wHour >= 12 ? L"PM" : L"AM" ) );
 					}
 					else	// 24 hour
 					{

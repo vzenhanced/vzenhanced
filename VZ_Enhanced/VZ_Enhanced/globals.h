@@ -111,8 +111,8 @@ struct callerinfo
 
 	char *call_reference_id;
 
-	bool ignore;			// The phone number has been ignored
-	bool forward;			// The phone number has been forwarded
+	bool ignored;			// The phone number has been ignored
+	bool forwarded;			// The phone number has been forwarded
 };
 
 struct displayinfo
@@ -122,13 +122,13 @@ struct displayinfo
 		struct	// Keep these in alphabetical order.
 		{
 			wchar_t *caller_id;		// Caller ID
-			wchar_t *w_forwarded;	// Forward
+			wchar_t *w_time;		// Date and Time
+			wchar_t *w_forward;		// Forward
 			wchar_t *forward_to;	// Forward to
-			wchar_t *w_ignored;		// Ignore
+			wchar_t *w_ignore;		// Ignore
 			wchar_t *phone_number;	// Phone Number
 			wchar_t *reference;		// Reference
 			wchar_t *sent_to;		// Sent to
-			wchar_t *w_time;		// Time
 		};
 
 		wchar_t *display_values[ 8 ];
@@ -138,8 +138,8 @@ struct displayinfo
 
 	LARGE_INTEGER time;
 
-	bool ignored;			// Ignore	(phone number is in ignore_list)
-	bool forwarded;			// Forward	(phone number is in forward_list)
+	bool ignore;			// Ignore	(phone number is in ignore_list)
+	bool forward;			// Forward	(phone number is in forward_list)
 
 	bool process_incoming;	// false, true = ignore or forward
 };

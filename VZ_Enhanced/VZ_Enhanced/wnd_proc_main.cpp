@@ -92,13 +92,13 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 
 		switch ( arr[ si->column ] )
 		{
-			case 4:
+			case 5:
 			{
-				if ( fi1->ignored == fi2->ignored )
+				if ( fi1->ignore == fi2->ignore )
 				{
 					return 0;
 				}
-				else if ( fi1->ignored == true && fi2->ignored == false )
+				else if ( fi1->ignore == true && fi2->ignore == false )
 				{
 					return 1;
 				}
@@ -109,13 +109,13 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 			}
 			break;
 
-			case 2:
+			case 3:
 			{
-				if ( fi1->forwarded == fi2->forwarded )
+				if ( fi1->forward == fi2->forward )
 				{
 					return 0;
 				}
-				else if ( fi1->forwarded == true && fi2->forwarded == false )
+				else if ( fi1->forward == true && fi2->forward == false )
 				{
 					return 1;
 				}
@@ -127,13 +127,13 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 			break;
 
 			case 1: { return _stricmp_s( fi1->ci.caller_id, fi2->ci.caller_id ); } break;
-			case 6: { return _stricmp_s( fi1->ci.call_reference_id, fi2->ci.call_reference_id ); } break;
+			case 7: { return _stricmp_s( fi1->ci.call_reference_id, fi2->ci.call_reference_id ); } break;
 
-			case 3:
-			case 5:
-			case 7: { return _wcsicmp_s( fi1->display_values[ arr[ si->column ] - 1 ], fi2->display_values[ arr[ si->column ] - 1 ] ); } break;
+			case 4:
+			case 6:
+			case 8: { return _wcsicmp_s( fi1->display_values[ arr[ si->column ] - 1 ], fi2->display_values[ arr[ si->column ] - 1 ] ); } break;
 
-			case 8: { return ( fi1->time.QuadPart > fi2->time.QuadPart ); } break;
+			case 2: { return ( fi1->time.QuadPart > fi2->time.QuadPart ); } break;
 
 			default:
 			{
@@ -470,12 +470,19 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 		case WM_ENTERMENULOOP:
 		{
-			// If a context menu was open and we've clicked the menu bar, then revert the context menu additions.
-			if ( ( BOOL )wParam == FALSE && last_menu == true )
+			// If we've clicked the menu bar.
+			if ( ( BOOL )wParam == FALSE )
 			{
-				UpdateMenus( UM_ENABLE );
+				// And a context menu was open, then revert the context menu additions.
+				if ( last_menu == true )
+				{
+					UpdateMenus( UM_ENABLE );
 
-				last_menu = false;	// Prevent us from calling UpdateMenus again.
+					last_menu = false;	// Prevent us from calling UpdateMenus again.
+				}
+
+				// Allow us to save the call log if there are any entries in the call log listview.
+				_EnableMenuItem( g_hMenu, MENU_SAVE_CALL_LOG, ( _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 ) > 0 ? MF_ENABLED : MF_DISABLED ) );
 			}
 			else if ( ( BOOL )wParam == TRUE )
 			{
@@ -916,7 +923,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							displayinfo *di = ( displayinfo * )lvi.lParam;
 
 							di->process_incoming = false;
-							di->ci.ignore = true;
+							di->ci.ignored = true;
 
 							_InvalidateRect( g_hWnd_list, NULL, TRUE );
 
@@ -973,9 +980,9 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					}
 					break;
 
-					case MENU_CALL_PHONE_COL13:
-					case MENU_CALL_PHONE_COL15:
-					case MENU_CALL_PHONE_COL17:
+					case MENU_CALL_PHONE_COL14:
+					case MENU_CALL_PHONE_COL16:
+					case MENU_CALL_PHONE_COL18:
 					case MENU_CALL_PHONE_COL21:
 					case MENU_CALL_PHONE_COL25:
 					case MENU_CALL_PHONE_COL27:
@@ -993,9 +1000,9 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						_memzero( &lvi, sizeof( LVITEM ) );
 						lvi.mask = LVIF_PARAM;
 
-						if ( LOWORD( wParam ) == MENU_CALL_PHONE_COL15 ||
-							 LOWORD( wParam ) == MENU_CALL_PHONE_COL13 ||
-							 LOWORD( wParam ) == MENU_CALL_PHONE_COL17 )
+						if ( LOWORD( wParam ) == MENU_CALL_PHONE_COL14 ||
+							 LOWORD( wParam ) == MENU_CALL_PHONE_COL16 ||
+							 LOWORD( wParam ) == MENU_CALL_PHONE_COL18 )
 						{
 							lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
 
@@ -1005,9 +1012,9 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 								switch ( LOWORD( wParam ) )
 								{
-									case MENU_CALL_PHONE_COL13: { call_to = ( ( displayinfo * )lvi.lParam )->ci.forward_to; } break;
-									case MENU_CALL_PHONE_COL15: { call_to = ( ( displayinfo * )lvi.lParam )->ci.call_from; } break;
-									case MENU_CALL_PHONE_COL17: { call_to = ( ( displayinfo * )lvi.lParam )->ci.call_to; } break;
+									case MENU_CALL_PHONE_COL14: { call_to = ( ( displayinfo * )lvi.lParam )->ci.forward_to; } break;
+									case MENU_CALL_PHONE_COL16: { call_to = ( ( displayinfo * )lvi.lParam )->ci.call_from; } break;
+									case MENU_CALL_PHONE_COL18: { call_to = ( ( displayinfo * )lvi.lParam )->ci.call_to; } break;
 								}
 							}
 						}
@@ -1103,7 +1110,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							ignoreupdateinfo *iui = ( ignoreupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreupdateinfo ) );
 							iui->ii = NULL;
 							iui->phone_number = NULL;
-							iui->action = ( ( ( displayinfo * )lvi.lParam )->ignored == true ? 1 : 0 );	// 1 = Remove, 0 = Add
+							iui->action = ( ( ( displayinfo * )lvi.lParam )->ignore == true ? 1 : 0 );	// 1 = Remove, 0 = Add
 							iui->hWnd = g_hWnd_list;
 
 							// iui is freed in the update_ignore_list thread.
@@ -1171,7 +1178,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 							// This item we've selected is in the forwardlist tree.
-							if ( ( ( displayinfo * )lvi.lParam )->forwarded == true )
+							if ( ( ( displayinfo * )lvi.lParam )->forward == true )
 							{
 								forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
 								fui->fi = NULL;
@@ -1334,7 +1341,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								}
 							}
 
-							// eu will be freed in the ExportContactList thread.
+							// iei will be freed in the ExportContactList thread.
 							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ExportContactList, ( void * )iei, 0, NULL ) );
 						}
 						else
@@ -1378,12 +1385,63 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 							iei->file_type = ( unsigned char )( ofn.nFilterIndex - 1 );
 
-							// eu will be freed in the ExportContactList thread.
+							// iei will be freed in the ExportContactList thread.
 							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ImportContactList, ( void * )iei, 0, NULL ) );
 						}
 						else
 						{
 							GlobalFree( file_name );
+						}
+					}
+					break;
+
+					case MENU_SAVE_CALL_LOG:
+					{
+						wchar_t *file_path = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
+						_memzero( file_path, sizeof ( wchar_t ) * MAX_PATH );
+
+						OPENFILENAME ofn;
+						_memzero( &ofn, sizeof( OPENFILENAME ) );
+						ofn.lStructSize = sizeof( OPENFILENAME );
+						ofn.hwndOwner = hWnd;
+						ofn.lpstrFilter = L"CSV (Comma delimited) (*.csv)\0*.csv\0";
+						ofn.lpstrTitle = ST_Save_Call_Log;
+						ofn.lpstrFile = file_path;
+						ofn.nMaxFile = MAX_PATH;
+						ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_READONLY;
+
+						if ( _GetSaveFileNameW( &ofn ) )
+						{
+							bool append = true;
+
+							// See if a file extension was typed.
+							if ( ofn.nFileExtension > 0 )
+							{
+								// See if it's the same as our selected file type.
+								if ( lstrcmpW( file_path + ofn.nFileExtension, L"csv" ) == 0 )
+								{
+									append = false;
+								}
+							}
+
+							if ( append == true )
+							{
+								int file_name_length = lstrlenW( file_path + ofn.nFileOffset );
+
+								// Append the file extension to the end of the file name.
+								if ( ofn.nFileOffset + file_name_length + 4 < MAX_PATH )
+								{
+									_wmemcpy_s( file_path + ofn.nFileOffset + file_name_length, MAX_PATH, L".csv", 4 );
+									*( file_path + ofn.nFileOffset + file_name_length + 4 ) = 0;	// Sanity.
+								}
+							}
+
+							// file_path will be freed in the save_call_log thread.
+							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, save_call_log, ( void * )file_path, 0, NULL ) );
+						}
+						else
+						{
+							GlobalFree( file_path );
 						}
 					}
 					break;
@@ -1618,6 +1676,15 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								if ( _SendMessageW( nmlv->hdr.hwndFrom, LVM_GETSELECTEDCOUNT, 0, 0 ) > 0 )
 								{
 									_SendMessageW( hWnd, WM_COMMAND, MENU_COPY_SEL, 0 );
+								}
+							}
+							break;
+
+							case 'S':	// Save Call Log items if Ctrl + S is down and there are items in the list.
+							{
+								if ( _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 ) > 0 )
+								{
+									_SendMessageW( hWnd, WM_COMMAND, MENU_SAVE_CALL_LOG, 0 );
 								}
 							}
 							break;
@@ -1982,7 +2049,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						}
 						else
 						{
-							_SetTextColor( hdcMem, ( ( ( displayinfo * )lvi.lParam )->ci.ignore == true ? RGB( 0xFF, 0x00, 0x00 ) : ( ( displayinfo * )lvi.lParam )->ci.forward == true ? RGB( 0xFF, 0x80, 0x00 ) : RGB( 0x00, 0x00, 0x00 ) ) );
+							_SetTextColor( hdcMem, ( ( ( displayinfo * )lvi.lParam )->ci.ignored == true ? RGB( 0xFF, 0x00, 0x00 ) : ( ( displayinfo * )lvi.lParam )->ci.forwarded == true ? RGB( 0xFF, 0x80, 0x00 ) : RGB( 0x00, 0x00, 0x00 ) ) );
 						}
 						_DrawTextW( hdcMem, buf, -1, &rc, DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS );
 						_BitBlt( dis->hDC, dis->rcItem.left + last_rc.left, last_rc.top, width, height, hdcMem, 0, 0, SRCAND );
