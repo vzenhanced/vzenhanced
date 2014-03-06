@@ -1638,9 +1638,13 @@ THREAD_RETURN remove_items( void *pArguments )
 							while ( di_node != NULL )
 							{
 								displayinfo *mdi = ( displayinfo * )di_node->data;
-								mdi->ignore = false;
-								GlobalFree( mdi->w_ignore );
-								mdi->w_ignore = GlobalStrDupW( ST_No );
+
+								if ( mdi->ignore == true )
+								{
+									mdi->ignore = false;
+									GlobalFree( mdi->w_ignore );
+									mdi->w_ignore = GlobalStrDupW( ST_No );
+								}
 
 								di_node = di_node->next;
 							}
@@ -1728,9 +1732,13 @@ THREAD_RETURN remove_items( void *pArguments )
 							while ( di_node != NULL )
 							{
 								displayinfo *mdi = ( displayinfo * )di_node->data;
-								mdi->forward = false;
-								GlobalFree( mdi->w_forward );
-								mdi->w_forward = GlobalStrDupW( ST_No );
+
+								if ( mdi->forward == true )
+								{
+									mdi->forward = false;
+									GlobalFree( mdi->w_forward );
+									mdi->w_forward = GlobalStrDupW( ST_No );
+								}
 
 								di_node = di_node->next;
 							}
@@ -2500,22 +2508,6 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the ignore list listview.
 				{
-					// Update each displayinfo item to indicate that it is now ignored.
-					DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )ii->c_phone_number, true );
-					if ( ll != NULL )
-					{
-						DoublyLinkedList *di_node = ll;
-						while ( di_node != NULL )
-						{
-							displayinfo *mdi = ( displayinfo * )di_node->data;
-							mdi->ignore = true;
-							GlobalFree( mdi->w_ignore );
-							mdi->w_ignore = GlobalStrDupW( ST_Yes );
-
-							di_node = di_node->next;
-						}
-					}
-
 					// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
 					if ( ii->c_phone_number != NULL && lstrlenA( ii->c_phone_number ) == 10 && is_num( ii->c_phone_number ) == 1 )
 					{
@@ -2530,7 +2522,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 							{
 								displayinfo *mdi = ( displayinfo * )di_node->data;
 
-								if ( RangeCompare( ii->c_phone_number, mdi->ci.call_from ) == true )
+								// Process values that are not set to be ignored. See if the value falls within our range.
+								if ( mdi->ignore == false && RangeCompare( ii->c_phone_number, mdi->ci.call_from ) == true )
 								{
 									mdi->ignore = true;
 									GlobalFree( mdi->w_ignore );
@@ -2541,6 +2534,28 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 							}
 
 							node = node->next;
+						}
+					}
+					else
+					{
+						// Update each displayinfo item to indicate that it is now ignored.
+						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )ii->c_phone_number, true );
+						if ( ll != NULL )
+						{
+							DoublyLinkedList *di_node = ll;
+							while ( di_node != NULL )
+							{
+								displayinfo *mdi = ( displayinfo * )di_node->data;
+
+								if ( mdi->ignore == false )
+								{
+									mdi->ignore = true;
+									GlobalFree( mdi->w_ignore );
+									mdi->w_ignore = GlobalStrDupW( ST_Yes );
+								}
+
+								di_node = di_node->next;
+							}
 						}
 					}
 
@@ -2676,9 +2691,13 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 								while ( di_node != NULL )
 								{
 									displayinfo *mdi = ( displayinfo * )di_node->data;
-									mdi->ignore = false;
-									GlobalFree( mdi->w_ignore );
-									mdi->w_ignore = GlobalStrDupW( ST_No );
+
+									if ( mdi->ignore == true )
+									{
+										mdi->ignore = false;
+										GlobalFree( mdi->w_ignore );
+										mdi->w_ignore = GlobalStrDupW( ST_No );
+									}
 
 									di_node = di_node->next;
 								}
@@ -2753,9 +2772,13 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 						while ( node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )node->data;
-							mdi->ignore = true;
-							GlobalFree( mdi->w_ignore );
-							mdi->w_ignore = GlobalStrDupW( ST_Yes );
+
+							if ( mdi->ignore == false )
+							{
+								mdi->ignore = true;
+								GlobalFree( mdi->w_ignore );
+								mdi->w_ignore = GlobalStrDupW( ST_Yes );
+							}
 
 							node = node->next;
 						}
@@ -2902,29 +2925,6 @@ THREAD_RETURN update_forward_list( void *pArguments )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the forward list listview.
 				{
-					// Update each displayinfo item to indicate that it is now forwarded.
-					DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )fi->c_call_from, true );
-					if ( ll != NULL )
-					{
-						DoublyLinkedList *di_node = ll;
-						while ( di_node != NULL )
-						{
-							displayinfo *mdi = ( displayinfo * )di_node->data;
-							mdi->forward = true;
-							GlobalFree( mdi->w_forward );
-							mdi->w_forward = GlobalStrDupW( ST_Yes );
-
-							// This doesn't need to be updated.
-							/*if ( mdi->ci.forward_to != NULL )
-							{
-								GlobalFree( mdi->ci.forward_to );
-								mdi->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
-							}*/
-
-							di_node = di_node->next;
-						}
-					}
-
 					// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
 					if ( fi->c_call_from != NULL && lstrlenA( fi->c_call_from ) == 10 && is_num( fi->c_call_from ) == 1 )
 					{
@@ -2938,8 +2938,9 @@ THREAD_RETURN update_forward_list( void *pArguments )
 							while ( di_node != NULL )
 							{
 								displayinfo *mdi = ( displayinfo * )di_node->data;
-								
-								if ( RangeCompare( fi->c_call_from, mdi->ci.call_from ) == true )
+
+								// Process values that are not set to be forwarded. See if the value falls within our range.
+								if ( mdi->forward == false && RangeCompare( fi->c_call_from, mdi->ci.call_from ) == true )
 								{
 									mdi->forward = true;
 									GlobalFree( mdi->w_forward );
@@ -2950,6 +2951,35 @@ THREAD_RETURN update_forward_list( void *pArguments )
 							}
 
 							node = node->next;
+						}
+					}
+					else
+					{
+						// Update each displayinfo item to indicate that it is now forwarded.
+						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )fi->c_call_from, true );
+						if ( ll != NULL )
+						{
+							DoublyLinkedList *di_node = ll;
+							while ( di_node != NULL )
+							{
+								displayinfo *mdi = ( displayinfo * )di_node->data;
+
+								if ( mdi->forward == false )
+								{
+									mdi->forward = true;
+									GlobalFree( mdi->w_forward );
+									mdi->w_forward = GlobalStrDupW( ST_Yes );
+
+									// This doesn't need to be updated.
+									/*if ( mdi->ci.forward_to != NULL )
+									{
+										GlobalFree( mdi->ci.forward_to );
+										mdi->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
+									}*/
+								}
+
+								di_node = di_node->next;
+							}
 						}
 					}
 
@@ -3117,16 +3147,20 @@ THREAD_RETURN update_forward_list( void *pArguments )
 								while ( di_node != NULL )
 								{
 									displayinfo *mdi = ( displayinfo * )di_node->data;
-									mdi->forward = false;
-									GlobalFree( mdi->w_forward );
-									mdi->w_forward = GlobalStrDupW( ST_No );
 
-									// This doesn't need to be updated.
-									/*if ( mdi->ci.forward_to != NULL )
+									if ( mdi->forward == true )
 									{
-										GlobalFree( mdi->ci.forward_to );
-										mdi->ci.forward_to = NULL;
-									}*/
+										mdi->forward = false;
+										GlobalFree( mdi->w_forward );
+										mdi->w_forward = GlobalStrDupW( ST_No );
+
+										// This doesn't need to be updated.
+										/*if ( mdi->ci.forward_to != NULL )
+										{
+											GlobalFree( mdi->ci.forward_to );
+											mdi->ci.forward_to = NULL;
+										}*/
+									}
 
 									di_node = di_node->next;
 								}
@@ -3204,16 +3238,20 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						while ( node != NULL )
 						{
 							displayinfo *mdi = ( displayinfo * )node->data;
-							mdi->forward = true;
-							GlobalFree( mdi->w_forward );
-							mdi->w_forward = GlobalStrDupW( ST_Yes );
 
-							// This doesn't need to be updated.
-							/*if ( mdi->ci.forward_to != NULL )
+							if ( mdi->forward == false )
 							{
-								GlobalFree( mdi->ci.forward_to );
-								mdi->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
-							}*/
+								mdi->forward = true;
+								GlobalFree( mdi->w_forward );
+								mdi->w_forward = GlobalStrDupW( ST_Yes );
+
+								// This doesn't need to be updated.
+								/*if ( mdi->ci.forward_to != NULL )
+								{
+									GlobalFree( mdi->ci.forward_to );
+									mdi->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
+								}*/
+							}
 
 							node = node->next;
 						}
