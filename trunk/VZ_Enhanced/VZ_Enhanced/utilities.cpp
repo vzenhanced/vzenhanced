@@ -37,6 +37,7 @@ bool skip_ignore_draw = false;
 bool skip_forward_draw = false;
 
 dllrbt_tree *call_log = NULL;
+bool call_log_changed = false;
 
 wchar_t *cfg_username = NULL;
 wchar_t *cfg_password = NULL;
@@ -50,6 +51,8 @@ bool cfg_tray_icon = true;
 bool cfg_close_to_tray = false;
 bool cfg_minimize_to_tray = false;
 bool cfg_silent_startup = false;
+
+bool cfg_enable_call_log_history = false;
 
 bool cfg_enable_popups = false;
 bool cfg_popup_hide_border = false;
@@ -1537,6 +1540,8 @@ THREAD_RETURN remove_items( void *pArguments )
 								// Reset the head in the tree.
 								( ( node_type * )itr )->val = ( void * )ll;
 								( ( node_type * )itr )->key = ( void * )( ( displayinfo * )ll->data )->ci.call_from;
+
+								call_log_changed = true;
 							}
 
 							break;
@@ -1549,6 +1554,8 @@ THREAD_RETURN remove_items( void *pArguments )
 					if ( ll == NULL )
 					{
 						dllrbt_remove( call_log, itr );	// Remove the node from the tree. The tree will rebalance itself.
+
+						call_log_changed = true;
 					}
 				}
 
@@ -1930,14 +1937,20 @@ THREAD_RETURN update_call_log( void *pArguments )
 	if ( dll == NULL )
 	{
 		// If no phone number exits, insert the node into the tree.
-		if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) == DLLRBT_STATUS_DUPLICATE_KEY )
+		if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) != DLLRBT_STATUS_OK )
 		{
 			GlobalFree( di_node );	// This shouldn't happen.
+		}
+		else
+		{
+			call_log_changed = true;
 		}
 	}
 	else	// If a phone number exits, insert the node into the linked list.
 	{
 		DLL_AddNode( &dll, di_node, -1 );	// Insert at the end of the doubly linked list.
+
+		call_log_changed = true;
 	}
 
 	// Search the ignore_list for a match.
@@ -2007,7 +2020,7 @@ THREAD_RETURN update_call_log( void *pArguments )
 		}
 	}
 
-	_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, 0, ( LPARAM )di );	// Add entry to listview and show popup.
+	_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_MODIFY, 0 ), ( LPARAM )di );	// Add entry to listview and show popup.
 
 	// Release the mutex if we're killing the thread.
 	if ( worker_mutex != NULL )
@@ -2500,7 +2513,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 				ii->state = 0;
 
 				// Try to insert the ignore_list info in the tree.
-				if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) == DLLRBT_STATUS_DUPLICATE_KEY )
+				if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) != DLLRBT_STATUS_OK )
 				{
 					free_ignoreinfo( &ii );
 
@@ -2747,26 +2760,9 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 					ii->state = 0;
 
-					// Create a tree of linked lists. Each linked list contains a list of displayinfo structs that have the same phone number.
-					if ( call_log == NULL )
-					{
-						call_log = dllrbt_create( dllrbt_compare );
-					}
-
-					// See if our tree has the phone number to add the node to.
+					// Update all nodes if it already exits.
 					DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-					if ( dll == NULL )
-					{
-						// Create the node to insert into a linked list.
-						DoublyLinkedList *di_node = DLL_CreateNode( ( void * )di );
-
-						// If no phone number exits, insert the node into the tree.
-						if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) == DLLRBT_STATUS_DUPLICATE_KEY )
-						{
-							GlobalFree( di_node );
-						}
-					}
-					else	// Update all nodes if it already exits.
+					if ( dll != NULL )
 					{
 						DoublyLinkedList *node = dll;
 						while ( node != NULL )
@@ -2788,7 +2784,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					GlobalFree( di->w_ignore );
 					di->w_ignore = GlobalStrDupW( ST_Yes );
 
-					if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) == DLLRBT_STATUS_DUPLICATE_KEY )
+					if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) != DLLRBT_STATUS_OK )
 					{
 						free_ignoreinfo( &ii );
 					}
@@ -2917,7 +2913,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 				fi->state = 0;
 
 				// Try to insert the forward_list info in the tree.
-				if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) == DLLRBT_STATUS_DUPLICATE_KEY )
+				if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) != DLLRBT_STATUS_OK )
 				{
 					free_forwardinfo( &fi );
 
@@ -3213,26 +3209,9 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 					fi->state = 0;
 
-					// Create a tree of linked lists. Each linked list contains a list of displayinfo structs that have the same phone number.
-					if ( call_log == NULL )
-					{
-						call_log = dllrbt_create( dllrbt_compare );
-					}
-
-					// See if our tree has the phone number to add the node to.
+					// Update all nodes if it already exits.
 					DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-					if ( dll == NULL )
-					{
-						// Create the node to insert into a linked list.
-						DoublyLinkedList *di_node = DLL_CreateNode( ( void * )di );
-
-						// If no phone number exits, insert the node into the tree.
-						if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) == DLLRBT_STATUS_DUPLICATE_KEY )
-						{
-							GlobalFree( di_node );
-						}
-					}
-					else	// Update all nodes if it already exits.
+					if ( dll != NULL )
 					{
 						DoublyLinkedList *node = dll;
 						while ( node != NULL )
@@ -3261,7 +3240,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					GlobalFree( di->w_forward );
 					di->w_forward = GlobalStrDupW( ST_Yes );
 
-					if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) == DLLRBT_STATUS_DUPLICATE_KEY )
+					if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) != DLLRBT_STATUS_OK )
 					{
 						free_forwardinfo( &fi );
 					}
@@ -3416,13 +3395,26 @@ THREAD_RETURN save_call_log( void *file_path )
 		node_type *node = dllrbt_get_head( call_log );
 		while ( node != NULL )
 		{
+			// Stop processing and exit the thread.
+			if ( kill_worker_thead == true )
+			{
+				break;
+			}
+
 			DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
 			while ( di_node != NULL )
 			{
+				// Stop processing and exit the thread.
+				if ( kill_worker_thead == true )
+				{
+					break;
+				}
+
 				displayinfo *di = ( displayinfo * )di_node->data;
 
 				if ( di != NULL )
 				{
+					// lstrlen is safe for NULL values.
 					int phone_number_length1 = lstrlenA( di->ci.call_from );
 					int phone_number_length2 = lstrlenA( di->ci.forward_to );
 					int phone_number_length3 = lstrlenA( di->ci.call_to );
@@ -3540,6 +3532,269 @@ THREAD_RETURN save_call_log( void *file_path )
 	}
 
 	GlobalFree( file_path );
+
+	Processing_Window( g_hWnd_list, true );
+
+	// Release the mutex if we're killing the thread.
+	if ( worker_mutex != NULL )
+	{
+		ReleaseSemaphore( worker_mutex, 1, NULL );
+	}
+
+	in_worker_thread = false;
+
+	// We're done. Let other threads continue.
+	LeaveCriticalSection( &pe_cs );
+
+	_ExitThread( 0 );
+	return 0;
+}
+
+THREAD_RETURN read_call_log_history( void *pArguments )
+{
+	// This will block every other thread from entering until the first thread is complete.
+	EnterCriticalSection( &pe_cs );
+
+	in_worker_thread = true;
+
+	Processing_Window( g_hWnd_list, false );
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history.bin\0", 22 );
+	base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
+
+	// Open our config file if it exists.
+	HANDLE hFile_read = CreateFile( base_directory, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( hFile_read != INVALID_HANDLE_VALUE )
+	{
+		DWORD read = 0, total_read = 0, offset = 0, last_entry = 0, last_total = 0;
+
+		char *p = NULL;
+
+		bool ignored = false;
+		bool forwarded = false;
+		LONGLONG time = 0;
+		char *caller_id = NULL;
+		char *call_from = NULL;
+		char *call_to = NULL;
+		char *forward_to = NULL;
+		char *call_reference_id = NULL;
+
+		DWORD fz = GetFileSize( hFile_read, NULL );
+
+		char *history_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 524288 + 1 ) );	// 512 KB buffer.
+
+		while ( total_read < fz )
+		{
+			// Stop processing and exit the thread.
+			if ( kill_worker_thead == true )
+			{
+				break;
+			}
+
+			ReadFile( hFile_read, history_buf, sizeof( char ) * 524288, &read, NULL );
+
+			history_buf[ read ] = 0;	// Guarantee a NULL terminated buffer.
+
+			// Make sure that we have at least part of the entry. 5 = 5 NULL strings. This is the minimum size an entry could be.
+			if ( read < ( ( sizeof( bool ) * 2 ) + sizeof( LONGLONG ) + 5 ) )
+			{
+				break;
+			}
+
+			total_read += read;
+
+			// Prevent an infinite loop if a really really long entry causes us to jump back to the same point in the file.
+			// If it's larger than our buffer, then the file is probably invalid/corrupt.
+			if ( total_read == last_total )
+			{
+				break;
+			}
+
+			last_total = total_read;
+
+			p = history_buf;
+			offset = last_entry = 0;
+
+			while ( offset < read )
+			{
+				// Stop processing and exit the thread.
+				if ( kill_worker_thead == true )
+				{
+					break;
+				}
+
+				caller_id = NULL;
+				call_from = NULL;
+				call_to = NULL;
+				forward_to = NULL;
+				call_reference_id = NULL;
+
+				// Ignored state
+				offset += sizeof( bool );
+				if ( offset >= read ) { goto CLEANUP; }
+				_memcpy_s( &ignored, sizeof( bool ), p, sizeof( bool ) );
+				p += sizeof( bool );
+
+				// Forwarded state
+				offset += sizeof( bool );
+				if ( offset >= read ) { goto CLEANUP; }
+				_memcpy_s( &forwarded, sizeof( bool ), p, sizeof( bool ) );
+				p += sizeof( bool );
+
+				// Call time
+				offset += sizeof( LONGLONG );
+				if ( offset >= read ) { goto CLEANUP; }
+				_memcpy_s( &time, sizeof( LONGLONG ), p, sizeof( LONGLONG ) );
+				p += sizeof( LONGLONG );
+
+				// Caller ID
+				int string_length = lstrlenA( p ) + 1;
+
+				offset += string_length;
+				if ( offset >= read ) { goto CLEANUP; }
+
+				caller_id = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * string_length );
+				_memcpy_s( caller_id, string_length, p, string_length );
+				*( caller_id + ( string_length - 1 ) ) = 0;	// Sanity
+
+				p += string_length;
+
+				// Incoming number
+				string_length = lstrlenA( p );
+
+				offset += ( string_length + 1 );
+				if ( offset >= read ) { goto CLEANUP; }
+
+				int adjusted_size = min( string_length, 15 ) + 1;
+
+				call_from = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
+				_memcpy_s( call_from, adjusted_size, p, adjusted_size );
+				*( call_from + ( adjusted_size - 1 ) ) = 0;	// Sanity
+
+				p += ( string_length + 1 );
+
+				// The number that was called (our number)
+				string_length = lstrlenA( p );
+
+				offset += ( string_length + 1 );
+				if ( offset >= read ) { goto CLEANUP; }
+
+				adjusted_size = min( string_length, 15 ) + 1;
+
+				call_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
+				_memcpy_s( call_to, adjusted_size, p, adjusted_size );
+				*( call_to + ( adjusted_size - 1 ) ) = 0;	// Sanity
+
+				p += ( string_length + 1 );
+
+				// The number that the incoming call was forwarded to
+				string_length = lstrlenA( p );
+
+				offset += ( string_length + 1 );
+				if ( offset >= read ) { goto CLEANUP; }
+
+				adjusted_size = min( string_length, 15 ) + 1;
+
+				forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
+				_memcpy_s( forward_to, adjusted_size, p, adjusted_size );
+				*( forward_to + ( adjusted_size - 1 ) ) = 0;	// Sanity
+
+				p += ( string_length + 1 );
+
+				// Server reference ID
+				string_length = lstrlenA( p ) + 1;
+
+				offset += string_length;
+				if ( offset > read ) { goto CLEANUP; }	// Offset must equal read for the last string in the file. It's truncated/corrupt if it doesn't.
+
+				call_reference_id = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * string_length );
+				_memcpy_s( call_reference_id, string_length, p, string_length );
+				*( call_reference_id + ( string_length - 1 ) ) = 0;	// Sanity
+
+				p += string_length;
+
+				last_entry = offset;	// This value is the ending offset of the last valid entry.
+
+				displayinfo *di = ( displayinfo * )GlobalAlloc( GMEM_FIXED, sizeof( displayinfo ) );
+
+				di->ci.call_to = call_to;
+				di->ci.call_from = call_from;
+				di->ci.call_reference_id = call_reference_id;
+				di->ci.caller_id = caller_id;
+				di->ci.forward_to = forward_to;
+				di->ci.ignored = ignored;
+				di->ci.forwarded = forwarded;
+				di->caller_id = NULL;
+				di->phone_number = NULL;
+				di->reference = NULL;
+				di->forward_to = NULL;
+				di->sent_to = NULL;
+				di->w_forward = NULL;
+				di->w_ignore = NULL;
+				di->w_time = NULL;
+				di->time.QuadPart = time;
+				di->process_incoming = false;
+				di->ignore = false;
+				di->forward = false;
+
+				// Create the node to insert into a linked list.
+				DoublyLinkedList *di_node = DLL_CreateNode( ( void * )di );
+
+				// See if our tree has the phone number to add the node to.
+				DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
+				if ( dll == NULL )
+				{
+					// If no phone number exits, insert the node into the tree.
+					if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) != DLLRBT_STATUS_OK )
+					{
+						GlobalFree( di_node );	// This shouldn't happen.
+					}
+				}
+				else	// If a phone number exits, insert the node into the linked list.
+				{
+					DLL_AddNode( &dll, di_node, -1 );	// Insert at the end of the doubly linked list.
+				}
+
+				// Search the ignore_list for a match.
+				ignoreinfo *ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )di->ci.call_from, true );
+				if ( ii != NULL )
+				{
+					di->ignore = true;
+				}
+
+				// Search the forward list for a match.
+				forwardinfo *fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )di->ci.call_from, true );
+				if ( fi != NULL )
+				{
+					di->forward = true;
+				}
+
+				_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_MODIFY, 1 ), ( LPARAM )di );	// Add entry to listview and don't show popup.
+
+				continue;
+
+CLEANUP:
+				GlobalFree( caller_id );
+				GlobalFree( call_from );
+				GlobalFree( call_to );
+				GlobalFree( forward_to );
+				GlobalFree( call_reference_id );
+
+				// Go back to the last valid entry.
+				if ( total_read < fz )
+				{
+					total_read -= ( read - last_entry );
+					SetFilePointer( hFile_read, total_read, NULL, FILE_BEGIN );
+				}
+
+				break;
+			}
+		}
+
+		GlobalFree( history_buf );
+
+		CloseHandle( hFile_read );
+	}
 
 	Processing_Window( g_hWnd_list, true );
 

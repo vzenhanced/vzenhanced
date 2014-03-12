@@ -25,5 +25,6 @@ void read_ignore_list();
 void save_ignore_list();
 void read_forward_list();
 void save_forward_list();
+void save_call_log_history();
 
 #endif

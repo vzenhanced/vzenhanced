@@ -345,8 +345,8 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
 	}
 
-	wcex.lpfnWndProc    = SystemTrayTabWndProc;
-	wcex.lpszClassName  = L"system_tray_tab";
+	wcex.lpfnWndProc    = GeneralTabWndProc;
+	wcex.lpszClassName  = L"general_tab";
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{

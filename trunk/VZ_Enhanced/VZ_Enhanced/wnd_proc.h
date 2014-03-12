@@ -29,14 +29,13 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
-
 LRESULT CALLBACK CallLogColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK ContactListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK ForwardListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK IgnoreListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
+LRESULT CALLBACK GeneralTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
-LRESULT CALLBACK SystemTrayTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
 #endif

@@ -1035,7 +1035,8 @@ bool ParseCookies( char *decoded_buffer, dllrbt_tree **cookie_tree, char **cooki
 			cc->cookie_value[ cc->value_length ] = 0;	// Sanity.
 
 			// Attempt to add the container to the tree.
-			if ( dllrbt_insert( *cookie_tree, ( void * )cc->cookie_name, ( void * )cc ) == DLLRBT_STATUS_DUPLICATE_KEY )
+			dllrbt_status status = dllrbt_insert( *cookie_tree, ( void * )cc->cookie_name, ( void * )cc );
+			if ( status == DLLRBT_STATUS_DUPLICATE_KEY )
 			{
 				// If there's a duplicate, find it.
 				dllrbt_iterator *itr = dllrbt_find( *cookie_tree, ( void * )cc->cookie_name, false );
@@ -1053,12 +1054,18 @@ bool ParseCookies( char *decoded_buffer, dllrbt_tree **cookie_tree, char **cooki
 				}
 
 				// Try adding the new cc again. If it fails, then just free it.
-				if ( dllrbt_insert( *cookie_tree, ( void * )cc->cookie_name, ( void * )cc ) == DLLRBT_STATUS_DUPLICATE_KEY )
+				if ( dllrbt_insert( *cookie_tree, ( void * )cc->cookie_name, ( void * )cc ) != DLLRBT_STATUS_OK )
 				{
 					GlobalFree( cc->cookie_name );
 					GlobalFree( cc->cookie_value );
 					GlobalFree( cc );
 				}
+			}
+			else if ( status != DLLRBT_STATUS_OK )	// If anything other than OK or duplicate was returned, then free the cookie container.
+			{
+				GlobalFree( cc->cookie_name );
+				GlobalFree( cc->cookie_value );
+				GlobalFree( cc );
 			}
 		}
 
@@ -2036,7 +2043,7 @@ bool UpdateContactList( char *xml, contactinfo *ci )
 		}
 
 		// Caller must free ci.
-		if ( dllrbt_insert( contact_list, ( void * )ci->contact.contact_entry_id, ( void * )ci ) != DLLRBT_STATUS_DUPLICATE_KEY )
+		if ( dllrbt_insert( contact_list, ( void * )ci->contact.contact_entry_id, ( void * )ci ) == DLLRBT_STATUS_OK )
 		{
 			status = true;
 		}
@@ -2209,7 +2216,7 @@ bool BuildContactList( char *xml )
 					contact_list = dllrbt_create( dllrbt_compare );
 				}
 
-				if ( dllrbt_insert( contact_list, ( void * )ci->contact.contact_entry_id, ( void * )ci ) == DLLRBT_STATUS_DUPLICATE_KEY )
+				if ( dllrbt_insert( contact_list, ( void * )ci->contact.contact_entry_id, ( void * )ci ) != DLLRBT_STATUS_OK )
 				{
 					free_contactinfo( &ci );
 				}

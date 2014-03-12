@@ -26,7 +26,7 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.6"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.7"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define DEFAULT_BUFLEN	8192

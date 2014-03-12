@@ -82,6 +82,8 @@
 #define BTN_SILENT_STARTUP		1039
 
 #define CB_SSL_VERSION			1040
+#define BTN_ENABLE_HISTORY		1041
+
 
 HWND g_hWnd_options_tab = NULL;
 
@@ -89,6 +91,7 @@ HWND g_hWnd_chk_tray_icon = NULL;
 HWND g_hWnd_chk_minimize = NULL;
 HWND g_hWnd_chk_close = NULL;
 HWND g_hWnd_chk_silent_startup = NULL;
+HWND g_hWnd_chk_enable_history = NULL;
 
 HWND g_hWnd_chk_auto_login = NULL;
 HWND g_hWnd_chk_reconnect = NULL;
@@ -165,9 +168,9 @@ HWND g_hWnd_sound = NULL;
 
 HWND g_hWnd_apply = NULL;
 
+HWND g_hWnd_general_tab = NULL;
 HWND g_hWnd_connection_tab = NULL;
 HWND g_hWnd_popup_tab = NULL;
-HWND g_hWnd_system_tray_tab = NULL;
 
 HWND g_hWnd_web_server_tab = NULL;
 
@@ -507,14 +510,7 @@ void Enable_Disable_Windows( POPUP_SETTINGS *ps )
 {
 	if ( ps->popup_line_order > 0 )
 	{
-		if ( ps->font_shadow == true )
-		{
-			_EnableWindow( g_hWnd_btn_font_shadow_color, TRUE );
-		}
-		else
-		{
-			_EnableWindow( g_hWnd_btn_font_shadow_color, FALSE );
-		}
+		_EnableWindow( g_hWnd_btn_font_shadow_color, ( ps->font_shadow == true ? TRUE : FALSE ) );
 
 		_EnableWindow( g_hWnd_chk_shadow, TRUE );
 		_EnableWindow( g_hWnd_static_example, TRUE );
@@ -746,32 +742,11 @@ void Set_Window_Settings()
 
 	_SendMessageW( g_hWnd_ssl_version, CB_SETCURSEL, cfg_connection_ssl_version, 0 );
 
-	if ( cfg_minimize_to_tray == true )
-	{
-		_SendMessageW( g_hWnd_chk_minimize, BM_SETCHECK, BST_CHECKED, 0 );
-	}
-	else
-	{
-		_SendMessageW( g_hWnd_chk_minimize, BM_SETCHECK, BST_UNCHECKED, 0 );
-	}
+	_SendMessageW( g_hWnd_chk_minimize, BM_SETCHECK, ( cfg_minimize_to_tray == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_close, BM_SETCHECK, ( cfg_close_to_tray == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_silent_startup, BM_SETCHECK, ( cfg_silent_startup == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	if ( cfg_close_to_tray == true )
-	{
-		_SendMessageW( g_hWnd_chk_close, BM_SETCHECK, BST_CHECKED, 0 );
-	}
-	else
-	{
-		_SendMessageW( g_hWnd_chk_close, BM_SETCHECK, BST_UNCHECKED, 0 );
-	}
-
-	if ( cfg_silent_startup == true )
-	{
-		_SendMessageW( g_hWnd_chk_silent_startup, BM_SETCHECK, BST_CHECKED, 0 );
-	}
-	else
-	{
-		_SendMessageW( g_hWnd_chk_silent_startup, BM_SETCHECK, BST_UNCHECKED, 0 );
-	}
+	_SendMessageW( g_hWnd_chk_enable_history, BM_SETCHECK, ( cfg_enable_call_log_history == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	if ( cfg_tray_icon == true )
 	{
@@ -788,32 +763,11 @@ void Set_Window_Settings()
 		_EnableWindow( g_hWnd_chk_silent_startup, FALSE );
 	}
 
-	if ( cfg_download_pictures == true )
-	{
-		_SendMessageW( g_hWnd_chk_download_pictures, BM_SETCHECK, BST_CHECKED, 0 );
-	}
-	else
-	{
-		_SendMessageW( g_hWnd_chk_download_pictures, BM_SETCHECK, BST_UNCHECKED, 0 );
-	}
+	_SendMessageW( g_hWnd_chk_download_pictures, BM_SETCHECK, ( cfg_download_pictures == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	if ( cfg_connection_auto_login == true )
-	{
-		_SendMessageW( g_hWnd_chk_auto_login, BM_SETCHECK, BST_CHECKED, 0 );
-	}
-	else
-	{
-		_SendMessageW( g_hWnd_chk_auto_login, BM_SETCHECK, BST_UNCHECKED, 0 );
-	}
+	_SendMessageW( g_hWnd_chk_auto_login, BM_SETCHECK, ( cfg_connection_auto_login == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	if ( cfg_remember_login == true )
-	{
-		_EnableWindow( g_hWnd_chk_auto_login, TRUE );
-	}
-	else
-	{
-		_EnableWindow( g_hWnd_chk_auto_login, FALSE );
-	}
+	_EnableWindow( g_hWnd_chk_auto_login, ( cfg_remember_login == true ? TRUE : FALSE ) );
 
 	if ( cfg_connection_reconnect == true )
 	{
@@ -847,32 +801,11 @@ void Set_Window_Settings()
 		_EnableWindow( g_hWnd_rad_gradient_vert, FALSE );
 	}
 
-	if ( cfg_popup_font_shadow1 == true )
-	{
-		_EnableWindow( g_hWnd_btn_font_shadow_color, TRUE );
-	}
-	else
-	{
-		_EnableWindow( g_hWnd_btn_font_shadow_color, FALSE );
-	}
+	_EnableWindow( g_hWnd_btn_font_shadow_color, ( cfg_popup_font_shadow1 == true ? TRUE : FALSE ) );
 
-	if ( cfg_popup_hide_border == true )
-	{
-		_SendMessageW( g_hWnd_chk_border, BM_SETCHECK, BST_CHECKED, 0 );
-	}
-	else
-	{
-		_SendMessageW( g_hWnd_chk_border, BM_SETCHECK, BST_UNCHECKED, 0 );
-	}
+	_SendMessageW( g_hWnd_chk_border, BM_SETCHECK, ( cfg_popup_hide_border == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	if ( cfg_popup_font_shadow1 == true )
-	{
-		_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, BST_CHECKED, 0 );
-	}
-	else
-	{
-		_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, BST_UNCHECKED, 0 );
-	}
+	_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, ( cfg_popup_font_shadow1 == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	if ( cfg_popup_justify_line1 == 2 )
 	{
@@ -2512,7 +2445,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	return TRUE;
 }
 
-LRESULT CALLBACK SystemTrayTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+LRESULT CALLBACK GeneralTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     switch ( msg )
     {
@@ -2523,10 +2456,14 @@ LRESULT CALLBACK SystemTrayTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 			g_hWnd_chk_close = _CreateWindowW( WC_BUTTON, ST_Close_to_System_Tray, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 40, 200, 20, hWnd, ( HMENU )BTN_CLOSE_TO_TRAY, NULL, NULL );
 			g_hWnd_chk_silent_startup = _CreateWindowW( WC_BUTTON, ST_Silent_startup, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 60, 200, 20, hWnd, ( HMENU )BTN_SILENT_STARTUP, NULL, NULL );
 
+			g_hWnd_chk_enable_history = _CreateWindowW( WC_BUTTON, ST_Enable_Call_Log_history, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 90, 200, 20, hWnd, ( HMENU )BTN_ENABLE_HISTORY, NULL, NULL );
+
 			_SendMessageW( g_hWnd_chk_tray_icon, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_minimize, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_close, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_silent_startup, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			_SendMessageW( g_hWnd_chk_enable_history, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			return 0;
 		}
@@ -2565,6 +2502,7 @@ LRESULT CALLBACK SystemTrayTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 				case BTN_CLOSE_TO_TRAY:
 				case BTN_MINIMIZE_TO_TRAY:
 				case BTN_SILENT_STARTUP:
+				case BTN_ENABLE_HISTORY:
 				{
 					options_state_changed = true;
 					_EnableWindow( g_hWnd_apply, TRUE );
@@ -2601,15 +2539,15 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			_memzero( &ti, sizeof( TCITEM ) );
 			ti.mask = TCIF_PARAM | TCIF_TEXT;	// The tab will have text and an lParam value.
 
-			ti.pszText = ( LPWSTR )ST_Connection;
+			ti.pszText = ( LPWSTR )ST_General;
 			ti.lParam = ( LPARAM )0;
 			_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 0, ( LPARAM )&ti );	// Insert a new tab at the end.
 
-			ti.pszText = ( LPWSTR )ST_Popup;
+			ti.pszText = ( LPWSTR )ST_Connection;
 			ti.lParam = ( LPARAM )1;
 			_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
 
-			ti.pszText = ( LPWSTR )ST_System_Tray;
+			ti.pszText = ( LPWSTR )ST_Popup;
 			ti.lParam = ( LPARAM )2;
 			_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 2, ( LPARAM )&ti );	// Insert a new tab at the end.
 
@@ -2620,9 +2558,9 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 3, ( LPARAM )&ti );	// Insert a new tab at the end.
 			}
 
-			g_hWnd_connection_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"connection_tab", NULL, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
+			g_hWnd_general_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"general_tab", NULL, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
+			g_hWnd_connection_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"connection_tab", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
 			g_hWnd_popup_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"popup_tab", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
-			g_hWnd_system_tray_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"system_tray_tab", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
 
 			if ( web_server_state == WEB_SERVER_STATE_RUNNING )
 			{
@@ -2676,15 +2614,15 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 						if ( tie.lParam == 0 )
 						{
-							_ShowWindow( g_hWnd_connection_tab, SW_HIDE );
+							_ShowWindow( g_hWnd_general_tab, SW_HIDE );
 						}
 						else if ( tie.lParam == 1 )
 						{
-							_ShowWindow( g_hWnd_popup_tab, SW_HIDE );
+							_ShowWindow( g_hWnd_connection_tab, SW_HIDE );
 						}
 						else if ( tie.lParam == 2 )
 						{
-							_ShowWindow( g_hWnd_system_tray_tab, SW_HIDE );
+							_ShowWindow( g_hWnd_popup_tab, SW_HIDE );
 						}
 						else if ( tie.lParam == 3 )
 						{
@@ -2719,15 +2657,15 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						
 						if ( tie.lParam == 0 )
 						{
-							_ShowWindow( g_hWnd_connection_tab, SW_SHOW );
+							_ShowWindow( g_hWnd_general_tab, SW_SHOW );
 						}
 						else if ( tie.lParam == 1 )
 						{
-							_ShowWindow( g_hWnd_popup_tab, SW_SHOW );
+							_ShowWindow( g_hWnd_connection_tab, SW_SHOW );
 						}
 						else if ( tie.lParam == 2 )
 						{
-							_ShowWindow( g_hWnd_system_tray_tab, SW_SHOW );
+							_ShowWindow( g_hWnd_popup_tab, SW_SHOW );
 						}
 						else if ( tie.lParam == 3 )
 						{
@@ -2881,6 +2819,8 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						cfg_close_to_tray = ( _SendMessageW( g_hWnd_chk_close, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_silent_startup = ( _SendMessageW( g_hWnd_chk_silent_startup, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_popup_play_sound = ( _SendMessageW( g_hWnd_chk_play_sound, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+
+						cfg_enable_call_log_history = ( _SendMessageW( g_hWnd_chk_enable_history, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
 						cfg_popup_hide_border = ( _SendMessageW( g_hWnd_chk_border, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_popup_time_format = ( _SendMessageW( g_hWnd_rad_24_hour, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? 1 : 0 );
