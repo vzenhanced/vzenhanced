@@ -21,6 +21,7 @@
 #include "connection.h"
 #include "menus.h"
 #include "utilities.h"
+#include "file_operations.h"
 #include "string_tables.h"
 #include <commdlg.h>
 
@@ -395,6 +396,10 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				_Shell_NotifyIconW( NIM_ADD, &g_nid );
 			}
 
+			if ( cfg_enable_call_log_history == true )
+			{
+				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, read_call_log_history, ( void * )NULL, 0, NULL ) );
+			}
 
 			forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
 			fui->fi = NULL;
@@ -2081,7 +2086,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 		case WM_PROPAGATE:
 		{
-			if ( wParam == 0 )
+			if ( LOWORD( wParam ) == CW_MODIFY )
 			{
 				displayinfo *di = ( displayinfo * )lParam;	// lParam = our displayinfo structure from the connection thread.
 
@@ -2094,16 +2099,23 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 );
 				lvi.iSubItem = 0;
 				lvi.lParam = lParam;
-				_SendMessageW( g_hWnd_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+				int index = _SendMessageW( g_hWnd_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
 
-				if ( cfg_enable_popups == true )
+				// 0 = show popups, etc. 1 = don't show.
+				if ( HIWORD( wParam ) == 0 )
 				{
-					CreatePopup( di );
-				}
+					// Scroll to the newest entry.
+					_SendMessageW( g_hWnd_list, LVM_ENSUREVISIBLE, index, FALSE );
 
-				if ( web_server_state == WEB_SERVER_STATE_RUNNING )
-				{
-					UpdateCallLog( di );
+					if ( cfg_enable_popups == true )
+					{
+						CreatePopup( di );
+					}
+
+					if ( web_server_state == WEB_SERVER_STATE_RUNNING )
+					{
+						UpdateCallLog( di );
+					}
 				}
 			}
 			else if ( LOWORD( wParam ) == CW_UPDATE )
@@ -2240,7 +2252,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			// If we're in a secondary thread, then kill it (cleanly) and wait for it to exit.
 			if ( in_worker_thread == true || in_connection_thread == true || in_connection_worker_thread == true || in_connection_incoming_thread == true )
 			{
-				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, cleanup, ( VOID * )NULL, 0, NULL ) );
+				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, cleanup, ( void * )NULL, 0, NULL ) );
 			}
 			else	// Otherwise, destroy the window normally.
 			{
@@ -2293,6 +2305,11 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL )
 			{
 				_DestroyWindow( g_hWnd_connection_manager );
+			}
+
+			if ( cfg_enable_call_log_history == true && call_log_changed == true )
+			{
+				save_call_log_history();
 			}
 
 			// Get the number of items in the listview.

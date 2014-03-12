@@ -50,6 +50,7 @@ THREAD_RETURN update_contact_list( void *pArguments );
 THREAD_RETURN update_call_log( void *pArguments );
 
 THREAD_RETURN save_call_log( void *file_path );
+THREAD_RETURN read_call_log_history( void *pArguments );
 
 void UpdateColumnOrders();
 void CheckColumnOrders( unsigned char list, char *column_arr[], unsigned char num_columns );

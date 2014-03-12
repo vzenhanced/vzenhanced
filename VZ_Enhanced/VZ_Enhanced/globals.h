@@ -366,6 +366,7 @@ extern bool forward_list_changed;
 extern dllrbt_tree *contact_list;
 
 extern dllrbt_tree *call_log;
+extern bool call_log_changed;
 
 
 extern unsigned char total_tabs;
@@ -402,6 +403,8 @@ extern bool cfg_tray_icon;
 extern bool cfg_close_to_tray;
 extern bool cfg_minimize_to_tray;
 extern bool cfg_silent_startup;
+
+extern bool cfg_enable_call_log_history;
 
 extern bool cfg_enable_popups;
 extern bool cfg_popup_hide_border;

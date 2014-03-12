@@ -265,7 +265,7 @@ dllrbt_status dllrbt_insert( dllrbt_tree *tree, void *key, void *val )
 {
 	if ( tree == NULL )
 	{
-		return DLLRBT_STATUS_OK;
+		return DLLRBT_STATUS_TREE_NOT_FOUND;
 	}
 
 	node_type *current, *parent, *x;

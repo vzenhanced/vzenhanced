@@ -44,7 +44,7 @@ void read_config()
 		DWORD fz = GetFileSize( hFile_cfg, NULL );
 
 		// Our config file is going to be small. If it's something else, we're not going to read it.
-		if ( fz >= 295 && fz < 10240 )
+		if ( fz >= 296 && fz < 10240 )
 		{
 			char *cfg_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * fz + 1 );
 
@@ -240,6 +240,9 @@ void read_config()
 				_memcpy_s( &cfg_minimize_to_tray, sizeof( bool ), next, sizeof( bool ) );
 				next += sizeof( bool );
 				_memcpy_s( &cfg_silent_startup, sizeof( bool ), next, sizeof( bool ) );
+				next += sizeof( bool );
+
+				_memcpy_s( &cfg_enable_call_log_history, sizeof( bool ), next, sizeof( bool ) );
 				next += sizeof( bool );
 
 				_memcpy_s( &cfg_enable_popups, sizeof( bool ), next, sizeof( bool ) );
@@ -486,13 +489,10 @@ void save_config()
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_cfg != INVALID_HANDLE_VALUE )
 	{
-		int size = ( sizeof( int ) * 53 ) + ( sizeof( bool ) * 15 ) + ( sizeof( char ) * 58 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
+		int size = ( sizeof( int ) * 53 ) + ( sizeof( bool ) * 16 ) + ( sizeof( char ) * 58 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
 		int pos = 0;
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
-
-		//_memcpy_s( write_buf + pos, size - pos, "\xEF\xBB\xBF", ( sizeof( unsigned char ) * 3 ) );	// Write the byte order mark.
-		//pos += ( sizeof( unsigned char ) * 3 );
 		
 		_memcpy_s( write_buf + pos, size - pos, &cfg_remember_login, sizeof( bool ) );
 		pos += sizeof( bool );
@@ -677,6 +677,9 @@ void save_config()
 		_memcpy_s( write_buf + pos, size - pos, &cfg_minimize_to_tray, sizeof( bool ) );
 		pos += sizeof( bool );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_silent_startup, sizeof( bool ) );
+		pos += sizeof( bool );
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_enable_call_log_history, sizeof( bool ) );
 		pos += sizeof( bool );
 
 		_memcpy_s( write_buf + pos, size - pos, &cfg_enable_popups, sizeof( bool ) );
@@ -1002,7 +1005,7 @@ void read_ignore_list()
 
 						ii->state = 0;
 
-						if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) == DLLRBT_STATUS_DUPLICATE_KEY )
+						if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) != DLLRBT_STATUS_OK )
 						{
 							free_ignoreinfo( &ii );
 						}
@@ -1105,7 +1108,7 @@ void read_ignore_list()
 
 						ii->state = 0;
 
-						if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) == DLLRBT_STATUS_DUPLICATE_KEY )
+						if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) != DLLRBT_STATUS_OK )
 						{
 							free_ignoreinfo( &ii );
 						}
@@ -1144,7 +1147,7 @@ void save_ignore_list()
 		{
 			ignoreinfo *ii = ( ignoreinfo * )node->val;
 
-			if ( ii != NULL && ii->c_phone_number != NULL )
+			if ( ii != NULL && ii->c_phone_number != NULL && ii->c_total_calls != NULL )
 			{
 				int phone_number_length = lstrlenA( ii->c_phone_number );
 				int total_calls_length = lstrlenA( ii->c_total_calls );
@@ -1311,7 +1314,7 @@ void read_forward_list()
 
 							fi->state = 0;
 
-							if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) == DLLRBT_STATUS_DUPLICATE_KEY )
+							if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) != DLLRBT_STATUS_OK )
 							{
 								free_forwardinfo( &fi );
 							}
@@ -1444,7 +1447,7 @@ void read_forward_list()
 
 							fi->state = 0;
 
-							if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) == DLLRBT_STATUS_DUPLICATE_KEY )
+							if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) != DLLRBT_STATUS_OK )
 							{
 								free_forwardinfo( &fi );
 							}
@@ -1484,7 +1487,7 @@ void save_forward_list()
 		{
 			forwardinfo *fi = ( forwardinfo * )node->val;
 
-			if ( fi != NULL && fi->c_call_from != NULL && fi->c_forward_to != NULL )
+			if ( fi != NULL && fi->c_call_from != NULL && fi->c_forward_to != NULL && fi->c_total_calls != NULL )
 			{
 				int phone_number_length1 = lstrlenA( fi->c_call_from );
 				int phone_number_length2 = lstrlenA( fi->c_forward_to );
@@ -1527,5 +1530,85 @@ void save_forward_list()
 		GlobalFree( write_buf );
 
 		CloseHandle( hFile_forward );
+	}
+}
+
+void save_call_log_history()
+{
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history.bin\0", 22 );
+	base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
+
+	// Open our config file if it exists.
+	HANDLE hFile_call_log = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( hFile_call_log != INVALID_HANDLE_VALUE )
+	{
+		int size = ( 32768 + 1 );
+		int pos = 0;
+		DWORD write = 0;
+
+		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
+
+		int item_count = _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 );
+
+		LVITEM lvi;
+		_memzero( &lvi, sizeof( LVITEM ) );
+		lvi.mask = LVIF_PARAM;
+
+		for ( int i = 0; i < item_count; ++i )
+		{
+			lvi.iItem = i;
+			_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+
+			displayinfo *di = ( displayinfo * )lvi.lParam;
+
+			// lstrlen is safe for NULL values.
+			int caller_id_length = lstrlenA( di->ci.caller_id ) + 1;
+			int phone_number_length1 = lstrlenA( di->ci.call_from ) + 1;
+			int phone_number_length2 = lstrlenA( di->ci.call_to ) + 1;
+			int phone_number_length3 = lstrlenA( di->ci.forward_to ) + 1;
+			int reference_id_length = lstrlenA( di->ci.call_reference_id ) + 1;
+
+			// See if the next entry can fit in the buffer. If it can't, then we dump the buffer.
+			if ( ( signed )( pos + phone_number_length1 + phone_number_length2 + phone_number_length3 + caller_id_length + reference_id_length + sizeof( LONGLONG ) + ( sizeof( bool ) * 2 ) ) > size )
+			{
+				// Dump the buffer.
+				WriteFile( hFile_call_log, write_buf, pos, &write, NULL );
+				pos = 0;
+			}
+
+			_memcpy_s( write_buf + pos, size - pos, &di->ci.ignored, sizeof( bool ) );
+			pos += sizeof( bool );
+
+			_memcpy_s( write_buf + pos, size - pos, &di->ci.forwarded, sizeof( bool ) );
+			pos += sizeof( bool );
+
+			_memcpy_s( write_buf + pos, size - pos, &di->time.QuadPart, sizeof( LONGLONG ) );
+			pos += sizeof( LONGLONG );
+
+			_memcpy_s( write_buf + pos, size - pos, di->ci.caller_id, caller_id_length );
+			pos += caller_id_length;
+
+			_memcpy_s( write_buf + pos, size - pos, di->ci.call_from, phone_number_length1 );
+			pos += phone_number_length1;
+
+			_memcpy_s( write_buf + pos, size - pos, di->ci.call_to, phone_number_length2 );
+			pos += phone_number_length2;
+
+			_memcpy_s( write_buf + pos, size - pos, di->ci.forward_to, phone_number_length3 );
+			pos += phone_number_length3;
+
+			_memcpy_s( write_buf + pos, size - pos, di->ci.call_reference_id, reference_id_length );
+			pos += reference_id_length;
+		}
+
+		// If there's anything remaining in the buffer, then write it to the file.
+		if ( pos > 0 )
+		{
+			WriteFile( hFile_call_log, write_buf, pos, &write, NULL );
+		}
+
+		GlobalFree( write_buf );
+
+		CloseHandle( hFile_call_log );
 	}
 }
