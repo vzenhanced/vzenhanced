@@ -52,6 +52,8 @@ bool cfg_close_to_tray = false;
 bool cfg_minimize_to_tray = false;
 bool cfg_silent_startup = false;
 
+bool cfg_always_on_top = false;
+
 bool cfg_enable_call_log_history = false;
 
 bool cfg_enable_popups = false;

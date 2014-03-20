@@ -84,6 +84,8 @@
 #define CB_SSL_VERSION			1040
 #define BTN_ENABLE_HISTORY		1041
 
+#define BTN_ALWAYS_ON_TOP		1042
+
 
 HWND g_hWnd_options_tab = NULL;
 
@@ -91,6 +93,7 @@ HWND g_hWnd_chk_tray_icon = NULL;
 HWND g_hWnd_chk_minimize = NULL;
 HWND g_hWnd_chk_close = NULL;
 HWND g_hWnd_chk_silent_startup = NULL;
+HWND g_hWnd_chk_always_on_top = NULL;
 HWND g_hWnd_chk_enable_history = NULL;
 
 HWND g_hWnd_chk_auto_login = NULL;
@@ -745,6 +748,8 @@ void Set_Window_Settings()
 	_SendMessageW( g_hWnd_chk_minimize, BM_SETCHECK, ( cfg_minimize_to_tray == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 	_SendMessageW( g_hWnd_chk_close, BM_SETCHECK, ( cfg_close_to_tray == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 	_SendMessageW( g_hWnd_chk_silent_startup, BM_SETCHECK, ( cfg_silent_startup == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+
+	_SendMessageW( g_hWnd_chk_always_on_top, BM_SETCHECK, ( cfg_always_on_top == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	_SendMessageW( g_hWnd_chk_enable_history, BM_SETCHECK, ( cfg_enable_call_log_history == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
@@ -2456,12 +2461,16 @@ LRESULT CALLBACK GeneralTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 			g_hWnd_chk_close = _CreateWindowW( WC_BUTTON, ST_Close_to_System_Tray, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 40, 200, 20, hWnd, ( HMENU )BTN_CLOSE_TO_TRAY, NULL, NULL );
 			g_hWnd_chk_silent_startup = _CreateWindowW( WC_BUTTON, ST_Silent_startup, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 60, 200, 20, hWnd, ( HMENU )BTN_SILENT_STARTUP, NULL, NULL );
 
-			g_hWnd_chk_enable_history = _CreateWindowW( WC_BUTTON, ST_Enable_Call_Log_history, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 90, 200, 20, hWnd, ( HMENU )BTN_ENABLE_HISTORY, NULL, NULL );
+			g_hWnd_chk_always_on_top = _CreateWindowW( WC_BUTTON, ST_Always_on_top, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 90, 200, 20, hWnd, ( HMENU )BTN_ALWAYS_ON_TOP, NULL, NULL );
+
+			g_hWnd_chk_enable_history = _CreateWindowW( WC_BUTTON, ST_Enable_Call_Log_history, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 120, 200, 20, hWnd, ( HMENU )BTN_ENABLE_HISTORY, NULL, NULL );
 
 			_SendMessageW( g_hWnd_chk_tray_icon, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_minimize, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_close, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_silent_startup, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			_SendMessageW( g_hWnd_chk_always_on_top, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_chk_enable_history, WM_SETFONT, ( WPARAM )hFont, 0 );
 
@@ -2502,6 +2511,7 @@ LRESULT CALLBACK GeneralTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 				case BTN_CLOSE_TO_TRAY:
 				case BTN_MINIMIZE_TO_TRAY:
 				case BTN_SILENT_STARTUP:
+				case BTN_ALWAYS_ON_TOP:
 				case BTN_ENABLE_HISTORY:
 				{
 					options_state_changed = true;
@@ -2861,6 +2871,25 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						}
 
 						cfg_tray_icon = tray_icon;
+
+						bool always_on_top = ( _SendMessageW( g_hWnd_chk_always_on_top, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+
+						// Set any active windows if we've changed the extended style.
+						if ( always_on_top != cfg_always_on_top )
+						{
+							cfg_always_on_top = always_on_top;
+
+							if ( g_hWnd_main != NULL ){ _SetWindowPos( g_hWnd_main, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_login != NULL ){ _SetWindowPos( g_hWnd_login, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_options != NULL ){ _SetWindowPos( g_hWnd_options, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_columns != NULL ){ _SetWindowPos( g_hWnd_columns, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_contact != NULL ){ _SetWindowPos( g_hWnd_contact, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_account != NULL ){ _SetWindowPos( g_hWnd_account, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_dial != NULL ){ _SetWindowPos( g_hWnd_dial, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_forward != NULL ){ _SetWindowPos( g_hWnd_forward, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_ignore_phone_number != NULL ){ _SetWindowPos( g_hWnd_ignore_phone_number, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL ){ _SetWindowPos( g_hWnd_connection_manager, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+						}
 
 						save_config();
 

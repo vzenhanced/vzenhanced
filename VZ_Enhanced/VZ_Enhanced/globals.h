@@ -404,6 +404,8 @@ extern bool cfg_close_to_tray;
 extern bool cfg_minimize_to_tray;
 extern bool cfg_silent_startup;
 
+extern bool cfg_always_on_top;
+
 extern bool cfg_enable_call_log_history;
 
 extern bool cfg_enable_popups;

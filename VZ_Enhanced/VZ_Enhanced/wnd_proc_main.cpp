@@ -1077,7 +1077,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						if ( g_hWnd_dial == NULL )
 						{
-							g_hWnd_dial = _CreateWindowW( L"phone", ST_Dial_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )0 );
+							g_hWnd_dial = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Dial_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )0 );
 						}
 
 						_SendMessageW( g_hWnd_dial, WM_PROPAGATE, 0, ( LPARAM )call_to );
@@ -1091,7 +1091,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( g_hWnd_ignore_phone_number == NULL )
 						{
 							// Allow wildcard input. (Last parameter of CreateWindow is 1)
-							g_hWnd_ignore_phone_number = _CreateWindowW( L"phone", ST_Ignore_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )1 );
+							g_hWnd_ignore_phone_number = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Ignore_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )1 );
 						}
 
 						_SendMessageW( g_hWnd_ignore_phone_number, WM_PROPAGATE, 2, 0 );
@@ -1131,7 +1131,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( g_hWnd_forward == NULL )
 						{
 							// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
-							g_hWnd_forward = _CreateWindowW( L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
+							g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
 						}
 
 						if ( LOWORD( wParam ) == MENU_ADD_FORWARD_LIST )
@@ -1200,7 +1200,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								if ( g_hWnd_forward == NULL )
 								{
 									// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
-									g_hWnd_forward = _CreateWindowW( L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
+									g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
 								}
 
 								_SendMessageW( g_hWnd_forward, WM_PROPAGATE, 1, lvi.lParam );
@@ -1216,7 +1216,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( g_hWnd_columns == NULL )
 						{
 							// Show columns window.
-							g_hWnd_columns = _CreateWindowW( L"columns", ST_Select_Columns, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 425 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 260 ) / 2 ), 425, 260, NULL, NULL, NULL, NULL );
+							g_hWnd_columns = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"columns", ST_Select_Columns, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 425 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 260 ) / 2 ), 425, 260, NULL, NULL, NULL, NULL );
 						}
 
 						int index = _SendMessageW( g_hWnd_tab, TCM_GETCURSEL, 0, 0 );		// Get the selected tab
@@ -1256,7 +1256,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_contact == NULL )
 						{
-							g_hWnd_contact = _CreateWindowW( L"contact", ST_Contact_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 550 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 550, 290, NULL, NULL, NULL, NULL );
+							g_hWnd_contact = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"contact", ST_Contact_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 550 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 550, 290, NULL, NULL, NULL, NULL );
 						}
 
 						if ( LOWORD( wParam ) == MENU_EDIT_CONTACT )
@@ -1286,7 +1286,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_account == NULL )
 						{
-							g_hWnd_account = _CreateWindowW( L"account", ST_Account_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 290 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 290, 290, NULL, NULL, NULL, NULL );
+							g_hWnd_account = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"account", ST_Account_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 290 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 290, 290, NULL, NULL, NULL, NULL );
 							_ShowWindow( g_hWnd_account, SW_SHOWNORMAL );
 						}
 						_SetForegroundWindow( g_hWnd_account );
@@ -1455,7 +1455,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_options == NULL )
 						{
-							g_hWnd_options = _CreateWindowW( L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 580 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 385 ) / 2 ), 580, 385, NULL, NULL, NULL, NULL );
+							g_hWnd_options = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 580 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 385 ) / 2 ), 580, 385, NULL, NULL, NULL, NULL );
 							_ShowWindow( g_hWnd_options, SW_SHOWNORMAL );
 						}
 						_SetForegroundWindow( g_hWnd_options );
