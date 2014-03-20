@@ -235,6 +235,7 @@ wchar_t *options_string_table[] =
 	L"...",
 	L"12 hour",
 	L"24 hour",
+	L"Always on top",
 	L"Apply",
 	L"Automatically log in",
 	L"Background color:",

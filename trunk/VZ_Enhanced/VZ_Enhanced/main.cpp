@@ -364,7 +364,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		}
 	}
 
-	g_hWnd_main = _CreateWindowW( L"callerid", PROGRAM_CAPTION, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cfg_pos_x, cfg_pos_y, cfg_width, cfg_height, NULL, NULL, NULL, NULL );
+	g_hWnd_main = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"callerid", PROGRAM_CAPTION, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cfg_pos_x, cfg_pos_y, cfg_width, cfg_height, NULL, NULL, NULL, NULL );
 
 	if ( !g_hWnd_main )
 	{
@@ -372,7 +372,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		goto CLEANUP;
 	}
 
-	g_hWnd_login = _CreateWindowW( L"login", ST_Login, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 180 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 190 ) / 2 ), 180, 190, NULL, NULL, NULL, NULL );
+	g_hWnd_login = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"login", ST_Login, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 180 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 190 ) / 2 ), 180, 190, NULL, NULL, NULL, NULL );
 
 	if ( !g_hWnd_login )
 	{
@@ -382,7 +382,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( web_server_state == WEB_SERVER_STATE_RUNNING )
 	{
-		g_hWnd_connection_manager = _CreateWindowW( L"connection_manager", L"Connection Manager", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 480 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 320 ) / 2 ), 480, 320, NULL, NULL, NULL, NULL );
+		g_hWnd_connection_manager = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"connection_manager", L"Connection Manager", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 480 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 320 ) / 2 ), 480, 320, NULL, NULL, NULL, NULL );
 
 		SetConnectionManagerHWND( &g_hWnd_connection_manager );
 

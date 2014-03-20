@@ -44,7 +44,7 @@ void read_config()
 		DWORD fz = GetFileSize( hFile_cfg, NULL );
 
 		// Our config file is going to be small. If it's something else, we're not going to read it.
-		if ( fz >= 296 && fz < 10240 )
+		if ( fz >= 297 && fz < 10240 )
 		{
 			char *cfg_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * fz + 1 );
 
@@ -240,6 +240,9 @@ void read_config()
 				_memcpy_s( &cfg_minimize_to_tray, sizeof( bool ), next, sizeof( bool ) );
 				next += sizeof( bool );
 				_memcpy_s( &cfg_silent_startup, sizeof( bool ), next, sizeof( bool ) );
+				next += sizeof( bool );
+
+				_memcpy_s( &cfg_always_on_top, sizeof( bool ), next, sizeof( bool ) );
 				next += sizeof( bool );
 
 				_memcpy_s( &cfg_enable_call_log_history, sizeof( bool ), next, sizeof( bool ) );
@@ -489,7 +492,7 @@ void save_config()
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_cfg != INVALID_HANDLE_VALUE )
 	{
-		int size = ( sizeof( int ) * 53 ) + ( sizeof( bool ) * 16 ) + ( sizeof( char ) * 58 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
+		int size = ( sizeof( int ) * 53 ) + ( sizeof( bool ) * 17 ) + ( sizeof( char ) * 58 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
 		int pos = 0;
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
@@ -677,6 +680,9 @@ void save_config()
 		_memcpy_s( write_buf + pos, size - pos, &cfg_minimize_to_tray, sizeof( bool ) );
 		pos += sizeof( bool );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_silent_startup, sizeof( bool ) );
+		pos += sizeof( bool );
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_always_on_top, sizeof( bool ) );
 		pos += sizeof( bool );
 
 		_memcpy_s( write_buf + pos, size - pos, &cfg_enable_call_log_history, sizeof( bool ) );
