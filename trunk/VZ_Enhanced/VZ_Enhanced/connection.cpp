@@ -26,8 +26,15 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.8"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.0.9"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
+
+#define REFERER				"app:/voicezone.html"
+
+#define USER_AGENT			"VZ-Enhanced/1.0.0.9"
+//#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
+
+#define ORIGIN				"app://"
 
 #define DEFAULT_BUFLEN	8192
 #define DEFAULT_PORT	443
@@ -865,14 +872,15 @@ int ConstructVPNSPOST( char *send_buffer, char *resource, char *data, int data_l
 	"POST %s " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	"Referer: app:/voicezone.html\r\n" \
+	"Referer: %s\r\n" \
 	"App-Name: %s\r\n" \
-	"Origin: app://\r\n" \
+	"User-Agent: %s\r\n" \
+	"Origin: %s\r\n" \
 	"Cookie: %s; %s\r\n" \
 	"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" \
 	"Content-Length: %d\r\n" \
 	"Connection: close\r\n\r\n" \
-	"%s", resource, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies, data_length, data );
+	"%s", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, vpns_cookies, wayfarer_cookies, data_length, data );
 }
 
 
@@ -924,13 +932,14 @@ bool UploadMedia( wchar_t *file_path, HWND hWnd_update, unsigned char media_type
 	"POST %s " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	"Referer: app:/voicezone.html\r\n" \
+	"Referer: %s\r\n" \
 	"App-Name: %s\r\n" \
-	"Origin: app://\r\n" \
+	"User-Agent: %s\r\n" \
+	"Origin: %s\r\n" \
 	"Cookie: %s; %s\r\n" \
 	"Content-Type: multipart/form-data\r\n" \
 	"Content-Length: %d\r\n" \
-	"Connection: close\r\n\r\n", resource, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies, size );
+	"Connection: close\r\n\r\n", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, vpns_cookies, wayfarer_cookies, size );
 
 	bool read_file = false;		// Skips adding the header size to upload_info.
 	UPLOAD_INFO upload_info;
@@ -1290,10 +1299,11 @@ THREAD_RETURN ExportContactList( void *pArguments )
 				"GET %s " \
 				"HTTP/1.1\r\n" \
 				"Host: %s\r\n" \
-				"Referer: app:/voicezone.html\r\n" \
+				"Referer: %s\r\n" \
 				"App-Name: %s\r\n" \
+				"User-Agent: %s\r\n" \
 				"Cookie: %s\r\n" \
-				"Connection: close\r\n\r\n", list_resource, list_host, APPLICATION_NAME, wayfarer_cookies );
+				"Connection: close\r\n\r\n", list_resource, list_host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
 				if ( Try_Send_Receive( &worker_con, list_host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 				{
@@ -1488,10 +1498,11 @@ void DownloadContactPictures( updateinfo *ui )
 				"GET %s " \
 				"HTTP/1.1\r\n" \
 				"Host: %s\r\n" \
-				"Referer: app:/voicezone.html\r\n" \
+				"Referer: %s\r\n" \
 				"App-Name: %s\r\n" \
+				"User-Agent: %s\r\n" \
 				"Cookie: %s\r\n" \
-				"Connection: close\r\n\r\n", resource, host, APPLICATION_NAME, wayfarer_cookies );
+				"Connection: close\r\n\r\n", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
 				if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 				{
@@ -1770,9 +1781,10 @@ THREAD_RETURN Authorization( void *pArguments )
 		"GET /wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=%s&Ecom%%5FPassword=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Cookie: %s\r\n" \
-		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host, wayfarer_cookies );
+		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host, REFERER, USER_AGENT, wayfarer_cookies );
 	}
 	else
 	{
@@ -1780,8 +1792,9 @@ THREAD_RETURN Authorization( void *pArguments )
 		"GET /wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=%s&Ecom%%5FPassword=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
-		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host );
+		"Referer: %s\r\n" \
+		"User-Agent: %s\r\n" \
+		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host, REFERER, USER_AGENT );
 	}
 
 	if ( Try_Connect( &worker_con, start_host, cfg_connection_timeout ) == false )
@@ -1810,12 +1823,13 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Cookie: %s\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
 		"Connection: keep-alive\r\n\r\n" \
-		"%s", resource, host, saml_cookies, saml_parameter_length, saml_parameters );
+		"%s", resource, host, REFERER, USER_AGENT, saml_cookies, saml_parameter_length, saml_parameters );
 	}
 	else
 	{
@@ -1823,11 +1837,12 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
 		"Connection: keep-alive\r\n\r\n" \
-		"%s", resource, host, saml_parameter_length, saml_parameters );
+		"%s", resource, host, REFERER, USER_AGENT, saml_parameter_length, saml_parameters );
 	}
 
 	GlobalFree( resource );
@@ -1890,9 +1905,10 @@ THREAD_RETURN Authorization( void *pArguments )
 		"GET %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Cookie: %s\r\n" \
-		"Connection: close\r\n\r\n", resource, host, saml_cookies );
+		"Connection: close\r\n\r\n", resource, host, REFERER, USER_AGENT, saml_cookies );
 
 		GlobalFree( resource );
 		resource = NULL;
@@ -1921,12 +1937,13 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Cookie: %s\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
 		"Connection: close\r\n\r\n" \
-		"%s", resource, host, wayfarer_cookies, saml_parameter_length, saml_parameters );
+		"%s", resource, host, REFERER, USER_AGENT, wayfarer_cookies, saml_parameter_length, saml_parameters );
 	}
 	else
 	{
@@ -1934,11 +1951,12 @@ THREAD_RETURN Authorization( void *pArguments )
 		"POST %s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Content-Type: application/x-www-form-urlencoded\r\n" \
 		"Content-Length: %d\r\n" \
 		"Connection: close\r\n\r\n" \
-		"%s", resource, host, saml_parameter_length, saml_parameters );
+		"%s", resource, host, REFERER, USER_AGENT, saml_parameter_length, saml_parameters );
 	}
 
 	GlobalFree( resource );
@@ -2718,10 +2736,11 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 			"GET %s?UserId=%s&ContactId=%s " \
 			"HTTP/1.1\r\n" \
 			"Host: %s\r\n" \
-			"Referer: app:/voicezone.html\r\n" \
+			"Referer: %s\r\n" \
 			"App-Name: %s\r\n" \
+			"User-Agent: %s\r\n" \
 			"Cookie: %s; %s\r\n" \
-			"Connection: close\r\n\r\n", resource, account_id, old_ci->contact.contact_entry_id, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies );
+			"Connection: close\r\n\r\n", resource, account_id, old_ci->contact.contact_entry_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
 
 			if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 			{
@@ -2908,10 +2927,11 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"GET %s?UserId=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
 		"App-Name: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Cookie: %s; %s\r\n" \
-		"Connection: close\r\n\r\n", resource, account_id, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies );
+		"Connection: close\r\n\r\n", resource, account_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
 	}
 	else if ( mi->manage_type == 1 )	// Add a single contact to our contact list.
 	{
@@ -3027,10 +3047,11 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"GET %s?UserId=%s&ContactId=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
-		"Referer: app:/voicezone.html\r\n" \
+		"Referer: %s\r\n" \
 		"App-Name: %s\r\n" \
+		"User-Agent: %s\r\n" \
 		"Cookie: %s; %s\r\n" \
-		"Connection: close\r\n\r\n", resource, account_id, ci->contact.contact_entry_id, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies );
+		"Connection: close\r\n\r\n", resource, account_id, ci->contact.contact_entry_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
 	}
 
 	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
@@ -3346,14 +3367,15 @@ THREAD_RETURN Connection( void *pArguments )
 	"POST %sregistration " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	"Referer: app:/voicezone.html\r\n" \
+	"Referer: %s\r\n" \
 	"App-Name: %s\r\n" \
-	"Origin: app://\r\n" \
+	"User-Agent: %s\r\n" \
+	"Origin: %s\r\n" \
 	"Cookie: %s\r\n" \
 	"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" \
 	"Content-Length: %d\r\n" \
 	"Connection: keep-alive\r\n\r\n" \
-	"%s", resource, host, APPLICATION_NAME, wayfarer_cookies, content_length, registration_buffer );
+	"%s", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, wayfarer_cookies, content_length, registration_buffer );
 
 	// Request available services.
 	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
@@ -3409,14 +3431,15 @@ THREAD_RETURN Connection( void *pArguments )
 	"POST %sregistration " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	"Referer: app:/voicezone.html\r\n" \
+	"Referer: %s\r\n" \
 	"App-Name: %s\r\n" \
-	"Origin: app://\r\n" \
+	"User-Agent: %s\r\n" \
+	"Origin: %s\r\n" \
 	"Cookie: %s; %s\r\n" \
 	"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" \
 	"Content-Length: %d\r\n" \
 	"Connection: keep-alive\r\n\r\n" \
-	"%s", resource, host, APPLICATION_NAME, vpns_cookies, wayfarer_cookies, content_length, registration_buffer );
+	"%s", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, vpns_cookies, wayfarer_cookies, content_length, registration_buffer );
 
 	// Subscribe to the available services above.
 	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
@@ -3452,10 +3475,11 @@ THREAD_RETURN Connection( void *pArguments )
 	"GET /vpnspush/v1_5/join?id=%s&clientId=%s " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	"Referer: app:/voicezone.html\r\n" \
+	"Referer: %s\r\n" \
 	"App-Name: %s\r\n" \
+	"User-Agent: %s\r\n" \
 	"Cookie: %s\r\n" \
-	"Connection: close\r\n\r\n", service_phone_number, client_id, host, APPLICATION_NAME, wayfarer_cookies );
+	"Connection: close\r\n\r\n", service_phone_number, client_id, host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
 	// Notification setup.
 	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
@@ -3480,9 +3504,10 @@ THREAD_RETURN Connection( void *pArguments )
 	"GET /vpnspush/v1_5/check " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
-	"Referer: app:/voicezone.html\r\n" \
+	"Referer: %s\r\n" \
+	"User-Agent: %s\r\n" \
 	"Cookie: %s; %s\r\n" \
-	"Connection: keep-alive\r\n\r\n", host, session_cookies, wayfarer_cookies );
+	"Connection: keep-alive\r\n\r\n", host, REFERER, USER_AGENT, session_cookies, wayfarer_cookies );
 
 	if ( Try_Connect( &main_con, host, 60 ) == false )	// 60 second client timeout. Server generally responds in 20 seconds.
 	{
@@ -3585,9 +3610,10 @@ THREAD_RETURN Connection( void *pArguments )
 			"GET /vpnspush/v1_5/check " \
 			"HTTP/1.1\r\n" \
 			"Host: %s\r\n" \
-			"Referer: app:/voicezone.html\r\n" \
+			"Referer: %s\r\n" \
+			"User-Agent: %s\r\n" \
 			"Cookie: %s; %s\r\n" \
-			"Connection: keep-alive\r\n\r\n", host, session_cookies, wayfarer_cookies );
+			"Connection: keep-alive\r\n\r\n", host, REFERER, USER_AGENT, session_cookies, wayfarer_cookies );
 
 			// Reset the last wayfarer cookie update time.
 			GetLocalTime( &LastSystemTime );
