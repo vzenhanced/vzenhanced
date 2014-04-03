@@ -2248,7 +2248,6 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			_EnableWindow( hWnd, FALSE );
 			_ShowWindow( hWnd, SW_HIDE );
 
-
 			// If we're in a secondary thread, then kill it (cleanly) and wait for it to exit.
 			if ( in_worker_thread == true || in_connection_thread == true || in_connection_worker_thread == true || in_connection_incoming_thread == true )
 			{
@@ -2393,11 +2392,39 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 		}
 		break;
 
+		case WM_ENDSESSION:
+		{
+			// Save before we shut down/restart/log off of Windows.
+			save_config();
+
+			if ( ignore_list_changed == true )
+			{
+				save_ignore_list();
+				ignore_list_changed = false;
+			}
+
+			if ( forward_list_changed == true )
+			{
+				save_forward_list();
+				forward_list_changed = false;
+			}
+
+			if ( cfg_enable_call_log_history == true && call_log_changed == true )
+			{
+				save_call_log_history();
+				call_log_changed = false;
+			}
+
+			return 0;
+		}
+		break;
+
 		default:
 		{
 			return _DefWindowProcW( hWnd, msg, wParam, lParam );
 		}
 		break;
 	}
+
 	return TRUE;
 }
