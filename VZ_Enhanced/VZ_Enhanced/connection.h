@@ -21,14 +21,18 @@
 
 #include "ssl_client.h"
 
-#define CONNECTION_ACTIVE	0
-#define CONNECTION_KILL		1
+#define CONNECTION_KILL		0
+#define CONNECTION_ACTIVE	1
+#define CONNECTION_CANCEL	2
+#define CONNECTION_CREATE	4
 
 struct manageinfo
 {
 	contactinfo *ci;
 	unsigned char manage_type;	// 0 = request all contacts, 1 = request specific contact.
 };
+
+THREAD_RETURN CheckForUpdates( void *pArguments );
 
 THREAD_RETURN Connection( void *pArguments );
 
@@ -50,19 +54,28 @@ struct UPLOAD_INFO
 
 struct importexportinfo
 {
-	unsigned char file_type;
 	wchar_t *file_path;
+	unsigned char file_type;
+};
+
+struct UPDATE_CHECK_INFO
+{
+	char *download_url;
+	bool notify;
 };
 
 struct CONNECTION
 {
 	SSL *ssl_socket;
-	unsigned char state;	// 0 = active, 1 = kill
+	SOCKET socket;
+	bool secure;
+	unsigned char state;	// 0 = kill, 1 = active
 };
 
 extern CONNECTION main_con;			// Our polling connection. Receives incoming notifications.
 extern CONNECTION worker_con;		// User initiated server request connection. (Add/Edit/Remove/Import/Export contacts, etc.)
 extern CONNECTION incoming_con;		// Automatic server request connection. (Ignore/Forward incoming call, Make call)
+extern CONNECTION update_con;		// Connection for update checks.
 
 extern unsigned char contact_update_in_progress;
 extern unsigned char contact_import_in_progress;

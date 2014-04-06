@@ -214,7 +214,7 @@ bool UnInitializeWebServer()
 
 bool WebIgnoreIncomingCall( displayinfo *di )
 {
-	if ( di == NULL || login_state != LOGGED_IN )
+	if ( di == NULL || main_con.state != LOGGED_IN )
 	{
 		return false;
 	}
@@ -231,7 +231,7 @@ bool WebIgnoreIncomingCall( displayinfo *di )
 
 bool WebForwardIncomingCall( displayinfo *di, char *forward_to )
 {
-	if ( di == NULL || forward_to == NULL || login_state != LOGGED_IN )
+	if ( di == NULL || forward_to == NULL || main_con.state != LOGGED_IN )
 	{
 		return false;
 	}

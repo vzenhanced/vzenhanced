@@ -116,6 +116,9 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	// Blocks our connection incoming threads.
 	InitializeCriticalSection( &cit_cs );
 
+	// Blocks our update check threads.
+	InitializeCriticalSection( &cut_cs );
+
 	// Get the default message system font.
 	NONCLIENTMETRICS ncm;
 	_memzero( &ncm, sizeof( NONCLIENTMETRICS ) );
@@ -553,6 +556,7 @@ CLEANUP:
 	DeleteCriticalSection( &ct_cs );	// Main connection
 	DeleteCriticalSection( &cwt_cs );	// User initiated connections
 	DeleteCriticalSection( &cit_cs );	// Automated connections
+	DeleteCriticalSection( &cut_cs );	// Update check
 
 	// Delay loaded DLLs
 	SSL_library_uninit();

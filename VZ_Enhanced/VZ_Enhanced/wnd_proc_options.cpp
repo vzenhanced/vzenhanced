@@ -86,6 +86,8 @@
 
 #define BTN_ALWAYS_ON_TOP		1042
 
+#define BTN_CHECK_FOR_UPDATES	1043
+
 
 HWND g_hWnd_options_tab = NULL;
 
@@ -110,6 +112,7 @@ HWND g_hWnd_ud_timeout = NULL;
 HWND g_hWnd_static_ssl_version = NULL;
 HWND g_hWnd_ssl_version = NULL;
 
+HWND g_hWnd_chk_check_for_updates = NULL;
 
 HWND g_hWnd_chk_enable_popups = NULL;
 
@@ -770,6 +773,8 @@ void Set_Window_Settings()
 
 	_SendMessageW( g_hWnd_chk_download_pictures, BM_SETCHECK, ( cfg_download_pictures == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
+	_SendMessageW( g_hWnd_chk_check_for_updates, BM_SETCHECK, ( cfg_check_for_updates == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+
 	_SendMessageW( g_hWnd_chk_auto_login, BM_SETCHECK, ( cfg_connection_auto_login == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	_EnableWindow( g_hWnd_chk_auto_login, ( cfg_remember_login == true ? TRUE : FALSE ) );
@@ -941,6 +946,7 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_TLS_1_1 );
 			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_TLS_1_2 );
 
+			g_hWnd_chk_check_for_updates = _CreateWindowW( WC_BUTTON, ST_Check_for_updates_upon_startup, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 225, 200, 20, hWnd, ( HMENU )BTN_CHECK_FOR_UPDATES, NULL, NULL );
 
 			_SendMessageW( g_hWnd_timeout, EM_LIMITTEXT, 3, 0 );
 			_SendMessageW( g_hWnd_ud_timeout, UDM_SETBUDDY, ( WPARAM )g_hWnd_timeout, 0 );
@@ -958,6 +964,8 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
 			_SendMessageW( g_hWnd_static_ssl_version, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_ssl_version, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			_SendMessageW( g_hWnd_chk_check_for_updates, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			return 0;
 		}
@@ -1050,6 +1058,7 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
 				case BTN_AUTO_LOGIN:
 				case BTN_DOWNLOAD_PICTURES:
+				case BTN_CHECK_FOR_UPDATES:
 				{
 					options_state_changed = true;
 					_EnableWindow( g_hWnd_apply, TRUE );
@@ -2823,6 +2832,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						cfg_connection_auto_login = ( _SendMessageW( g_hWnd_chk_auto_login, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_connection_reconnect = ( _SendMessageW( g_hWnd_chk_reconnect, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_download_pictures = ( _SendMessageW( g_hWnd_chk_download_pictures, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+						cfg_check_for_updates = ( _SendMessageW( g_hWnd_chk_check_for_updates, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_popup_position = ( unsigned char )_SendMessageW( g_hWnd_position, CB_GETCURSEL, 0, 0 );
 						
 						cfg_minimize_to_tray = ( _SendMessageW( g_hWnd_chk_minimize, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );

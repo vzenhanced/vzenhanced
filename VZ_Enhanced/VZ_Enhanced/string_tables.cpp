@@ -74,6 +74,8 @@ wchar_t *menu_string_table[] =
 	L"Call Sent to Phone Number...",
 	L"Call Work Phone Number...",
 	L"Cancel Import",
+	L"Cancel Update Download",
+	L"Check for &Updates",
 	L"Close Tab",
 	L"Contacts",
 	L"Copy Caller ID",
@@ -150,6 +152,7 @@ wchar_t *menu_string_table[] =
 	L"Select Columns...",
 	L"Send Email...",
 	L"Tabs",
+	L"VZ Enhanced &Home Page",
 	L"Web Server"
 };
 
@@ -243,6 +246,7 @@ wchar_t *options_string_table[] =
 	L"Bottom Right",
 	L"Cancel",
 	L"Center",
+	L"Check for updates upon startup",
 	L"Close to System Tray",
 	L"Connection",
 	L"Delay Time:",

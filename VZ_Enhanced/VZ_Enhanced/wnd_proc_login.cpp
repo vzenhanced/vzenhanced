@@ -93,14 +93,41 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				case BTN_OK:
 				{
 					// Cancel the login procedure.
-					if ( login_state != LOGGED_OUT )
+					if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
 					{
 						_EnableWindow( g_hWnd_btn_login, FALSE );
 
-						login_state = LOGGED_OUT;
+						incoming_con.state = LOGGING_OUT;
+						if ( incoming_con.ssl_socket != NULL )
+						{
+							_shutdown( incoming_con.ssl_socket->s, SD_BOTH );
+						}
+
+						if ( incoming_con.socket != INVALID_SOCKET )
+						{
+							_shutdown( incoming_con.socket, SD_BOTH );
+						}
+
+						worker_con.state = LOGGING_OUT;
+						if ( worker_con.ssl_socket != NULL )
+						{
+							_shutdown( worker_con.ssl_socket->s, SD_BOTH );
+						}
+
+						if ( worker_con.socket != INVALID_SOCKET )
+						{
+							_shutdown( worker_con.socket, SD_BOTH );
+						}
+
+						main_con.state = LOGGING_OUT;
 						if ( main_con.ssl_socket != NULL )
 						{
 							_shutdown( main_con.ssl_socket->s, SD_BOTH );
+						}
+
+						if ( main_con.socket != INVALID_SOCKET )
+						{
+							_shutdown( main_con.socket, SD_BOTH );
 						}
 
 						break;
@@ -307,11 +334,11 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 		{
 			if ( wParam == 0 )	// Const wchar_t string.
 			{
-				_MessageBoxW( hWnd, ( LPCWSTR )lParam, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING );
+				_MessageBoxW( hWnd, ( LPCWSTR )lParam, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_SETFOREGROUND );
 			}
 			else if ( wParam == 1 )	// Pointer to char string. Must be freed.
 			{
-				_MessageBoxA( hWnd, ( LPCSTR )lParam, PROGRAM_CAPTION_A, MB_APPLMODAL | MB_ICONWARNING );
+				_MessageBoxA( hWnd, ( LPCSTR )lParam, PROGRAM_CAPTION_A, MB_APPLMODAL | MB_ICONWARNING | MB_SETFOREGROUND );
 
 				GlobalFree( ( char * )lParam );
 			}
@@ -465,6 +492,11 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			if ( silent_startup == true )
 			{
 				silent_startup = false;
+			}
+
+			if ( cfg_remember_login == false )
+			{
+				_SendMessageW( g_hWnd_password, WM_SETTEXT, 0, 0 );
 			}
 
 			_ShowWindow( hWnd, SW_HIDE );
