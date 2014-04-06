@@ -42,6 +42,8 @@
 #define PROGRAM_CAPTION		L"VZ Enhanced"
 #define PROGRAM_CAPTION_A	"VZ Enhanced"
 
+#define HOME_PAGE			L"https://code.google.com/p/vz-enhanced/"
+
 #define MIN_WIDTH			480
 #define MIN_HEIGHT			320
 
@@ -76,8 +78,9 @@
 
 #define LOGGED_OUT			0
 #define LOGGED_IN			1
-#define LOGGING_IN			2
-#define AUTO_LOGIN			3
+#define LOGGING_OUT			2
+#define LOGGING_IN			3
+#define AUTO_LOGIN			4
 
 #define NUM_TABS			4
 
@@ -326,11 +329,13 @@ extern HWND g_hWnd_active;				// Handle to the active window. Used to handle tab
 extern CRITICAL_SECTION pe_cs;			// Allow only one worker thread to be active.
 extern CRITICAL_SECTION ct_cs;			// Allow only one connection thread to be active.
 extern CRITICAL_SECTION cwt_cs;			// Allow only one connection worker thread to be active.
-extern CRITICAL_SECTION cit_cs;
+extern CRITICAL_SECTION cit_cs;			// Allow only one connection incoming thread to be active.
+extern CRITICAL_SECTION cut_cs;			// Allow only one update check thread to be active.
 
 extern HANDLE connection_mutex;			// Blocks shutdown while the connection thread is active.
 extern HANDLE connection_worker_mutex;
 extern HANDLE connection_incoming_mutex;
+extern HANDLE update_check_mutex;
 
 extern HFONT hFont;						// Handle to the system's message font.
 
@@ -348,6 +353,7 @@ extern bool in_worker_thread;			// Flag to indicate that we're in a worker threa
 extern bool in_connection_thread;		// Flag to indicate that we're in the connection thread.
 extern bool in_connection_worker_thread;
 extern bool in_connection_incoming_thread;
+extern bool in_update_check_thread;
 
 extern bool skip_log_draw;				// Prevents WM_DRAWITEM from accessing listview items while we're removing them.
 extern bool skip_contact_draw;
@@ -375,8 +381,6 @@ extern unsigned char total_columns;
 extern unsigned char total_columns2;
 extern unsigned char total_columns3;
 extern unsigned char total_columns4;
-
-extern unsigned char login_state;
 
 // Account information
 extern char *account_id;
@@ -407,6 +411,8 @@ extern bool cfg_silent_startup;
 extern bool cfg_always_on_top;
 
 extern bool cfg_enable_call_log_history;
+
+extern bool cfg_check_for_updates;
 
 extern bool cfg_enable_popups;
 extern bool cfg_popup_hide_border;

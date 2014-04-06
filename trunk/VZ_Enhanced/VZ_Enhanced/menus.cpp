@@ -21,6 +21,7 @@
 #include "string_tables.h"
 #include "menus.h"
 
+#include "connection.h"
 #include "web_server.h"
 
 HMENU g_hMenu = NULL;					// Handle to our menu bar.
@@ -335,11 +336,28 @@ void CreateMenus()
 
 
 	// HELP MENU
+	mii.dwTypeData = ST_VZ_Enhanced__Home_Page;
+	mii.cch = 22;
+	mii.wID = MENU_VZ_ENHANCED_HOME_PAGE;
+	_InsertMenuItemW( hMenuSub_help, 0, TRUE, &mii );
+
+	mii.fType = MFT_SEPARATOR;
+	_InsertMenuItemW( hMenuSub_help, 1, TRUE, &mii );
+
+	mii.fType = MFT_STRING;
+	mii.dwTypeData = ST_Check_for__Updates;
+	mii.cch = 18;
+	mii.wID = MENU_CHECK_FOR_UPDATES;
+	_InsertMenuItemW( hMenuSub_help, 2, TRUE, &mii );
+
+	mii.fType = MFT_SEPARATOR;
+	_InsertMenuItemW( hMenuSub_help, 3, TRUE, &mii );
+
+	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST__About;
 	mii.cch = 6;
 	mii.wID = MENU_ABOUT;
-	_InsertMenuItemW( hMenuSub_help, 0, TRUE, &mii );
-
+	_InsertMenuItemW( hMenuSub_help, 4, TRUE, &mii );
 
 
 	// MENU BAR
@@ -498,7 +516,7 @@ void HandleRightClick( HWND hWnd )
 				{
 					mii.fState = MFS_ENABLED;
 
-					if ( login_state != LOGGED_IN )
+					if ( main_con.state != LOGGED_IN )
 					{
 						mii2.fState = MFS_DISABLED;
 					}
@@ -781,7 +799,7 @@ void HandleRightClick( HWND hWnd )
 							mii3.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
 							mii3.fType = MFT_STRING;
 
-							if ( login_state != LOGGED_IN )
+							if ( main_con.state != LOGGED_IN )
 							{
 								mii3.fState = MFS_DISABLED;
 							}
@@ -878,7 +896,7 @@ void HandleRightClick( HWND hWnd )
 				{
 					mii.fState = MFS_ENABLED;
 
-					if ( login_state != LOGGED_IN )
+					if ( main_con.state != LOGGED_IN )
 					{
 						mii2.fState = MFS_DISABLED;
 					}
@@ -1311,7 +1329,7 @@ void HandleRightClick( HWND hWnd )
 				{
 					mii.fState = MFS_ENABLED;
 
-					if ( login_state != LOGGED_IN )
+					if ( main_con.state != LOGGED_IN )
 					{
 						mii2.fState = MFS_DISABLED;
 					}
@@ -1466,7 +1484,7 @@ void HandleRightClick( HWND hWnd )
 				{
 					mii.fState = MFS_ENABLED;
 
-					if ( login_state != LOGGED_IN )
+					if ( main_con.state != LOGGED_IN )
 					{
 						mii2.fState = MFS_DISABLED;
 					}
@@ -1635,7 +1653,7 @@ void HandleRightClick( HWND hWnd )
 void UpdateMenus( unsigned char action )
 {
 	// Enable Menus based on the login state.
-	if ( login_state == LOGGED_IN )
+	if ( main_con.state == LOGGED_IN )
 	{
 		_EnableMenuItem( g_hMenu, MENU_ACCOUNT, MF_ENABLED );
 		_EnableMenuItem( g_hMenu, MENU_DIAL_PHONE_NUM, MF_ENABLED );
@@ -1661,7 +1679,7 @@ void UpdateMenus( unsigned char action )
 		_EnableMenuItem( g_hMenu, MENU_EXPORT_CONTACTS, MF_DISABLED );
 		_EnableMenuItem( g_hMenu, MENU_IMPORT_CONTACTS, MF_DISABLED );
 
-		if ( login_state == LOGGED_OUT )
+		if ( main_con.state == LOGGED_OUT )
 		{
 			MENUITEMINFO mii;
 			_memzero( &mii, sizeof( MENUITEMINFO ) );
@@ -1843,7 +1861,7 @@ void UpdateMenus( unsigned char action )
 				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_SELECT_ALL, MF_ENABLED );
 			}
 
-			if ( login_state == LOGGED_IN )
+			if ( main_con.state == LOGGED_IN )
 			{
 				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_ADD_CONTACT, MF_ENABLED );
 			}

@@ -56,6 +56,8 @@ bool cfg_always_on_top = false;
 
 bool cfg_enable_call_log_history = false;
 
+bool cfg_check_for_updates = false;
+
 bool cfg_enable_popups = false;
 bool cfg_popup_hide_border = false;
 int cfg_popup_width = MIN_WIDTH / 2;
@@ -1067,6 +1069,7 @@ THREAD_RETURN cleanup( void *pArguments )
 	kill_connection_worker_thread();
 	kill_connection_incoming_thread();
 	kill_connection_thread();
+	kill_update_check_thread();
 
 	// DestroyWindow won't work on a window from a different thread. So we'll send a message to trigger it.
 	_SendMessageW( g_hWnd_main, WM_DESTROY_ALT, 0, 0 );

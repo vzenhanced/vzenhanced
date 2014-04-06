@@ -80,6 +80,7 @@ void kill_worker_thread();
 void kill_connection_thread();
 void kill_connection_worker_thread();
 void kill_connection_incoming_thread();
+void kill_update_check_thread();
 
 char *GetFileExtension( char *path );
 char *GetFileName( char *path );

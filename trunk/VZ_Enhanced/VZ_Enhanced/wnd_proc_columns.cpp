@@ -464,7 +464,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( proceed == false )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 0, 0 );
-						_MessageBoxW( NULL, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
+						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
 						break;
 					}
 
@@ -500,7 +500,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( proceed == false )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 1, 0 );
-						_MessageBoxW( NULL, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
+						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
 						break;
 					}
 
@@ -523,7 +523,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( proceed == false )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 2, 0 );
-						_MessageBoxW( NULL, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
+						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
 						break;
 					}
 
@@ -545,7 +545,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( proceed == false )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 3, 0 );
-						_MessageBoxW( NULL, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
+						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
 						break;
 					}
 

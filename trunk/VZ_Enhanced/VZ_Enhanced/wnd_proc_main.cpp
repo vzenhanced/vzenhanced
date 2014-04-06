@@ -420,6 +420,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			// iui is freed in the update_ignore_list thread.
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_list, ( void * )iui, 0, NULL ) );
 
+			if ( cfg_check_for_updates == true )
+			{
+				// Do not notify if it's up to date.
+				UPDATE_CHECK_INFO *update_info = ( UPDATE_CHECK_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( UPDATE_CHECK_INFO ) );
+				update_info->notify = false;
+				update_info->download_url = NULL;
+				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CheckForUpdates, ( void * )update_info, 0, NULL ) );
+			}
 
 			return 0;
 		}
@@ -597,13 +605,40 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				{
 					case MENU_LOGIN:
 					{
-						if ( login_state == LOGGED_IN )
+						if ( main_con.state == LOGGED_IN )
 						{
 							// Forceful shutdown.
-							login_state = LOGGED_OUT;
+							incoming_con.state = LOGGING_OUT;
+							if ( incoming_con.ssl_socket != NULL )
+							{
+								_shutdown( incoming_con.ssl_socket->s, SD_BOTH );
+							}
+
+							if ( incoming_con.socket != INVALID_SOCKET )
+							{
+								_shutdown( incoming_con.socket, SD_BOTH );
+							}
+
+							worker_con.state = LOGGING_OUT;
+							if ( worker_con.ssl_socket != NULL )
+							{
+								_shutdown( worker_con.ssl_socket->s, SD_BOTH );
+							}
+
+							if ( worker_con.socket != INVALID_SOCKET )
+							{
+								_shutdown( worker_con.socket, SD_BOTH );
+							}
+
+							main_con.state = LOGGING_OUT;
 							if ( main_con.ssl_socket != NULL )
 							{
 								_shutdown( main_con.ssl_socket->s, SD_BOTH );
+							}
+
+							if ( main_con.socket != INVALID_SOCKET )
+							{
+								_shutdown( main_con.socket, SD_BOTH );
 							}
 						}
 						else
@@ -1327,7 +1362,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								if ( ofn.nFileExtension > 0 )
 								{
 									// See if it's the same as our selected file type.
-									if ( lstrcmpW( iei->file_path + ofn.nFileExtension, ( iei->file_type == 1 ? L"vcf" :  L"csv" ) ) == 0 )
+									if ( lstrcmpW( iei->file_path + ofn.nFileExtension, ( iei->file_type == 1 ? L"vcf" : L"csv" ) ) == 0 )
 									{
 										append = false;
 									}
@@ -1340,7 +1375,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 									// Append the file extension to the end of the file name.
 									if ( ofn.nFileOffset + file_name_length + 4 < MAX_PATH )
 									{
-										_wmemcpy_s( iei->file_path + ofn.nFileOffset + file_name_length, MAX_PATH, ( iei->file_type == 1 ? L".vcf" :  L".csv" ), 4 );
+										_wmemcpy_s( iei->file_path + ofn.nFileOffset + file_name_length, MAX_PATH, ( iei->file_type == 1 ? L".vcf" : L".csv" ), 4 );
 										*( iei->file_path + ofn.nFileOffset + file_name_length + 4 ) = 0;	// Sanity.
 									}
 								}
@@ -1410,6 +1445,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						ofn.lStructSize = sizeof( OPENFILENAME );
 						ofn.hwndOwner = hWnd;
 						ofn.lpstrFilter = L"CSV (Comma delimited) (*.csv)\0*.csv\0";
+						ofn.lpstrDefExt = L"csv";
 						ofn.lpstrTitle = ST_Save_Call_Log;
 						ofn.lpstrFile = file_path;
 						ofn.nMaxFile = MAX_PATH;
@@ -1417,30 +1453,6 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						if ( _GetSaveFileNameW( &ofn ) )
 						{
-							bool append = true;
-
-							// See if a file extension was typed.
-							if ( ofn.nFileExtension > 0 )
-							{
-								// See if it's the same as our selected file type.
-								if ( lstrcmpW( file_path + ofn.nFileExtension, L"csv" ) == 0 )
-								{
-									append = false;
-								}
-							}
-
-							if ( append == true )
-							{
-								int file_name_length = lstrlenW( file_path + ofn.nFileOffset );
-
-								// Append the file extension to the end of the file name.
-								if ( ofn.nFileOffset + file_name_length + 4 < MAX_PATH )
-								{
-									_wmemcpy_s( file_path + ofn.nFileOffset + file_name_length, MAX_PATH, L".csv", 4 );
-									*( file_path + ofn.nFileOffset + file_name_length + 4 ) = 0;	// Sanity.
-								}
-							}
-
 							// file_path will be freed in the save_call_log thread.
 							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, save_call_log, ( void * )file_path, 0, NULL ) );
 						}
@@ -1462,9 +1474,42 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					}
 					break;
 
+					case MENU_VZ_ENHANCED_HOME_PAGE:
+					{
+						_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
+					}
+					break;
+
+					case MENU_CHECK_FOR_UPDATES:
+					{
+						if ( update_con.state == CONNECTION_ACTIVE )
+						{
+							// Forceful shutdown.
+							update_con.state = CONNECTION_CANCEL;
+							if ( update_con.ssl_socket != NULL )
+							{
+								_shutdown( update_con.ssl_socket->s, SD_BOTH );
+							}
+
+							if ( update_con.socket != INVALID_SOCKET )
+							{
+								_shutdown( update_con.socket, SD_BOTH );
+							}
+						}
+						else
+						{
+							// Notify even if it's up to date.
+							UPDATE_CHECK_INFO *update_info = ( UPDATE_CHECK_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( UPDATE_CHECK_INFO ) );
+							update_info->notify = true;
+							update_info->download_url = NULL;
+							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CheckForUpdates, ( void * )update_info, 0, NULL ) );
+						}
+					}
+					break;
+
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\n\nCopyright \xA9 2013-2014 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.1.0\r\n\r\nCopyright \xA9 2013-2014 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -2084,6 +2129,42 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 		}
 		break;
 
+		case WM_ALERT:
+		{
+			if ( wParam == 0 )
+			{
+				_MessageBoxW( hWnd, L"VZ Enhanced is up to date.", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+			}
+			else if ( wParam == 1 )
+			{
+				if ( _MessageBoxW( hWnd, L"A new version of VZ Enhanced is available.\r\n\r\nWould you like to download it now?", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION | MB_YESNO ) == IDYES )
+				{
+					// lParam is freed in CheckForUpdates.
+					CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CheckForUpdates, ( void * )lParam, 0, NULL ) );
+				}
+				else
+				{
+					GlobalFree( ( ( UPDATE_CHECK_INFO * )lParam )->download_url );
+					GlobalFree( ( UPDATE_CHECK_INFO * )lParam );
+				}
+			}
+			else if ( wParam == 2 )
+			{
+				if ( _MessageBoxW( hWnd, L"The update check could not be completed.\r\n\r\nWould you like to visit the VZ Enhanced home page instead?", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
+				{
+					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
+				}
+			}
+			else if ( wParam == 3 )
+			{
+				if ( _MessageBoxW( hWnd, L"The download could not be completed.\r\n\r\nWould you like to visit the VZ Enhanced home page instead?", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
+				{
+					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
+				}
+			}
+		}
+		break;
+
 		case WM_PROPAGATE:
 		{
 			if ( LOWORD( wParam ) == CW_MODIFY )
@@ -2249,15 +2330,16 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			_ShowWindow( hWnd, SW_HIDE );
 
 			// If we're in a secondary thread, then kill it (cleanly) and wait for it to exit.
-			if ( in_worker_thread == true || in_connection_thread == true || in_connection_worker_thread == true || in_connection_incoming_thread == true )
+			if ( in_worker_thread == true || in_connection_thread == true || in_connection_worker_thread == true || in_connection_incoming_thread == true || in_update_check_thread == true )
 			{
 				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, cleanup, ( void * )NULL, 0, NULL ) );
 			}
 			else	// Otherwise, destroy the window normally.
 			{
-				worker_con.state = true;
-				incoming_con.state = true;
-				main_con.state = true;
+				worker_con.state = LOGGED_OUT;
+				incoming_con.state = LOGGED_OUT;
+				main_con.state = LOGGED_OUT;
+				update_con.state = CONNECTION_KILL;
 				kill_worker_thead = true;
 				_SendMessageW( hWnd, WM_DESTROY_ALT, 0, 0 );
 			}
@@ -2360,7 +2442,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						_ShowWindow( hWnd, SW_SHOW );
 
 						// Show the login window if we're logging in. We hide it if we're doing a silent startup...so it should be made visible.
-						if ( login_state == LOGGING_IN )
+						if ( main_con.state == LOGGING_IN )
 						{
 							_ShowWindow( g_hWnd_login, SW_SHOW );
 							_SetForegroundWindow( g_hWnd_login );
