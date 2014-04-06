@@ -4127,7 +4127,7 @@ CLEANUP:
 	CleanupConnection( &incoming_con );
 
 	// Show the default login window if we cleanly logged off, canceled the login procedure, or if we experienced an unexpected log off.
-	if ( main_con.state != LOGGED_OUT || main_con.state == LOGGING_OUT )
+	if ( main_con.state != LOGGED_OUT )
 	{
 		main_con.state = LOGGED_OUT;
 		_SendMessageW( g_hWnd_login, WM_PROPAGATE, LOGGED_OUT, 0 );
