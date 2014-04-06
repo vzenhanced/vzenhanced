@@ -746,6 +746,12 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 
 	*( *response_buffer + response_buffer_length ) = 0;	// Sanity
 
+	// Ensure that the content length was accurately represented.
+	if ( content_length + header_offset != response_buffer_length )
+	{
+		content_length = response_buffer_length - header_offset;
+	}
+
 
 
 	// Now we need to decode the buffer in case it was a chunked transfer.
@@ -1033,12 +1039,15 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 
 				version = _strtoul( file, NULL, 10 );
 
-				unsigned int download_url_length = ( content_length - ( version_end - file ) );
+				if ( content_length >= ( unsigned int )( version_end - file ) )
+				{
+					unsigned int download_url_length = ( content_length - ( version_end - file ) );
 
-				*download_url = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( download_url_length + 1 ) );
-				_memcpy_s( *download_url, sizeof( char ) * ( download_url_length + 1 ), version_end, download_url_length );
+					*download_url = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( download_url_length + 1 ) );
+					_memcpy_s( *download_url, sizeof( char ) * ( download_url_length + 1 ), version_end, download_url_length );
 
-				*( *download_url + download_url_length ) = 0;	// Sanity.
+					*( *download_url + download_url_length ) = 0;	// Sanity.
+				}
 			}
 		}
 	}
