@@ -360,8 +360,8 @@ extern bool skip_contact_draw;
 extern bool skip_ignore_draw;
 extern bool skip_forward_draw;
 
-extern RANGE *ignore_range_list;
-extern RANGE *forward_range_list;
+extern RANGE *ignore_range_list[ 16 ];
+extern RANGE *forward_range_list[ 16 ];
 
 extern dllrbt_tree *ignore_list;
 extern bool ignore_list_changed;

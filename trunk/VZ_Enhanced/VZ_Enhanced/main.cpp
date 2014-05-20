@@ -141,6 +141,9 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	base_directory_length = GetCurrentDirectory( MAX_PATH, base_directory );	// Get the full path
 
+	_memzero( ignore_range_list, sizeof( ignore_range_list ) );
+	_memzero( forward_range_list, sizeof( forward_range_list ) );
+
 	read_config();
 	read_ignore_list();
 	read_forward_list();
@@ -542,11 +545,14 @@ CLEANUP:
 	dllrbt_delete_recursively( call_log );
 	call_log = NULL;
 
-	RangeDelete( &ignore_range_list );
-	ignore_range_list = NULL;
+	for ( char i = 0; i < 16; ++i )
+	{
+		RangeDelete( &ignore_range_list[ i ] );
+		ignore_range_list[ i ] = NULL;
 
-	RangeDelete( &forward_range_list );
-	forward_range_list = NULL;
+		RangeDelete( &forward_range_list[ i ] );
+		forward_range_list[ i ] = NULL;
+	}
 
 	// Delete our font.
 	_DeleteObject( hFont );

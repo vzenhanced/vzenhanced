@@ -21,8 +21,8 @@
 #include "file_operations.h"
 #include "utilities.h"
 
-RANGE *ignore_range_list = NULL;
-RANGE *forward_range_list = NULL;
+RANGE *ignore_range_list[ 16 ];
+RANGE *forward_range_list[ 16 ];
 
 dllrbt_tree *ignore_list = NULL;
 bool ignore_list_changed = false;
@@ -920,7 +920,7 @@ void read_ignore_list()
 
 		DWORD fz = GetFileSize( hFile_ignore, NULL );
 
-		char *ignore_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 32768 + 1 ) );	// This buffer must be greater than, or equal to 28 bytes.
+		char *ignore_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 32768 + 1 ) );	// This buffer must be greater than, or equal to 29 bytes.
 
 		bool skip_next_newline = false;
 
@@ -979,8 +979,8 @@ void read_ignore_list()
 						length2 = ( ( p - t ) > 10 ? 10 : ( p - t ) );
 					}
 
-					// Make sure the number is at most 15 digits.
-					if ( ( length1 <= 15 && length1 > 0 ) && ( length2 <= 10 && length2 >= 0 ) )
+					// Make sure the number is at most 15 + 1 digits.
+					if ( ( length1 <= 16 && length1 > 0 ) && ( length2 <= 10 && length2 >= 0 ) )
 					{
 						ignoreinfo *ii = ( ignoreinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreinfo ) );
 
@@ -1019,9 +1019,9 @@ void read_ignore_list()
 						{
 							free_ignoreinfo( &ii );
 						}
-						else if ( length1 == 10 && is_num( ii->c_phone_number ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+						else if ( is_num( ii->c_phone_number ) == 1 )	// See if the value we're adding is a range (has wildcard values in it).
 						{
-							RangeAdd( &ignore_range_list, ii->c_phone_number );
+							RangeAdd( &ignore_range_list[ length1 - 1 ], ii->c_phone_number, length1 );
 						}
 					}
 
@@ -1050,11 +1050,11 @@ void read_ignore_list()
 						length2 = ( ( ignore_buf + read ) - t );
 					}
 
-					// Max recommended number length is 15.
-					// We can only offset back less than what we've read, and no more than 26 digits (bytes). 15 + 1 + 10
-					// This means read, and our buffer size should be greater than 26.
-					// Based on the token we're searching for: "\r\n", the buffer NEEDS to be greater or equal to 28.
-					if ( offset < read && offset <= 15 && length2 <= 10 )
+					// Max recommended number length is 15 + 1.
+					// We can only offset back less than what we've read, and no more than 27 digits (bytes). 15 + 1 + 1 + 10
+					// This means read, and our buffer size should be greater than 27.
+					// Based on the token we're searching for: "\r\n", the buffer NEEDS to be greater or equal to 29.
+					if ( offset < read && offset <= 16 && length2 <= 10 )
 					{
 						total_read -= offset;
 						SetFilePointer( hFile_ignore, total_read, NULL, FILE_BEGIN );
@@ -1082,8 +1082,8 @@ void read_ignore_list()
 						length2 = ( ( ( ignore_buf + read ) - t ) > 10 ? 10 : ( ( ignore_buf + read ) - t ) );
 					}
 
-					// Make sure the number is at most 15 digits.
-					if ( ( length1 <= 15 && length1 > 0 ) && ( length2 <= 10 && length2 >= 0 ) )
+					// Make sure the number is at most 15 + 1 digits.
+					if ( ( length1 <= 16 && length1 > 0 ) && ( length2 <= 10 && length2 >= 0 ) )
 					{
 						ignoreinfo *ii = ( ignoreinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreinfo ) );
 
@@ -1122,9 +1122,9 @@ void read_ignore_list()
 						{
 							free_ignoreinfo( &ii );
 						}
-						else if ( length1 == 10 && is_num( ii->c_phone_number ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+						else if ( is_num( ii->c_phone_number ) == 1 )	// See if the value we're adding is a range (has wildcard values in it).
 						{
-							RangeAdd( &ignore_range_list, ii->c_phone_number );
+							RangeAdd( &ignore_range_list[ length1 - 1 ], ii->c_phone_number, length1 );
 						}
 					}
 				}
@@ -1150,7 +1150,7 @@ void save_ignore_list()
 		int pos = 0;
 		DWORD write = 0;
 
-		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 28 bytes.
+		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 29 bytes.
 
 		node_type *node = dllrbt_get_head( ignore_list );
 		while ( node != NULL )
@@ -1170,8 +1170,8 @@ void save_ignore_list()
 					pos = 0;
 				}
 
-				// Ignore numbers that are greater than 15 digits (bytes).
-				if ( phone_number_length + total_calls_length + 3 <= 28 )
+				// Ignore numbers that are greater than 15 + 1 digits (bytes).
+				if ( phone_number_length + total_calls_length + 3 <= 29 )
 				{
 					// Add to the buffer.
 					_memcpy_s( write_buf + pos, size - pos, ii->c_phone_number, phone_number_length );
@@ -1215,7 +1215,7 @@ void read_forward_list()
 
 		DWORD fz = GetFileSize( hFile_forward, NULL );
 
-		char *forward_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 32768 + 1 ) );	// This buffer must be greater than, or equal to 43 bytes.
+		char *forward_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 32768 + 1 ) );	// This buffer must be greater than, or equal to 46 bytes.
 
 		bool skip_next_newline = false;
 
@@ -1282,8 +1282,8 @@ void read_forward_list()
 							length3 = ( ( p - t2 ) > 10 ? 10 : ( p - t2 ) );
 						}
 
-						// Make sure the number is at most 15 digits.
-						if ( ( length1 <= 15 && length1 > 0 ) && ( length2 <= 15 && length2 > 0 ) && ( length3 <= 10 && length3 >= 0 ) )
+						// Make sure the number is at most 15 + 1 digits.
+						if ( ( length1 <= 16 && length1 > 0 ) && ( length2 <= 16 && length2 > 0 ) && ( length3 <= 10 && length3 >= 0 ) )
 						{
 							forwardinfo *fi = ( forwardinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardinfo ) );
 
@@ -1328,9 +1328,9 @@ void read_forward_list()
 							{
 								free_forwardinfo( &fi );
 							}
-							else if ( length1 == 10 && is_num( fi->c_call_from ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+							else if ( is_num( fi->c_call_from ) == 1 )	// See if the value we're adding is a range (has wildcard values in it).
 							{
-								RangeAdd( &forward_range_list, fi->c_call_from );
+								RangeAdd( &forward_range_list[ length1 - 1 ], fi->c_call_from, length1 );
 							}
 						}
 					}
@@ -1375,11 +1375,11 @@ void read_forward_list()
 						}
 					}
 
-					// Max recommended number length is 15.
-					// We can only offset back less than what we've read, and no more than 41 bytes. 15 + 1 + 15 + 10.
-					// This means read, and our buffer size should be greater than 41.
-					// Based on the token we're searching for: "\r\n", the buffer NEEDS to be greater or equal to 43.
-					if ( offset < read && length1 <= 15 && length2 <= 15 && length3 <= 10 )
+					// Max recommended number length is 15 + 1.
+					// We can only offset back less than what we've read, and no more than 44 bytes. 15 + 1 + 1 + 15 + 1 + 1 + 10.
+					// This means read, and our buffer size should be greater than 44.
+					// Based on the token we're searching for: "\r\n", the buffer NEEDS to be greater or equal to 46.
+					if ( offset < read && length1 <= 16 && length2 <= 16 && length3 <= 10 )
 					{
 						total_read -= offset;
 						SetFilePointer( hFile_forward, total_read, NULL, FILE_BEGIN );
@@ -1415,8 +1415,8 @@ void read_forward_list()
 							length3 = ( ( ( forward_buf + read ) - t2 ) > 10 ? 10 : ( ( forward_buf + read ) - t2 ) );
 						}
 
-						// Make sure the number is at most 15 digits.
-						if ( ( length1 <= 15 && length1 > 0 ) && ( length2 <= 15 && length2 > 0 ) && ( length3 <= 10 && length3 >= 0 ) )
+						// Make sure the number is at most 15 + 1 digits.
+						if ( ( length1 <= 16 && length1 > 0 ) && ( length2 <= 16 && length2 > 0 ) && ( length3 <= 10 && length3 >= 0 ) )
 						{
 							forwardinfo *fi = ( forwardinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardinfo ) );
 
@@ -1461,9 +1461,9 @@ void read_forward_list()
 							{
 								free_forwardinfo( &fi );
 							}
-							else if ( length1 == 10 && is_num( fi->c_call_from ) == 1 )	// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
+							else if ( is_num( fi->c_call_from ) == 1 )	// See if the value we're adding is a range (has wildcard values in it).
 							{
-								RangeAdd( &forward_range_list, fi->c_call_from );
+								RangeAdd( &forward_range_list[ length1 - 1 ], fi->c_call_from, length1 );
 							}
 						}
 					}
@@ -1490,7 +1490,7 @@ void save_forward_list()
 		int pos = 0;
 		DWORD write = 0;
 
-		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 44 bytes.
+		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 46 bytes.
 
 		node_type *node = dllrbt_get_head( forward_list );
 		while ( node != NULL )
@@ -1511,8 +1511,8 @@ void save_forward_list()
 					pos = 0;
 				}
 
-				// Ignore numbers that are greater than 15 digits (bytes).
-				if ( phone_number_length1 + phone_number_length2 + total_calls_length + 4 <= 44 )
+				// Ignore numbers that are greater than 15 + 1 digits (bytes).
+				if ( phone_number_length1 + phone_number_length2 + total_calls_length + 4 <= 46 )
 				{
 					// Add to the buffer.
 					_memcpy_s( write_buf + pos, size - pos, fi->c_call_from, phone_number_length1 );
