@@ -53,11 +53,40 @@ LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 	{
 		case WM_CHAR:
 		{
-			// If a '*' was entered, set the text and return. Don't perform the default window procedure.
+			char current_phone_number[ 17 ];
+			_memzero( current_phone_number, 17 );
+			int current_phone_number_length = _SendMessageA( hWnd, WM_GETTEXT, 17, ( LPARAM )current_phone_number );
+
+			DWORD offset_begin = 0, offset_end = 0;
+			_SendMessageA( hWnd, EM_GETSEL, ( WPARAM )&offset_begin, ( WPARAM )&offset_end );
+
+			// If a '*' or '+' was entered, set the text and return. Don't perform the default window procedure.
 			if ( wParam == '*' )
 			{
+				if ( ( current_phone_number[ 0 ] == '+' && offset_begin == 0 && ( offset_end == 0 || ( offset_end == 1 && current_phone_number_length >= 16 ) ) ) ||
+					 ( current_phone_number[ 0 ] != '+' && offset_begin == offset_end && current_phone_number_length >= 15 ) )
+				{
+					return 0;
+				}
+
 				_SendMessageW( hWnd, EM_REPLACESEL, FALSE, ( LPARAM )L"*" );
 				return 0;
+			}
+			else if ( wParam == '+' )
+			{
+				if ( ( current_phone_number[ 0 ] != '+' && offset_begin == 0 && offset_end == 0 ) || ( offset_begin == 0 && offset_end > 0 ) )
+				{
+					_SendMessageW( hWnd, EM_REPLACESEL, FALSE, ( LPARAM )L"+" );
+					return 0;
+				}
+			}
+			else if ( wParam >= 0x30 && wParam <= 0x39 )
+			{
+				if ( ( current_phone_number[ 0 ] == '+' && offset_begin == 0 && ( offset_end == 0 || ( offset_end == 1 && current_phone_number_length >= 16 ) ) ) ||
+					 ( current_phone_number[ 0 ] != '+' && offset_begin == offset_end && current_phone_number_length >= 15 ) )
+				{
+					return 0;
+				}
 			}
 		}
 		break;
@@ -67,8 +96,8 @@ LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			if ( _OpenClipboard( hWnd ) )
 			{
 				bool ret = true;
-				char phone_number[ 16 ];
-				_memzero( phone_number, 16 );
+				char phone_number[ 17 ];
+				_memzero( phone_number, 17 );
 				char paste_length = 0;
 
 				// Get ASCII text from the clipboard.
@@ -79,11 +108,11 @@ LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					char *lpstrPaste = ( char * )GlobalLock( hglbPaste );
 					if ( lpstrPaste != NULL )
 					{
-						// Find the length of the data and limit it to 15 characters.
-						paste_length = ( char )min( 15, lstrlenA( lpstrPaste ) );
+						// Find the length of the data and limit it to 15 + 1 ("+") characters.
+						paste_length = ( char )min( 16, lstrlenA( lpstrPaste ) );
 
 						// Copy the data to our phone number buffer.
-						_memcpy_s( phone_number, 16, lpstrPaste, paste_length );
+						_memcpy_s( phone_number, 17, lpstrPaste, paste_length );
 						phone_number[ paste_length ] = 0;	// Sanity.
 					}
 
@@ -94,8 +123,19 @@ LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 				if ( paste_length > 0 )
 				{
+					char i = 0;
+
+					if ( phone_number[ 0 ] == '+' )
+					{
+						++i;
+					}
+					else if ( paste_length == 16 )
+					{
+						phone_number[ --paste_length ] = 0;
+					}
+
 					// Make sure the phone number contains only numbers or wildcard values.
-					for ( char i = 0; i < paste_length; ++i )
+					for ( ; i < paste_length; ++i )
 					{
 						if ( phone_number[ i ] != '*' && !is_digit( phone_number[ i ] ) )
 						{
@@ -107,7 +147,21 @@ LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					// If we have a value and all characters are acceptable, then set the text in the text box and return. Don't perform the default window procedure.
 					if ( ret == true )
 					{
-						_SendMessageA( hWnd, EM_REPLACESEL, FALSE, ( LPARAM )phone_number );
+						char current_phone_number[ 17 ];
+						_memzero( current_phone_number, 17 );
+						int current_phone_number_length = _SendMessageA( hWnd, WM_GETTEXT, 17, ( LPARAM )current_phone_number );
+
+						DWORD offset_begin = 0, offset_end = 0;
+						_SendMessageA( hWnd, EM_GETSEL, ( WPARAM )&offset_begin, ( LPARAM )&offset_end );
+
+						if ( current_phone_number[ 0 ] == '+' && phone_number[ 0 ] != '+' && offset_begin > 0 && offset_end > 0 ||
+							 current_phone_number[ 0 ] != '+' && ( ( phone_number[ 0 ] != '+' && ( ( current_phone_number_length + paste_length ) <= 15 ) ) ||
+																   ( phone_number[ 0 ] == '+' && offset_begin == 0 ) ) )
+						{
+							_SendMessageA( hWnd, EM_REPLACESEL, FALSE, ( LPARAM )phone_number );
+							
+						}
+
 						return 0;
 					}
 				}
@@ -163,7 +217,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			HWND g_hWnd_dial_action = _CreateWindowW( WC_BUTTON, ST_Dial_Phone_Number, WS_CHILD | WS_TABSTOP | WS_VISIBLE, ( rc.right - rc.left - ( _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ) ) - 40 ) / 2, rc.bottom - 32, ( _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ) ) + 40, 23, hWnd, ( HMENU )BTN_ACTION, NULL, NULL );
 
-			_SendMessageW( g_hWnd_number, EM_LIMITTEXT, 15, 0 );
+			_SendMessageW( g_hWnd_number, EM_LIMITTEXT, ( enable_items != 0 ? 16 : 15 ), 0 );
 
 			_SendMessageW( g_hWnd_phone_static1, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_number, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -216,8 +270,8 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			{
 				case BTN_ACTION:
 				{
-					char number[ 16 ];
-					int length = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_GETTEXT, 16, ( LPARAM )number );
+					char number[ 17 ];
+					int length = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_GETTEXT, 17, ( LPARAM )number );
 
 					if ( length > 0 )
 					{
@@ -277,8 +331,8 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					}
 					else if ( hWnd == g_hWnd_forward )
 					{
-						char number2[ 16 ];
-						int length2 = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER2 ), WM_GETTEXT, 16, ( LPARAM )number2 );
+						char number2[ 17 ];
+						int length2 = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER2 ), WM_GETTEXT, 17, ( LPARAM )number2 );
 
 						if ( length2 > 0 )
 						{
@@ -596,7 +650,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				if ( phone_number != NULL && is_num( phone_number ) == 0 )	// Don't allow range numbers or anything with weird symbols.
 				{
-					_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )phone_number );
+					_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )( phone_number[ 0 ] == '+' ? phone_number + 1 : phone_number ) );
 				}
 				else
 				{

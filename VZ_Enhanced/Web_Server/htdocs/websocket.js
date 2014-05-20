@@ -260,7 +260,7 @@ function create_forward_window()
 				
 				forward_from_input = document.createElement("input");
 				forward_from_input.style.cssText = "outline: 0; border: 1px solid #CCCCCC; background-color: #EEEEEE; text-align: center; width: 176px; border-radius: 12px; box-shadow: 0px 0px 4px 0px #AAAAAA;/* color: #777777; font-weight: bold; text-shadow: 0px 1px 0px #FFFFFF;*/";
-				forward_from_input.maxLength = "15";
+				forward_from_input.maxLength = "16";    // Allow the '+' digit.
 				forward_from_input.disabled = "disabled";
 				forward_from_input.onfocus = function() { forward_from_input.style.borderColor = "#AAAAAA"; };
 				forward_from_input.onblur = function() { forward_from_input.style.borderColor = "#CCCCCC"; };
@@ -277,7 +277,7 @@ function create_forward_window()
 
 				forward_to_input = document.createElement("input");
 				forward_to_input.style.cssText = "outline: 0; border: 1px solid #CCCCCC; background-color: #FFFFFF; text-align: center; width: 176px; border-radius: 12px; box-shadow: 0px 0px 4px 0px #AAAAAA;/* color: #777777; font-weight: bold; text-shadow: 0px 1px 0px #FFFFFF;*/";
-				forward_to_input.maxLength = "15";
+				forward_to_input.maxLength = "15";  // Don't allow the '+' digit.
 				forward_to_input.onkeypress = validate_input;
 				forward_to_input.onfocus = function() { forward_to_input.style.borderColor = "#AAAAAA"; };
 				forward_to_input.onblur = function() { forward_to_input.style.borderColor = "#CCCCCC"; };

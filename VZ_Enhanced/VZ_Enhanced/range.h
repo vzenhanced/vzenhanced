@@ -27,7 +27,7 @@ struct RANGE
 };
 
 RANGE *RangeCreateNode( char value );
-void RangeAdd( RANGE **root, const char *value, char length = 10 );
+void RangeAdd( RANGE **root, const char *value, int length );
 bool RangeRemove( RANGE **head, const char *value, RANGE *parent = NULL );
 bool RangeSearch( RANGE **head, const char *value, char found_value[ 32 ] );
 bool RangeCompare( const char *range, const char *value );

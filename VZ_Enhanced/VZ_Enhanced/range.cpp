@@ -49,7 +49,7 @@ RANGE *RangeCreateNode( char value )
 }
 
 
-void RangeAdd( RANGE **root, const char *value, char length )
+void RangeAdd( RANGE **root, const char *value, int length )
 {
 	RANGE *head = NULL;
 	RANGE *tmp = NULL;
@@ -64,7 +64,7 @@ void RangeAdd( RANGE **root, const char *value, char length )
 	head = *root;
 	tmp = head;
 
-	for ( char i = 0; i < length; ++i )
+	for ( int i = 0; i < length; ++i )
 	{
 		// Find the value in the siblings list.
 		while ( tmp != NULL )

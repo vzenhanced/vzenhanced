@@ -299,9 +299,19 @@ int dllrbt_compare( void *a, void *b )
 
 char is_num( const char *str )
 {
+	if ( str == NULL )
+	{
+		return -1;
+	}
+
 	unsigned char *s = ( unsigned char * )str;
 
 	char ret = 0;	// 0 = regular number, 1 = number with wildcard(s), -1 = not a number.
+
+	if ( *s != NULL && *s == '+' )
+	{
+		*s++;
+	}
 
 	while ( *s != NULL )
 	{
@@ -1591,10 +1601,13 @@ THREAD_RETURN remove_items( void *pArguments )
 				char range_number[ 32 ];
 				_memzero( range_number, 32 );
 
+				int range_index = lstrlenA( ii->c_phone_number );
+				range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
 				// If the number we've removed is a range, then remove it from the range list.
 				if ( is_num( ii->c_phone_number ) == 1 )
 				{
-					RangeRemove( &ignore_range_list, ii->c_phone_number );
+					RangeRemove( &ignore_range_list[ range_index ], ii->c_phone_number );
 
 					// Update each displayinfo item to indicate that it is no longer ignored.
 					node_type *node = dllrbt_get_head( call_log );
@@ -1609,7 +1622,7 @@ THREAD_RETURN remove_items( void *pArguments )
 							if ( mdi->ignore == true )
 							{
 								// First, see if the display value falls within another range.
-								if ( RangeSearch( &ignore_range_list, mdi->ci.call_from, range_number ) == true )
+								if ( RangeSearch( &ignore_range_list[ range_index ], mdi->ci.call_from, range_number ) == true )
 								{
 									// If it does, then we'll skip the display value.
 									break;
@@ -1640,7 +1653,7 @@ THREAD_RETURN remove_items( void *pArguments )
 				else
 				{
 					// See if the value we remove falls within a range. If it doesn't, then set its new display values.
-					if ( RangeSearch( &ignore_range_list, ii->c_phone_number, range_number ) == false )
+					if ( RangeSearch( &ignore_range_list[ range_index ], ii->c_phone_number, range_number ) == false )
 					{
 						// Update each displayinfo item to indicate that it is no longer ignored.
 						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )ii->c_phone_number, true );
@@ -1685,10 +1698,13 @@ THREAD_RETURN remove_items( void *pArguments )
 				char range_number[ 32 ];
 				_memzero( range_number, 32 );
 
+				int range_index = lstrlenA( fi->c_call_from );
+				range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
 				// If the number we've removed is a range, then remove it from the range list.
 				if ( is_num( fi->c_call_from ) == 1 )
 				{
-					RangeRemove( &forward_range_list, fi->c_call_from );
+					RangeRemove( &forward_range_list[ range_index ], fi->c_call_from );
 
 					// Update each displayinfo item to indicate that it is no longer forwarded.
 					node_type *node = dllrbt_get_head( call_log );
@@ -1703,7 +1719,7 @@ THREAD_RETURN remove_items( void *pArguments )
 							if ( mdi->forward == true )
 							{
 								// First, see if the display value falls within another range.
-								if ( RangeSearch( &forward_range_list, mdi->ci.call_from, range_number ) == true )
+								if ( RangeSearch( &forward_range_list[ range_index ], mdi->ci.call_from, range_number ) == true )
 								{
 									// If it does, then we'll skip the display value.
 									break;
@@ -1734,7 +1750,7 @@ THREAD_RETURN remove_items( void *pArguments )
 				else
 				{
 					// See if the value we remove falls within a range. If it doesn't, then set its new display values.
-					if ( RangeSearch( &forward_range_list, fi->c_call_from, range_number ) == false )
+					if ( RangeSearch( &forward_range_list[ range_index ], fi->c_call_from, range_number ) == false )
 					{
 						// Update each displayinfo item to indicate that it is no longer forwarded.
 						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )fi->c_call_from, true );
@@ -1965,7 +1981,11 @@ THREAD_RETURN update_call_log( void *pArguments )
 	if ( ii == NULL )
 	{
 		_memzero( range_number, 32 );
-		if ( RangeSearch( &ignore_range_list, di->ci.call_from, range_number ) == true )
+
+		int range_index = lstrlenA( di->ci.call_from );
+		range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
+		if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) == true )
 		{
 			ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )range_number, true );
 		}
@@ -1996,7 +2016,11 @@ THREAD_RETURN update_call_log( void *pArguments )
 	if ( fi == NULL )
 	{
 		_memzero( range_number, 32 );
-		if ( RangeSearch( &forward_range_list, di->ci.call_from, range_number ) == true )
+
+		int range_index = lstrlenA( di->ci.call_from );
+		range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
+		if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) == true )
 		{
 			fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )range_number, true );
 		}
@@ -2526,10 +2550,12 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the ignore list listview.
 				{
-					// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
-					if ( ii->c_phone_number != NULL && lstrlenA( ii->c_phone_number ) == 10 && is_num( ii->c_phone_number ) == 1 )
+					// See if the value we're adding is a range (has wildcard values in it).
+					if ( ii->c_phone_number != NULL && is_num( ii->c_phone_number ) == 1 )
 					{
-						RangeAdd( &ignore_range_list, ii->c_phone_number );
+						int phone_number_length = lstrlenA( ii->c_phone_number );
+
+						RangeAdd( &ignore_range_list[ ( phone_number_length > 0 ? phone_number_length - 1 : 0 ) ], ii->c_phone_number, phone_number_length );
 
 						// Update each displayinfo item to indicate that it is now ignored.
 						node_type *node = dllrbt_get_head( call_log );
@@ -2648,6 +2674,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					ignore_list_changed = true;
 				}
 			}
+
+			_InvalidateRect( g_hWnd_list, NULL, TRUE );
 		}
 		else if ( iui->hWnd == g_hWnd_list )	// call log listview
 		{
@@ -2694,8 +2722,11 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					char range_number[ 32 ];
 					_memzero( range_number, 32 );
 
+					int range_index = lstrlenA( di->ci.call_from );
+					range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
 					// First, see if the phone number is in our range list.
-					if ( RangeSearch( &ignore_range_list, di->ci.call_from, range_number ) == false )
+					if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) == false )
 					{
 						// If not, then see if the phone number is in our ignore_list.
 						dllrbt_iterator *itr = dllrbt_find( ignore_list, ( void * )di->ci.call_from, false );
@@ -2926,10 +2957,12 @@ THREAD_RETURN update_forward_list( void *pArguments )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the forward list listview.
 				{
-					// See if the value we're adding is a range (has wildcard values in it). Only allow 10 digit numbers.
-					if ( fi->c_call_from != NULL && lstrlenA( fi->c_call_from ) == 10 && is_num( fi->c_call_from ) == 1 )
+					// See if the value we're adding is a range (has wildcard values in it).
+					if ( fi->c_call_from != NULL && is_num( fi->c_call_from ) == 1 )
 					{
-						RangeAdd( &forward_range_list, fi->c_call_from );
+						int phone_number_length = lstrlenA( fi->c_call_from );
+
+						RangeAdd( &forward_range_list[ ( phone_number_length > 0 ? phone_number_length - 1 : 0 ) ], fi->c_call_from, phone_number_length );
 
 						// Update each displayinfo item to indicate that it is now forwarded.
 						node_type *node = dllrbt_get_head( call_log );
@@ -3087,6 +3120,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					forward_list_changed = true;
 				}
 			}
+
+			_InvalidateRect( g_hWnd_list, NULL, TRUE );
 		}
 		else if ( fui->hWnd == g_hWnd_list )	// call log listview
 		{
@@ -3133,8 +3168,11 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					char range_number[ 32 ];
 					_memzero( range_number, 32 );
 
+					int range_index = lstrlenA( di->ci.call_from );
+					range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
 					// First, see if the phone number is in our range list.
-					if ( RangeSearch( &forward_range_list, di->ci.call_from, range_number ) == false )
+					if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) == false )
 					{
 						// If not, then see if the phone number is in our forward_list.
 						dllrbt_iterator *itr = dllrbt_find( forward_list, ( void * )di->ci.call_from, false );
@@ -3584,6 +3622,8 @@ THREAD_RETURN read_call_log_history( void *pArguments )
 		char *forward_to = NULL;
 		char *call_reference_id = NULL;
 
+		char range_number[ 32 ];
+
 		DWORD fz = GetFileSize( hFile_read, NULL );
 
 		char *history_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 524288 + 1 ) );	// 512 KB buffer.
@@ -3670,7 +3710,8 @@ THREAD_RETURN read_call_log_history( void *pArguments )
 				offset += ( string_length + 1 );
 				if ( offset >= read ) { goto CLEANUP; }
 
-				int adjusted_size = min( string_length, 15 ) + 1;
+				int call_from_length = min( string_length, 16 );
+				int adjusted_size = call_from_length + 1;
 
 				call_from = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
 				_memcpy_s( call_from, adjusted_size, p, adjusted_size );
@@ -3684,7 +3725,7 @@ THREAD_RETURN read_call_log_history( void *pArguments )
 				offset += ( string_length + 1 );
 				if ( offset >= read ) { goto CLEANUP; }
 
-				adjusted_size = min( string_length, 15 ) + 1;
+				adjusted_size = min( string_length, 16 ) + 1;
 
 				call_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
 				_memcpy_s( call_to, adjusted_size, p, adjusted_size );
@@ -3698,7 +3739,7 @@ THREAD_RETURN read_call_log_history( void *pArguments )
 				offset += ( string_length + 1 );
 				if ( offset >= read ) { goto CLEANUP; }
 
-				adjusted_size = min( string_length, 15 ) + 1;
+				adjusted_size = min( string_length, 16 ) + 1;
 
 				forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
 				_memcpy_s( forward_to, adjusted_size, p, adjusted_size );
@@ -3762,6 +3803,21 @@ THREAD_RETURN read_call_log_history( void *pArguments )
 
 				// Search the ignore_list for a match.
 				ignoreinfo *ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )di->ci.call_from, true );
+
+				// Try searching the range list.
+				if ( ii == NULL )
+				{
+					_memzero( range_number, 32 );
+
+					int range_index = call_from_length;
+					range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
+					if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+					{
+						ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )range_number, true );
+					}
+				}
+
 				if ( ii != NULL )
 				{
 					di->ignore = true;
@@ -3769,6 +3825,21 @@ THREAD_RETURN read_call_log_history( void *pArguments )
 
 				// Search the forward list for a match.
 				forwardinfo *fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )di->ci.call_from, true );
+
+				// Try searching the range list.
+				if ( fi == NULL )
+				{
+					_memzero( range_number, 32 );
+
+					int range_index = call_from_length;
+					range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
+					if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+					{
+						fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )range_number, true );
+					}
+				}
+
 				if ( fi != NULL )
 				{
 					di->forward = true;
