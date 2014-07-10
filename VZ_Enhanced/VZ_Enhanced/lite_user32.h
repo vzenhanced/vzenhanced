@@ -60,11 +60,13 @@
 	#define _GetDC					GetDC
 	#define _GetDlgItem				GetDlgItem
 	#define _GetKeyState			GetKeyState
+	#define _GetMenuItemInfoW		GetMenuItemInfoW
 	#define _GetMessagePos			GetMessagePos
 	#define _GetMessageW			GetMessageW
 	#define _GetParent				GetParent
 	#define _GetSubMenu				GetSubMenu
 	#define _GetSysColor			GetSysColor
+	#define _GetSysColorBrush		GetSysColorBrush
 	#define _GetSystemMetrics		GetSystemMetrics
 	#define _GetWindowLongW			GetWindowLongW
 	#define _GetWindowRect			GetWindowRect
@@ -149,11 +151,13 @@
 	typedef HDC ( WINAPI *pGetDC )( HWND hWnd );
 	typedef HWND ( WINAPI *pGetDlgItem )( HWND hDlg, int nIDDlgItem );
 	typedef SHORT ( WINAPI *pGetKeyState )( int nVirtKey );
+	typedef BOOL ( WINAPI *pGetMenuItemInfoW )( HMENU hMenu, UINT uItem, BOOL fByPosition, LPMENUITEMINFO lpmii );
 	typedef DWORD ( WINAPI *pGetMessagePos )( void );
 	typedef BOOL ( WINAPI *pGetMessageW )( LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax );
 	typedef HWND ( WINAPI *pGetParent )( HWND hWnd );
 	typedef HMENU ( WINAPI *pGetSubMenu )( HMENU hMenu, int nPos );
 	typedef DWORD ( WINAPI *pGetSysColor )( int nIndex );
+	typedef HBRUSH ( WINAPI *pGetSysColorBrush )( int nIndex );
 	typedef int ( WINAPI *pGetSystemMetrics )( int nIndex );
 	typedef LONG ( WINAPI *pGetWindowLongW )( HWND hWnd, int nIndex );
 	typedef BOOL ( WINAPI *pGetWindowRect )( HWND hWnd, LPRECT lpRect );
@@ -231,11 +235,13 @@
 	extern pGetDC					_GetDC;
 	extern pGetDlgItem				_GetDlgItem;
 	extern pGetKeyState				_GetKeyState;
+	extern pGetMenuItemInfoW		_GetMenuItemInfoW;
 	extern pGetMessagePos			_GetMessagePos;
 	extern pGetMessageW				_GetMessageW;
 	extern pGetParent				_GetParent;
 	extern pGetSubMenu				_GetSubMenu;
 	extern pGetSysColor				_GetSysColor;
+	extern pGetSysColorBrush		_GetSysColorBrush;
 	extern pGetSystemMetrics		_GetSystemMetrics;
 	extern pGetWindowLongW			_GetWindowLongW;
 	extern pGetWindowRect			_GetWindowRect;

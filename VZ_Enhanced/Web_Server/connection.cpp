@@ -1875,6 +1875,9 @@ DWORD WINAPI Poll( LPVOID WorkThreadContext )
 
 		if ( g_bEndServer == true )
 		{
+			CloseHandle( ping_semaphore );
+			ping_semaphore = NULL;
+
 			ExitThread( 0 );
 			return 0;
 		}
@@ -2162,7 +2165,6 @@ THREAD_RETURN Server( LPVOID pArguments )
 		if ( ping_semaphore != NULL )
 		{
 			ReleaseSemaphore( ping_semaphore, 1, NULL );
-			ping_semaphore = NULL;
 		}
 
 		// Cause worker threads to exit

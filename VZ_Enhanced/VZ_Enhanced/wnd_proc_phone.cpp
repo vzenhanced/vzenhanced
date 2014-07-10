@@ -252,7 +252,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 
@@ -318,7 +318,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						call_to[ length ] = 0;	// Sanity
 
 						callerinfo *ci = ( callerinfo * )GlobalAlloc( GMEM_FIXED, sizeof( callerinfo ) );
-						ci->call_from = NULL;	// Our service number.
+						ci->call_from = GlobalStrDupA( service_phone_number );	// Our service number.
 						ci->call_to = call_to;
 						ci->call_reference_id = NULL;
 						ci->caller_id = NULL;
@@ -709,7 +709,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 					_SendMessageW( _GetDlgItem( hWnd, BTN_ACTION ), WM_SETTEXT, 0, ( LPARAM )ST_Forward_Phone_Number );
 
-					_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )edit_di->ci.call_to );
+					_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )edit_di->ci.call_from );
 					_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER2 ), WM_SETTEXT, 0, 0 );
 
 					_EnableWindow( _GetDlgItem( hWnd, EDIT_NUMBER ), FALSE );	// We don't want to edit this number.

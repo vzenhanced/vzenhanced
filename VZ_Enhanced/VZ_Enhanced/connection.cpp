@@ -28,12 +28,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.1"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.2"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.1.1"
+#define USER_AGENT			"VZ-Enhanced/1.0.1.2"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -43,7 +43,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1011
+#define CURRENT_VERSION		1012
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -51,10 +51,11 @@ CRITICAL_SECTION cwt_cs;			// Queues additional connection worker threads.
 CRITICAL_SECTION cit_cs;			// Queues additional connection incoming threads.
 CRITICAL_SECTION cut_cs;			// Queues additional update check threads.
 
-HANDLE connection_mutex = NULL;			// Blocks shutdown while the connection thread is active.
-HANDLE connection_worker_mutex = NULL;
-HANDLE connection_incoming_mutex = NULL;
-HANDLE update_check_mutex = NULL;
+HANDLE connection_semaphore = NULL;			// Blocks shutdown while the connection thread is active.
+HANDLE connection_worker_semaphore = NULL;
+HANDLE connection_incoming_semaphore = NULL;
+HANDLE update_check_semaphore = NULL;
+HANDLE reconnect_semaphore = NULL;
 
 bool in_connection_thread = false;
 bool in_connection_worker_thread = false;
@@ -232,10 +233,10 @@ void kill_connection_thread()
 {
 	if ( in_connection_thread == true )
 	{
-		// This mutex will be released when the thread gets killed.
-		connection_mutex = CreateSemaphore( NULL, 0, 1, NULL );
+		// This semaphore will be released when the thread gets killed.
+		connection_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
-		main_con.state = CONNECTION_KILL;		// Causes the connection thread to cease processing and release the mutex.
+		main_con.state = CONNECTION_KILL;		// Causes the connection thread to cease processing and release the semaphore.
 
 		//main_con.state = LOGGED_OUT;			// Set login state to logged off.
 		if ( main_con.ssl_socket != NULL )
@@ -248,10 +249,16 @@ void kill_connection_thread()
 			_shutdown( main_con.socket, SD_BOTH );
 		}
 
+		// If we're in the reconnect loop, then exit.
+		if ( reconnect_semaphore != NULL )
+		{
+			ReleaseSemaphore( reconnect_semaphore, 1, NULL );
+		}
+
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
-		WaitForSingleObject( connection_mutex, 5000 );
-		CloseHandle( connection_mutex );
-		connection_mutex = NULL;
+		WaitForSingleObject( connection_semaphore, 5000 );
+		CloseHandle( connection_semaphore );
+		connection_semaphore = NULL;
 	}
 }
 
@@ -259,10 +266,10 @@ void kill_connection_worker_thread()
 {
 	if ( in_connection_worker_thread == true )
 	{
-		// This mutex will be released when the thread gets killed.
-		connection_worker_mutex = CreateSemaphore( NULL, 0, 1, NULL );
+		// This semaphore will be released when the thread gets killed.
+		connection_worker_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
-		worker_con.state = CONNECTION_KILL;			// Causes the connection thread to cease processing and release the mutex.
+		worker_con.state = CONNECTION_KILL;			// Causes the connection thread to cease processing and release the semaphore.
 
 		//worker_con.state = LOGGED_OUT;			// Set login state to logged off.
 		if ( worker_con.ssl_socket != NULL )
@@ -276,9 +283,9 @@ void kill_connection_worker_thread()
 		}
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
-		WaitForSingleObject( connection_worker_mutex, 5000 );
-		CloseHandle( connection_worker_mutex );
-		connection_worker_mutex = NULL;
+		WaitForSingleObject( connection_worker_semaphore, 5000 );
+		CloseHandle( connection_worker_semaphore );
+		connection_worker_semaphore = NULL;
 	}
 }
 
@@ -286,10 +293,10 @@ void kill_connection_incoming_thread()
 {
 	if ( in_connection_incoming_thread == true )
 	{
-		// This mutex will be released when the thread gets killed.
-		connection_incoming_mutex = CreateSemaphore( NULL, 0, 1, NULL );
+		// This semaphore will be released when the thread gets killed.
+		connection_incoming_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
-		incoming_con.state = CONNECTION_KILL;		// Causes the connection thread to cease processing and release the mutex.
+		incoming_con.state = CONNECTION_KILL;		// Causes the connection thread to cease processing and release the semaphore.
 
 		//incoming_con.state = LOGGED_OUT;			// Set login state to logged off.
 		if ( incoming_con.ssl_socket != NULL )
@@ -303,9 +310,9 @@ void kill_connection_incoming_thread()
 		}
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
-		WaitForSingleObject( connection_incoming_mutex, 5000 );
-		CloseHandle( connection_incoming_mutex );
-		connection_incoming_mutex = NULL;
+		WaitForSingleObject( connection_incoming_semaphore, 5000 );
+		CloseHandle( connection_incoming_semaphore );
+		connection_incoming_semaphore = NULL;
 	}
 }
 
@@ -313,10 +320,10 @@ void kill_update_check_thread()
 {
 	if ( in_update_check_thread == true )
 	{
-		// This mutex will be released when the thread gets killed.
-		update_check_mutex = CreateSemaphore( NULL, 0, 1, NULL );
+		// This semaphore will be released when the thread gets killed.
+		update_check_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
-		update_con.state = CONNECTION_KILL;			// Causes the connection thread to cease processing and release the mutex.
+		update_con.state = CONNECTION_KILL;			// Causes the connection thread to cease processing and release the semaphore.
 
 		if ( update_con.ssl_socket != NULL )
 		{
@@ -329,9 +336,9 @@ void kill_update_check_thread()
 		}
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
-		WaitForSingleObject( update_check_mutex, 5000 );
-		CloseHandle( update_check_mutex );
-		update_check_mutex = NULL;
+		WaitForSingleObject( update_check_semaphore, 5000 );
+		CloseHandle( update_check_semaphore );
+		update_check_semaphore = NULL;
 	}
 }
 
@@ -827,11 +834,11 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 	return 0;
 }
 
-bool Try_Connect( CONNECTION *con, char *host, int timeout = 0 )
+bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = true )
 {
 	int total_retries = 0;
 
-	if ( cfg_connection_reconnect == true )
+	if ( cfg_connection_reconnect == true && retry == true )
 	{
 		total_retries = cfg_connection_retries;
 	}
@@ -881,12 +888,13 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0 )
 int Try_Send_Receive( CONNECTION *con, char *host,
 					  char *request_buffer, unsigned int request_buffer_length,
 					  char **response_buffer, unsigned int &response_buffer_length, unsigned short &http_status, unsigned int &content_length, unsigned int &last_buffer_size,
-					  int timeout = 0 )
+					  int timeout = 0, bool retry = true )
 {
 	int response_code = 0;
 	int total_retries = 0;
+	http_status = 0;
 
-	if ( cfg_connection_reconnect == true )
+	if ( cfg_connection_reconnect == true && retry == true )
 	{
 		total_retries = cfg_connection_retries;
 	}
@@ -1325,10 +1333,10 @@ CLEANUP:
 		update_info = NULL;
 	}
 
-	// Release the mutex if we're killing the thread.
-	if ( update_check_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( update_check_semaphore != NULL )
 	{
-		ReleaseSemaphore( update_check_mutex, 1, NULL );
+		ReleaseSemaphore( update_check_semaphore, 1, NULL );
 	}
 
 	in_update_check_thread = false;
@@ -1359,6 +1367,26 @@ int ConstructVPNSPOST( char *send_buffer, char *resource, char *data, int data_l
 	"%s", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, vpns_cookies, wayfarer_cookies, data_length, data );
 }
 
+bool CheckAuthorization( char *response )
+{
+	bool authorization_status = false;
+	char *error_code = NULL;
+
+	if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+	{
+		// Set the error code string to lower case.
+		_CharLowerA( ( LPSTR )error_code );
+
+		if ( _StrStrA( error_code, "auth cookie" ) != NULL )
+		{
+			authorization_status = true;
+		}
+
+		GlobalFree( error_code );
+	}
+
+	return authorization_status;
+}
 
 // Calling function is responsible for establishing a connection.
 bool UploadMedia( wchar_t *file_path, HWND hWnd_update, unsigned char media_type )
@@ -1672,10 +1700,10 @@ CLEANUP:
 		GlobalFree( iei );
 	}
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_worker_mutex, 1, NULL );
+		ReleaseSemaphore( connection_worker_semaphore, 1, NULL );
 	}
 
 	if ( g_hWnd_main != NULL )
@@ -1829,10 +1857,10 @@ CLEANUP:
 		GlobalFree( iei );
 	}
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_worker_mutex, 1, NULL );
+		ReleaseSemaphore( connection_worker_semaphore, 1, NULL );
 	}
 
 	in_connection_worker_thread = false;
@@ -2504,10 +2532,10 @@ CLEANUP:
 	GlobalFree( host );
 	host = NULL;
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_worker_mutex, 1, NULL );
+		ReleaseSemaphore( connection_worker_semaphore, 1, NULL );
 	}
 
 	in_connection_worker_thread = false;
@@ -2582,7 +2610,7 @@ THREAD_RETURN CallPhoneNumber( void *pArguments )
 			"<To id=\"%s\" name=\"\" />" \
 			"<From id=\"%s\" name=\"\" />" \
 		"</Call>" \
-	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( ci->call_to ), SAFESTRA( service_phone_number ) );
+	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ) );
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, phone_call_reply, phone_call_reply_length );
 
@@ -2616,10 +2644,10 @@ CLEANUP:
 	GlobalFree( ci->forward_to );
 	GlobalFree( ci );
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_incoming_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_incoming_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_incoming_mutex, 1, NULL );
+		ReleaseSemaphore( connection_incoming_semaphore, 1, NULL );
 	}
 
 	in_connection_incoming_thread = false;
@@ -2678,7 +2706,7 @@ THREAD_RETURN ForwardIncomingCall( void *pArguments )
 			"<ForwardNumber>%s</ForwardNumber>" \
 			"<CallReferenceId>%s</CallReferenceId>" \
 		"</Call>" \
-	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->forward_to ), SAFESTRA( ci->call_reference_id ) );
+	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->forward_to ), SAFESTRA( ci->call_reference_id ) );
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, forward_reply, forward_reply_length );
 
@@ -2703,10 +2731,10 @@ CLEANUP:
 	GlobalFree( response );
 	response = NULL;
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_incoming_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_incoming_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_incoming_mutex, 1, NULL );
+		ReleaseSemaphore( connection_incoming_semaphore, 1, NULL );
 	}
 
 	in_connection_incoming_thread = false;
@@ -2765,7 +2793,7 @@ THREAD_RETURN IgnoreIncomingCall( void *pArguments )
 			"<From id=\"%s\" />" \
 			"<CallReferenceId>%s</CallReferenceId>" \
 		"</Call>" \
-	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->call_reference_id ) );
+	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->call_reference_id ) );
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, ignore_reply, ignore_reply_length );
 
@@ -2790,10 +2818,10 @@ CLEANUP:
 	GlobalFree( response );
 	response = NULL;
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_incoming_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_incoming_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_incoming_mutex, 1, NULL );
+		ReleaseSemaphore( connection_incoming_semaphore, 1, NULL );
 	}
 
 	in_connection_incoming_thread = false;
@@ -2864,10 +2892,10 @@ CLEANUP:
 	GlobalFree( response );
 	response = NULL;
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_worker_mutex, 1, NULL );
+		ReleaseSemaphore( connection_worker_semaphore, 1, NULL );
 	}
 
 	in_connection_worker_thread = false;
@@ -2978,10 +3006,10 @@ CLEANUP:
 
 	Processing_Window( g_hWnd_contact_list, true );
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_worker_mutex, 1, NULL );
+		ReleaseSemaphore( connection_worker_semaphore, 1, NULL );
 	}
 
 	in_connection_worker_thread = false;
@@ -3325,10 +3353,10 @@ CLEANUP:
 		GlobalFree( ui );
 	}
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_worker_mutex, 1, NULL );
+		ReleaseSemaphore( connection_worker_semaphore, 1, NULL );
 	}
 
 	if ( g_hWnd_contact != NULL )
@@ -3730,10 +3758,10 @@ CLEANUP:
 		GlobalFree( mi );
 	}
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_worker_mutex, 1, NULL );
+		ReleaseSemaphore( connection_worker_semaphore, 1, NULL );
 	}
 
 	in_connection_worker_thread = false;
@@ -3787,6 +3815,12 @@ THREAD_RETURN Connection( void *pArguments )
 	char *session_cookies = NULL;
 
 	char *service_notifications = NULL;
+
+	bool reauthorize = false;
+
+	LARGE_INTEGER li_current, li_update, li_register;
+	SYSTEMTIME SystemTime, LastSystemTime;
+	FILETIME FileTime, LastFileTime;
 
 	LOGIN_SETTINGS *ls = ( LOGIN_SETTINGS * )pArguments;
 
@@ -3963,7 +3997,7 @@ THREAD_RETURN Connection( void *pArguments )
 	"App-Name: %s\r\n" \
 	"User-Agent: %s\r\n" \
 	"Cookie: %s\r\n" \
-	"Connection: close\r\n\r\n", service_phone_number, client_id, host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
+	"Connection: keep-alive\r\n\r\n", service_phone_number, client_id, host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
 	// Notification setup.
 	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
@@ -3972,17 +4006,16 @@ THREAD_RETURN Connection( void *pArguments )
 		goto CLEANUP;
 	}
 
-	CleanupConnection( &main_con );
-
 	if ( ParseCookies( response, &session_cookie_tree, &session_cookies ) == false )
 	{
 		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse notification setup cookies." ); }
 		goto CLEANUP;
 	}
 
-	GlobalFree( response );
-	response = NULL;
-	last_buffer_size = 0;	// Reset size to default.
+	if ( response != NULL )
+	{
+		response[ 0 ] = NULL;
+	}
 
 	send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
 	"GET /vpnspush/v1_5/check " \
@@ -3993,12 +4026,6 @@ THREAD_RETURN Connection( void *pArguments )
 	"Cookie: %s; %s\r\n" \
 	"Connection: keep-alive\r\n\r\n", host, REFERER, USER_AGENT, session_cookies, wayfarer_cookies );
 
-	if ( Try_Connect( &main_con, host, 60 ) == false )	// 60 second client timeout. Server generally responds in 20 seconds.
-	{
-		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
-		goto CLEANUP;
-	}
-
 	// At this point we should be logged in. We can send our ping to the server.
 
 	if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
@@ -4006,10 +4033,6 @@ THREAD_RETURN Connection( void *pArguments )
 		main_con.state = LOGGED_IN;
 		_SendMessageW( g_hWnd_login, WM_PROPAGATE, LOGGED_IN, 0 );	// Logged in
 	}
-
-	LARGE_INTEGER li_current, li_update, li_register;
-	SYSTEMTIME SystemTime, LastSystemTime;
-	FILETIME FileTime, LastFileTime;
 
 	GetLocalTime( &LastSystemTime );
 	SystemTimeToFileTime( &LastSystemTime, &LastFileTime );
@@ -4022,16 +4045,121 @@ THREAD_RETURN Connection( void *pArguments )
 
 	while ( true )
 	{
-		if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, 60 ) == -1 )
+		// HTTP status error 400 indicates a bad request. Here it means that the session cookie has expired, or is bad.
+		if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
-			if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code from VPNS server." ); }
-			goto CLEANUP;
+			// Reconnect loop.
+			while ( true )
+			{
+				if ( main_con.state == LOGGED_OUT || main_con.state == LOGGING_OUT )
+				{
+					goto CLEANUP;
+				}
+
+				CleanupConnection( &main_con );
+
+				if ( Try_Connect( &main_con, host, cfg_connection_timeout, false ) == true )
+				{
+					// Rejoin the notification server. v1_5 format.
+					send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
+					"GET /vpnspush/v1_5/join?id=%s&clientId=%s " \
+					"HTTP/1.1\r\n" \
+					"Host: %s\r\n" \
+					"Referer: %s\r\n" \
+					"App-Name: %s\r\n" \
+					"User-Agent: %s\r\n" \
+					"Cookie: %s; %s\r\n" \
+					"Connection: keep-alive\r\n\r\n", service_phone_number, client_id, host, REFERER, APPLICATION_NAME, USER_AGENT, session_cookies, wayfarer_cookies );
+
+					// Notification setup.
+					if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout, false ) != -1 )
+					{
+						// If the wayfarer cookie is bad, then http_status will probably be 403.
+						if ( http_status != 200 && CheckAuthorization( response ) == true )
+						{
+							reauthorize = true;
+
+							if ( response != NULL )
+							{
+								response[ 0 ] = NULL;
+							}
+
+							break;	// Break out of reconnect loop and attempt to get a new wayfarer cookie.
+						}
+
+						char *new_session_cookies = NULL;
+
+						if ( ParseCookies( response, &session_cookie_tree, &new_session_cookies ) == true )
+						{
+							// If we got a new cookie.
+							if ( new_session_cookies != NULL )
+							{
+								// Then see if the new cookie is not blank.
+								if ( new_session_cookies[ 0 ] != NULL )
+								{
+									// If it's not, then free the old cookie and update it to the new one.
+									GlobalFree( session_cookies );
+									session_cookies = new_session_cookies;
+								}
+								else	// Otherwise, if the cookie is blank, then free it.
+								{
+									GlobalFree( new_session_cookies );
+								}
+							}
+
+							if ( response != NULL )
+							{
+								response[ 0 ] = NULL;
+							}
+
+							send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
+							"GET /vpnspush/v1_5/check " \
+							"HTTP/1.1\r\n" \
+							"Host: %s\r\n" \
+							"Referer: %s\r\n" \
+							"User-Agent: %s\r\n" \
+							"Cookie: %s; %s\r\n" \
+							"Connection: keep-alive\r\n\r\n", host, REFERER, USER_AGENT, session_cookies, wayfarer_cookies );
+
+							break;	// Break out of reconnect loop since we have a new session cookie.
+						}
+						else
+						{
+							GlobalFree( new_session_cookies );
+							new_session_cookies = NULL;
+						}
+					}
+				}
+
+				if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
+				{
+					if ( reconnect_semaphore == NULL )
+					{
+						// This semaphore will be released when we log out or shut down the program.
+						reconnect_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
+					}
+
+					// Wait 30 seconds to reconnect.
+					WaitForSingleObject( reconnect_semaphore, 30000 );
+				}
+			}
 		}
 
 		GetLocalTime( &SystemTime );
 		SystemTimeToFileTime( &SystemTime, &FileTime );
 
-		xml = _StrStrA( response, "\r\n\r\n" );
+		// If the wayfarer cookie is bad, then http_status will probably be 403.
+		if ( http_status != 200 && reauthorize == false && CheckAuthorization( response ) == true )
+		{
+			reauthorize = true;
+
+			if ( response != NULL )
+			{
+				response[ 0 ] = NULL;
+			}
+		}
+
+		xml = ( response != NULL ? _StrStrA( response, "\r\n\r\n" ) : NULL );
 		if ( xml != NULL && *( xml + 4 ) != NULL )
 		{
 			xml += 4;
@@ -4078,7 +4206,7 @@ THREAD_RETURN Connection( void *pArguments )
 		// More than 25 minutes have elapsed. Log in again to update the wayfarer cookie.
 		// What we're doing here is preemptively updating the wayfarer cookie before it expires.
 		// This allows us to quickly process the incoming call without the need to handle any possible authentication errors.
-		if ( ( li_current.QuadPart - li_update.QuadPart ) >= ( 25 * 60 * FILETIME_TICKS_PER_SECOND ) )
+		if ( ( li_current.QuadPart - li_update.QuadPart ) >= ( 25 * 60 * FILETIME_TICKS_PER_SECOND ) || reauthorize == true )
 		{
 			// Reauthorize to get a new wayfarer cookie.
 			HANDLE hThread = ( HANDLE )_CreateThread( NULL, 0, Authorization, ( void * )NULL, 0, NULL );
@@ -4105,6 +4233,8 @@ THREAD_RETURN Connection( void *pArguments )
 
 			li_update.LowPart = LastFileTime.dwLowDateTime;
 			li_update.HighPart = LastFileTime.dwHighDateTime;
+
+			reauthorize = false;
 		}
 
 		// Update (refresh) registration after 20 hours.
@@ -4134,6 +4264,12 @@ CLEANUP:
 	kill_connection_incoming_thread();
 
 	CleanupConnection( &incoming_con );
+
+	if ( reconnect_semaphore != NULL )
+	{
+		CloseHandle( reconnect_semaphore );
+		reconnect_semaphore = NULL;
+	}
 
 	// Show the default login window if we cleanly logged off, canceled the login procedure, or if we experienced an unexpected log off.
 	if ( main_con.state != LOGGED_OUT )
@@ -4179,10 +4315,6 @@ CLEANUP:
 	GlobalFree( resource );
 	resource = NULL;
 
-	// Free local cookies.
-	GlobalFree( session_cookies );
-	session_cookies = NULL;
-
 	GlobalFree( service_notifications );
 	service_notifications = NULL;
 
@@ -4196,10 +4328,10 @@ CLEANUP:
 		GlobalFree( ls );
 	}
 
-	// Release the mutex if we're killing the thread.
-	if ( connection_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( connection_semaphore != NULL )
 	{
-		ReleaseSemaphore( connection_mutex, 1, NULL );
+		ReleaseSemaphore( connection_semaphore, 1, NULL );
 	}
 
 	in_connection_thread = false;

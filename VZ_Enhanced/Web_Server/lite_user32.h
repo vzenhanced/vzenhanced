@@ -66,6 +66,7 @@
 	//#define _GetParent				GetParent
 	//#define _GetSubMenu				GetSubMenu
 	#define _GetSysColor			GetSysColor
+	#define _GetSysColorBrush		GetSysColorBrush
 	//#define _GetSystemMetrics		GetSystemMetrics
 	//#define _GetWindowLongW			GetWindowLongW
 	//#define _GetWindowRect			GetWindowRect
@@ -153,6 +154,7 @@
 	//typedef HWND ( WINAPI *pGetParent )( HWND hWnd );
 	//typedef HMENU ( WINAPI *pGetSubMenu )( HMENU hMenu, int nPos );
 	typedef DWORD ( WINAPI *pGetSysColor )( int nIndex );
+	typedef HBRUSH ( WINAPI *pGetSysColorBrush )( int nIndex );
 	//typedef int ( WINAPI *pGetSystemMetrics )( int nIndex );
 	//typedef LONG ( WINAPI *pGetWindowLongW )( HWND hWnd, int nIndex );
 	//typedef BOOL ( WINAPI *pGetWindowRect )( HWND hWnd, LPRECT lpRect );
@@ -235,6 +237,7 @@
 	//extern pGetParent				_GetParent;
 	//extern pGetSubMenu				_GetSubMenu;
 	extern pGetSysColor				_GetSysColor;
+	extern pGetSysColorBrush		_GetSysColorBrush;
 	//extern pGetSystemMetrics		_GetSystemMetrics;
 	//extern pGetWindowLongW			_GetWindowLongW;
 	//extern pGetWindowRect			_GetWindowRect;

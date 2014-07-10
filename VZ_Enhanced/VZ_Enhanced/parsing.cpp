@@ -1557,6 +1557,14 @@ bool GetAccountInformation( char *xml, char **client_id, char **account_id, char
 			int length = 9;
 			stree = GetElementAttributeValue( rtree, "Service", 7, "idType", 6, &value, &length, false );	// Attribute is not returned.
 
+			// If the phone number was not set above, then use the alternative element.
+			if ( stree != NULL && *service_phone_number == NULL )
+			{
+				GetElementAttributeValue( stree, "Service", 7, "id", 2, service_phone_number );
+
+				status = 1;
+			}
+
 			if ( stree != NULL && stree->child != NULL )
 			{
 				stree = stree->child;

@@ -81,7 +81,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 

@@ -196,7 +196,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 
@@ -214,7 +214,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				_DeleteObject( ohbm );
 				_DeleteObject( hbm );
 
-				HBRUSH hBrush = ( HBRUSH )_GetStockObject( WHITE_BRUSH );//GetClassLong( _GetParent( hWnd ), GCL_HBRBACKGROUND );
+				HBRUSH hBrush = _GetSysColorBrush( COLOR_WINDOW );//( HBRUSH )_GetStockObject( WHITE_BRUSH );//GetClassLong( _GetParent( hWnd ), GCL_HBRBACKGROUND );
 				_FillRect( hdcMem, &dis->rcItem, hBrush );
 
 				// Load the image and center it in the frame bitmap.

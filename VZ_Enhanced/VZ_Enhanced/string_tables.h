@@ -267,13 +267,27 @@ extern wchar_t *menu_string_table[];
 #define ST_Remove_from_Forward_List				menu_string_table[ 95 ]
 #define ST_Remove_from_Ignore_List				menu_string_table[ 96 ]
 #define ST_Remove_Selected						menu_string_table[ 97 ]
-#define ST_Select_All							menu_string_table[ 98 ]
-#define ST_Select__Columns___					menu_string_table[ 99 ]
-#define ST_Select_Columns___					menu_string_table[ 100 ]
-#define ST_Send_Email___						menu_string_table[ 101 ]
-#define ST_Tabs									menu_string_table[ 102 ]
-#define ST_VZ_Enhanced__Home_Page				menu_string_table[ 103 ]
-#define ST_Web_Server							menu_string_table[ 104 ]
+#define ST_Search_with							menu_string_table[ 98 ]
+#define ST_Select_All							menu_string_table[ 99 ]
+#define ST_Select__Columns___					menu_string_table[ 100 ]
+#define ST_Select_Columns___					menu_string_table[ 101 ]
+#define ST_Send_Email___						menu_string_table[ 102 ]
+#define ST_Tabs									menu_string_table[ 103 ]
+#define ST_VZ_Enhanced__Home_Page				menu_string_table[ 104 ]
+#define ST_Web_Server							menu_string_table[ 105 ]
+
+extern wchar_t *search_string_table[];
+
+#define ST_800Notes								search_string_table[ 0 ]
+#define ST_Bing									search_string_table[ 1 ]
+#define ST_CallerComplaints						search_string_table[ 2 ]
+#define ST_Callerr								search_string_table[ 3 ]
+#define ST_Google								search_string_table[ 4 ]
+#define ST_PhoneTray							search_string_table[ 5 ]
+#define ST_SafeCaller							search_string_table[ 6 ]
+#define ST_WhitePages							search_string_table[ 7 ]
+#define ST_WhoCallsMe							search_string_table[ 8 ]
+#define ST_WhyCall_me							search_string_table[ 9 ]
 
 extern wchar_t *options_string_table[];
 
