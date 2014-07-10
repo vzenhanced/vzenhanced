@@ -25,7 +25,7 @@
 
 #include "web_server.h"
 
-HANDLE worker_mutex = NULL;				// Blocks shutdown while a worker thread is active.
+HANDLE worker_semaphore = NULL;				// Blocks shutdown while a worker thread is active.
 bool kill_worker_thead = false;			// Allow for a clean shutdown.
 
 CRITICAL_SECTION pe_cs;					// Queues additional worker threads.
@@ -197,7 +197,7 @@ bool cfg_connection_reconnect = true;
 bool cfg_download_pictures = true;
 unsigned char cfg_connection_retries = 3;
 
-unsigned short cfg_connection_timeout = 15;	// Seconds.
+unsigned short cfg_connection_timeout = 60;	// Seconds.
 
 unsigned char cfg_connection_ssl_version = 2;	// TLS 1.0
 
@@ -1060,15 +1060,15 @@ void kill_worker_thread()
 {
 	if ( in_worker_thread == true )
 	{
-		// This mutex will be released when the thread gets killed.
-		worker_mutex = CreateSemaphore( NULL, 0, 1, NULL );
+		// This semaphore will be released when the thread gets killed.
+		worker_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
-		kill_worker_thead = true;	// Causes secondary threads to cease processing and release the mutex.
+		kill_worker_thead = true;	// Causes secondary threads to cease processing and release the semaphore.
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
-		WaitForSingleObject( worker_mutex, 5000 );
-		CloseHandle( worker_mutex );
-		worker_mutex = NULL;
+		WaitForSingleObject( worker_semaphore, 5000 );
+		CloseHandle( worker_semaphore );
+		worker_semaphore = NULL;
 	}
 }
 
@@ -1401,10 +1401,10 @@ CLEANUP:
 
 	Processing_Window( hWnd, true );
 
-	// Release the mutex if we're killing the thread.
-	if ( worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( worker_mutex, 1, NULL );
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
 	}
 
 	in_worker_thread = false;
@@ -1550,7 +1550,7 @@ THREAD_RETURN remove_items( void *pArguments )
 							DLL_RemoveNode( &ll, current_node );
 							GlobalFree( current_node );
 
-							if ( ll != NULL )
+							if ( ll != NULL && ll->data != NULL )
 							{
 								// Reset the head in the tree.
 								( ( node_type * )itr )->val = ( void * )ll;
@@ -1811,10 +1811,10 @@ THREAD_RETURN remove_items( void *pArguments )
 	{
 		Processing_Window( hWnd, true );
 
-		// Release the mutex if we're killing the thread.
-		if ( worker_mutex != NULL )
+		// Release the semaphore if we're killing the thread.
+		if ( worker_semaphore != NULL )
 		{
-			ReleaseSemaphore( worker_mutex, 1, NULL );
+			ReleaseSemaphore( worker_semaphore, 1, NULL );
 		}
 	}
 
@@ -2051,10 +2051,10 @@ THREAD_RETURN update_call_log( void *pArguments )
 
 	_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_MODIFY, 0 ), ( LPARAM )di );	// Add entry to listview and show popup.
 
-	// Release the mutex if we're killing the thread.
-	if ( worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( worker_mutex, 1, NULL );
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
 	}
 
 	in_worker_thread = false;
@@ -2478,10 +2478,10 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 	Processing_Window( g_hWnd_contact_list, true );
 
-	// Release the mutex if we're killing the thread.
-	if ( worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( worker_mutex, 1, NULL );
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
 	}
 
 	in_worker_thread = false;
@@ -2880,10 +2880,10 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 	Processing_Window( hWnd, true );
 
-	// Release the mutex if we're killing the thread.
-	if ( worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( worker_mutex, 1, NULL );
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
 	}
 
 	in_worker_thread = false;
@@ -3343,10 +3343,10 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 	Processing_Window( hWnd, true );
 
-	// Release the mutex if we're killing the thread.
-	if ( worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( worker_mutex, 1, NULL );
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
 	}
 
 	in_worker_thread = false;
@@ -3578,10 +3578,10 @@ THREAD_RETURN save_call_log( void *file_path )
 
 	Processing_Window( g_hWnd_list, true );
 
-	// Release the mutex if we're killing the thread.
-	if ( worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( worker_mutex, 1, NULL );
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
 	}
 
 	in_worker_thread = false;
@@ -3874,10 +3874,10 @@ CLEANUP:
 
 	Processing_Window( g_hWnd_list, true );
 
-	// Release the mutex if we're killing the thread.
-	if ( worker_mutex != NULL )
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
 	{
-		ReleaseSemaphore( worker_mutex, 1, NULL );
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
 	}
 
 	in_worker_thread = false;

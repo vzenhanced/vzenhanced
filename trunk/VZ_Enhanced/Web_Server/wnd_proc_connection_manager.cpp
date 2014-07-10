@@ -158,7 +158,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 

@@ -465,9 +465,9 @@ void read_config()
 				}
 
 				// These should never be negative.
-				if ( cfg_popup_time > 300 || cfg_popup_time < 0 ) cfg_popup_time = 10;
-				if ( cfg_connection_retries > 10 || cfg_connection_retries < 0 ) cfg_connection_retries = 3;
-				if ( cfg_connection_timeout > 300 || cfg_connection_timeout < 0 ) cfg_connection_timeout = 15;
+				if ( cfg_popup_time > 300 ) cfg_popup_time = 10;
+				if ( cfg_connection_retries > 10 ) cfg_connection_retries = 3;
+				if ( cfg_connection_timeout > 300 || ( cfg_connection_timeout > 0 && cfg_connection_timeout < 60 ) ) cfg_connection_timeout = 60;
 
 				CheckColumnOrders( 0, list_columns, NUM_COLUMNS );
 				CheckColumnOrders( 1, contact_list_columns, NUM_COLUMNS2 );

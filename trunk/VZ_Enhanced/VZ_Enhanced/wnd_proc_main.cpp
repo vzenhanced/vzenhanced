@@ -639,6 +639,12 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							{
 								_shutdown( main_con.socket, SD_BOTH );
 							}
+
+							// If we're in the reconnect loop, then exit.
+							if ( reconnect_semaphore != NULL )
+							{
+								ReleaseSemaphore( reconnect_semaphore, 1, NULL );
+							}
 						}
 						else
 						{
@@ -988,6 +994,124 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								_ShellExecuteW( NULL, L"open", ci->web_page, NULL, NULL, SW_SHOWNORMAL );
 							}
 						}
+					}
+					break;
+
+					case MENU_SEARCH_WITH_1:
+					case MENU_SEARCH_WITH_2:
+					case MENU_SEARCH_WITH_3:
+					case MENU_SEARCH_WITH_4:
+					case MENU_SEARCH_WITH_5:
+					case MENU_SEARCH_WITH_6:
+					case MENU_SEARCH_WITH_7:
+					case MENU_SEARCH_WITH_8:
+					case MENU_SEARCH_WITH_9:
+					case MENU_SEARCH_WITH_10:
+					{
+						MENUITEMINFO mii;
+						_memzero( &mii, sizeof( MENUITEMINFO ) );
+						mii.cbSize = sizeof( MENUITEMINFO );
+						mii.fMask = MIIM_DATA;
+						_GetMenuItemInfoW( g_hMenu, MENU_SEARCH_WITH, FALSE, &mii );
+
+						unsigned short column = ( unsigned short )mii.dwItemData;
+
+						char *phone_number = NULL;
+
+						LVITEM lvi;
+						_memzero( &lvi, sizeof( LVITEM ) );
+						lvi.mask = LVIF_PARAM;
+
+						if ( column == MENU_CALL_PHONE_COL14 ||
+							 column == MENU_CALL_PHONE_COL16 ||
+							 column == MENU_CALL_PHONE_COL18 )
+						{
+							lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+							if ( lvi.iItem != -1 )
+							{
+								_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+
+								switch ( column )
+								{
+									case MENU_CALL_PHONE_COL14: { phone_number = ( ( displayinfo * )lvi.lParam )->ci.forward_to; } break;
+									case MENU_CALL_PHONE_COL16: { phone_number = ( ( displayinfo * )lvi.lParam )->ci.call_from; } break;
+									case MENU_CALL_PHONE_COL18: { phone_number = ( ( displayinfo * )lvi.lParam )->ci.call_to; } break;
+								}
+							}
+						}
+						else if ( column == MENU_CALL_PHONE_COL21 ||
+								  column == MENU_CALL_PHONE_COL25 ||
+								  column == MENU_CALL_PHONE_COL27 ||
+								  column == MENU_CALL_PHONE_COL211 ||
+								  column == MENU_CALL_PHONE_COL212 || 
+								  column == MENU_CALL_PHONE_COL216 )
+						{
+							lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+							if ( lvi.iItem != -1 )
+							{
+								_SendMessageW( g_hWnd_contact_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+
+								switch ( column )
+								{
+									case MENU_CALL_PHONE_COL21: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.cell_phone_number; } break;
+									case MENU_CALL_PHONE_COL25: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.fax_number; } break;
+									case MENU_CALL_PHONE_COL27: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.home_phone_number; } break;
+									case MENU_CALL_PHONE_COL211: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.office_phone_number; } break;
+									case MENU_CALL_PHONE_COL212: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.other_phone_number; } break;
+									case MENU_CALL_PHONE_COL216: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.work_phone_number; } break;
+								}
+							}
+						}
+						else if ( column == MENU_CALL_PHONE_COL31 ||
+								  column == MENU_CALL_PHONE_COL32 )
+						{
+							lvi.iItem = _SendMessageW( g_hWnd_forward_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+							if ( lvi.iItem != -1 )
+							{
+								_SendMessageW( g_hWnd_forward_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+
+								switch ( column )
+								{
+									case MENU_CALL_PHONE_COL31: { phone_number = ( ( forwardinfo * )lvi.lParam )->c_forward_to; } break;
+									case MENU_CALL_PHONE_COL32: { phone_number = ( ( forwardinfo * )lvi.lParam )->c_call_from; } break;
+								}
+							}
+						}
+						else if ( column == MENU_CALL_PHONE_COL41 )
+						{
+							lvi.iItem = _SendMessageW( g_hWnd_ignore_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+							if ( lvi.iItem != -1 )
+							{
+								_SendMessageW( g_hWnd_ignore_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+
+								phone_number = ( ( ignoreinfo * )lvi.lParam )->c_phone_number;
+							}
+						}
+
+						wchar_t *url = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * 128 );
+						_memzero( url, sizeof( wchar_t ) * 128 );
+
+						switch ( LOWORD( wParam ) )
+						{
+							case MENU_SEARCH_WITH_1: { __snwprintf( url, 128, L"http://800notes.com/Phone.aspx/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_2: { __snwprintf( url, 128, L"https://www.bing.com/search?q=%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_3: { __snwprintf( url, 128, L"http://www.callercomplaints.com/SearchResult.aspx?Phone=%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_4: { __snwprintf( url, 128, L"http://callerr.com/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_5: { __snwprintf( url, 128, L"https://www.google.com/search?&q=%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_6: { __snwprintf( url, 128, L"https://www.phonetray.com/lookup/Number/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_7: { __snwprintf( url, 128, L"http://safecaller.com/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_8: { __snwprintf( url, 128, L"http://www.whitepages.com/phone/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_9: { __snwprintf( url, 128, L"http://whocallsme.com/Phone-Number.aspx/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_10: { __snwprintf( url, 128, L"http://www.whycall.me/%S.html", SAFESTRA( phone_number ) ); } break;
+						}
+
+						_ShellExecuteW( NULL, L"open", url, NULL, NULL, SW_SHOWNORMAL );
+
+						GlobalFree( url );
 					}
 					break;
 
@@ -1508,7 +1632,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.1.1\r\n\r\nCopyright \xA9 2013-2014 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.1.2\r\n\r\nCopyright \xA9 2013-2014 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -1878,6 +2002,11 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				lvi.mask = LVIF_PARAM;
 				lvi.iItem = dis->itemID;
 				_SendMessageW( dis->hwndItem, LVM_GETITEM, 0, ( LPARAM )&lvi );	// Get the lParam value from our item.
+
+				if ( lvi.lParam == NULL )
+				{
+					return TRUE;
+				}
 
 				// This is the full size of the row.
 				RECT last_rc;

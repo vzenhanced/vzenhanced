@@ -122,7 +122,7 @@ LRESULT CALLBACK CallLogColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPAR
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 
@@ -224,7 +224,7 @@ LRESULT CALLBACK ContactListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, 
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 
@@ -284,7 +284,7 @@ LRESULT CALLBACK ForwardListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, 
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 
@@ -341,7 +341,7 @@ LRESULT CALLBACK IgnoreListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 
 		case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;
 
@@ -382,30 +382,30 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 			g_hWnd_column_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, WC_TABCONTROL, NULL, WS_CHILD | WS_CLIPCHILDREN | WS_TABSTOP | WS_VISIBLE, 10, 10, rc.right - 20, rc.bottom - 50, hWnd, NULL, NULL, NULL );
 
-			TCITEM ti;
-			_memzero( &ti, sizeof( TCITEM ) );
-			ti.mask = TCIF_PARAM | TCIF_TEXT;	// The tab will have text and an lParam value.
-			ti.pszText = ( LPWSTR )ST_Call_Log;
-			ti.lParam = ( LPARAM )0;
-			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 0, ( LPARAM )&ti );	// Insert a new tab at the end.
-
-			ti.pszText = ( LPWSTR )ST_Contact_List;
-			ti.lParam = ( LPARAM )1;
-			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
-
-			ti.pszText = ( LPWSTR )ST_Forward_List;
-			ti.lParam = ( LPARAM )2;
-			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 2, ( LPARAM )&ti );	// Insert a new tab at the end.
-
-			ti.pszText = ( LPWSTR )ST_Ignore_List;
-			ti.lParam = ( LPARAM )3;
-			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 3, ( LPARAM )&ti );	// Insert a new tab at the end.
-
 			g_hWnd_calllog_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"calllog_columns", NULL, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
 			g_hWnd_contactlist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"contactlist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
 			g_hWnd_forwardlist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"forwardlist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
 			g_hWnd_ignorelist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"ignorelist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
 
+			TCITEM ti;
+			_memzero( &ti, sizeof( TCITEM ) );
+			ti.mask = TCIF_PARAM | TCIF_TEXT;	// The tab will have text and an lParam value.
+			ti.pszText = ( LPWSTR )ST_Call_Log;
+			ti.lParam = ( LPARAM )g_hWnd_calllog_columns;
+			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 0, ( LPARAM )&ti );	// Insert a new tab at the end.
+
+			ti.pszText = ( LPWSTR )ST_Contact_List;
+			ti.lParam = ( LPARAM )g_hWnd_contactlist_columns;
+			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
+
+			ti.pszText = ( LPWSTR )ST_Forward_List;
+			ti.lParam = ( LPARAM )g_hWnd_forwardlist_columns;
+			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 2, ( LPARAM )&ti );	// Insert a new tab at the end.
+
+			ti.pszText = ( LPWSTR )ST_Ignore_List;
+			ti.lParam = ( LPARAM )g_hWnd_ignorelist_columns;
+			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 3, ( LPARAM )&ti );	// Insert a new tab at the end.
+			
 			HWND g_hWnd_ok_columns = _CreateWindowW( WC_BUTTON, ST_OK, BS_DEFPUSHBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, rc.right - 260, rc.bottom - 32, 80, 23, hWnd, ( HMENU )BTN_SAVE_COLUMNS, NULL, NULL );
 			HWND g_hWnd_cancel_columns = _CreateWindowW( WC_BUTTON, ST_Cancel, WS_CHILD | WS_TABSTOP | WS_VISIBLE, rc.right - 175, rc.bottom - 32, 80, 23, hWnd, ( HMENU )BTN_CANCEL_COLUMNS, NULL, NULL );
 			g_hWnd_apply_columns = _CreateWindowW( WC_BUTTON, ST_Apply, WS_CHILD | WS_DISABLED | WS_TABSTOP | WS_VISIBLE, rc.right - 90, rc.bottom - 32, 80, 23, hWnd, ( HMENU )BTN_APPLY_COLUMNS, NULL, NULL );
@@ -421,7 +421,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 		/*case WM_CTLCOLORSTATIC:
 		{
-			return ( LRESULT )( _GetStockObject( WHITE_BRUSH ) );
+			return ( LRESULT )( _GetSysColorBrush( COLOR_WINDOW ) );
 		}
 		break;*/
 
@@ -965,23 +965,6 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					{
 						_SendMessageW( nmhdr->hwndFrom, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
 						_ShowWindow( ( HWND )( tie.lParam ), SW_HIDE );
-
-						if ( tie.lParam == 0 )
-						{
-							_ShowWindow( g_hWnd_calllog_columns, SW_HIDE );
-						}
-						else if ( tie.lParam == 1 )
-						{
-							_ShowWindow( g_hWnd_contactlist_columns, SW_HIDE );
-						}
-						else if ( tie.lParam == 2 )
-						{
-							_ShowWindow( g_hWnd_forwardlist_columns, SW_HIDE );
-						}
-						else if ( tie.lParam == 3 )
-						{
-							_ShowWindow( g_hWnd_ignorelist_columns, SW_HIDE );
-						}
 					}
 
 					return FALSE;
@@ -1005,23 +988,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( index != -1 )
 					{
 						_SendMessageW( nmhdr->hwndFrom, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-						
-						if ( tie.lParam == 0 )
-						{
-							_ShowWindow( g_hWnd_calllog_columns, SW_SHOW );
-						}
-						else if ( tie.lParam == 1 )
-						{
-							_ShowWindow( g_hWnd_contactlist_columns, SW_SHOW );
-						}
-						else if ( tie.lParam == 2 )
-						{
-							_ShowWindow( g_hWnd_forwardlist_columns, SW_SHOW );
-						}
-						else if ( tie.lParam == 3 )
-						{
-							_ShowWindow( g_hWnd_ignorelist_columns, SW_SHOW );
-						}
+						_ShowWindow( ( HWND )( tie.lParam ), SW_SHOW );
 					}
 
 					return FALSE;

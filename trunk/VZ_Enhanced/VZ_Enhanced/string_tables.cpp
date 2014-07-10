@@ -147,6 +147,7 @@ wchar_t *menu_string_table[] =
 	L"Remove from Forward List",
 	L"Remove from Ignore List",
 	L"Remove Selected",
+	L"Search with",
 	L"Select All",
 	L"Select &Columns...",
 	L"Select Columns...",
@@ -154,6 +155,20 @@ wchar_t *menu_string_table[] =
 	L"Tabs",
 	L"VZ Enhanced &Home Page",
 	L"Web Server"
+};
+
+wchar_t *search_string_table[] =
+{
+	L"800Notes",
+	L"Bing",
+	L"CallerComplaints",
+	L"Callerr",
+	L"Google",
+	L"PhoneTray",
+	L"SafeCaller",
+	L"WhitePages",
+	L"WhoCallsMe",
+	L"WhyCall.me"
 };
 
 wchar_t *common_message_string_table[] =

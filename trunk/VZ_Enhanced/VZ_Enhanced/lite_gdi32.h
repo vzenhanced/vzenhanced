@@ -39,7 +39,7 @@
 	#define _GdiAlphaBlend				GdiAlphaBlend
 	#define _GdiGradientFill			GdiGradientFill
 	//#define _GetDeviceCaps				GetDeviceCaps
-	#define _GetStockObject				GetStockObject
+	//#define _GetStockObject				GetStockObject
 	#define _PatBlt						PatBlt
 	#define _SelectObject				SelectObject
 	#define _SetBkColor					SetBkColor
@@ -61,7 +61,7 @@
 	typedef BOOL ( WINAPI *pGdiAlphaBlend )( HDC hdcDest, int xoriginDest, int yoriginDest, int wDest, int hDest, HDC hdcSrc, int xoriginSrc, int yoriginSrc, int wSrc, int hSrc, BLENDFUNCTION ftn );
 	typedef BOOL ( WINAPI *pGdiGradientFill )( HDC hdc, PTRIVERTEX pVertex, ULONG dwNumVertex, PVOID pMesh, ULONG dwNumMesh, ULONG dwMode );
 	//typedef int ( WINAPI *pGetDeviceCaps )( HDC hdc, int nIndex );
-	typedef HGDIOBJ ( WINAPI *pGetStockObject )( int fnObject );
+	//typedef HGDIOBJ ( WINAPI *pGetStockObject )( int fnObject );
 	typedef BOOL ( WINAPI *pPatBlt )( HDC hdc, int nXLeft, int nYLeft, int nWidth, int nHeight, DWORD dwRop );
 	typedef HGDIOBJ ( WINAPI *pSelectObject )( HDC hdc, HGDIOBJ hgdiobj );
 	typedef COLORREF ( WINAPI *pSetBkColor )( HDC hdc, COLORREF crColor );
@@ -78,7 +78,7 @@
 	extern pGdiAlphaBlend				_GdiAlphaBlend;
 	extern pGdiGradientFill				_GdiGradientFill;
 	//extern pGetDeviceCaps				_GetDeviceCaps;
-	extern pGetStockObject				_GetStockObject;
+	//extern pGetStockObject				_GetStockObject;
 	extern pPatBlt						_PatBlt;
 	extern pSelectObject				_SelectObject;
 	extern pSetBkColor					_SetBkColor;

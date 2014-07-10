@@ -57,6 +57,7 @@
 	//pGetParent				_GetParent;
 	//pGetSubMenu				_GetSubMenu;
 	pGetSysColor			_GetSysColor;
+	pGetSysColorBrush		_GetSysColorBrush;
 	//pGetSystemMetrics		_GetSystemMetrics;
 	//pGetWindowLongW			_GetWindowLongW;
 	//pGetWindowRect			_GetWindowRect;
@@ -157,6 +158,7 @@
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetParent, "GetParent" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSubMenu, "GetSubMenu" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSysColor, "GetSysColor" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSysColorBrush, "GetSysColorBrush" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSystemMetrics, "GetSystemMetrics" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetWindowLongW, "GetWindowLongW" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetWindowRect, "GetWindowRect" ) )

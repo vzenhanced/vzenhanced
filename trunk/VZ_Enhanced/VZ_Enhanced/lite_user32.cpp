@@ -52,11 +52,13 @@
 	pGetDC					_GetDC;
 	pGetDlgItem				_GetDlgItem;
 	pGetKeyState			_GetKeyState;
+	pGetMenuItemInfoW		_GetMenuItemInfoW;
 	pGetMessagePos			_GetMessagePos;
 	pGetMessageW			_GetMessageW;
 	pGetParent				_GetParent;
 	pGetSubMenu				_GetSubMenu;
 	pGetSysColor			_GetSysColor;
+	pGetSysColorBrush		_GetSysColorBrush;
 	pGetSystemMetrics		_GetSystemMetrics;
 	pGetWindowLongW			_GetWindowLongW;
 	pGetWindowRect			_GetWindowRect;
@@ -152,11 +154,13 @@
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetDC, "GetDC" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetDlgItem, "GetDlgItem" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetKeyState, "GetKeyState" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetMenuItemInfoW, "GetMenuItemInfoW" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetMessagePos, "GetMessagePos" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetMessageW, "GetMessageW" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetParent, "GetParent" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSubMenu, "GetSubMenu" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSysColor, "GetSysColor" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSysColorBrush, "GetSysColorBrush" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetSystemMetrics, "GetSystemMetrics" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetWindowLongW, "GetWindowLongW" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_GetWindowRect, "GetWindowRect" ) )

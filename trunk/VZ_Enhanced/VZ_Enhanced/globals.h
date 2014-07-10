@@ -332,10 +332,11 @@ extern CRITICAL_SECTION cwt_cs;			// Allow only one connection worker thread to 
 extern CRITICAL_SECTION cit_cs;			// Allow only one connection incoming thread to be active.
 extern CRITICAL_SECTION cut_cs;			// Allow only one update check thread to be active.
 
-extern HANDLE connection_mutex;			// Blocks shutdown while the connection thread is active.
-extern HANDLE connection_worker_mutex;
-extern HANDLE connection_incoming_mutex;
-extern HANDLE update_check_mutex;
+extern HANDLE connection_semaphore;			// Blocks shutdown while the connection thread is active.
+extern HANDLE connection_worker_semaphore;
+extern HANDLE connection_incoming_semaphore;
+extern HANDLE update_check_semaphore;
+extern HANDLE reconnect_semaphore;
 
 extern HFONT hFont;						// Handle to the system's message font.
 

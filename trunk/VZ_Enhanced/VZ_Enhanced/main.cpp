@@ -301,7 +301,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	wcex.cbWndExtra		= 0;
 	wcex.hIcon			= NULL;
 	wcex.hIconSm		= NULL;
-	wcex.hbrBackground  = ( HBRUSH )( _GetStockObject( WHITE_BRUSH ) );
+	wcex.hbrBackground  = ( HBRUSH )( COLOR_WINDOWFRAME );//( HBRUSH )( _GetStockObject( WHITE_BRUSH ) );
 	
 	wcex.lpfnWndProc    = CallLogColumnsWndProc;
 	wcex.lpszClassName  = L"calllog_columns";
@@ -309,6 +309,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if ( !_RegisterClassExW( &wcex ) )
 	{
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		goto CLEANUP;
 	}
 
 	wcex.lpfnWndProc    = ContactListColumnsWndProc;
@@ -317,6 +318,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if ( !_RegisterClassExW( &wcex ) )
 	{
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		goto CLEANUP;
 	}
 
 	wcex.lpfnWndProc    = ForwardListColumnsWndProc;
@@ -325,6 +327,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if ( !_RegisterClassExW( &wcex ) )
 	{
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		goto CLEANUP;
 	}
 
 	wcex.lpfnWndProc    = IgnoreListColumnsWndProc;
@@ -333,6 +336,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if ( !_RegisterClassExW( &wcex ) )
 	{
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		goto CLEANUP;
 	}
 
 	wcex.lpfnWndProc    = ConnectionTabWndProc;
@@ -341,6 +345,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if ( !_RegisterClassExW( &wcex ) )
 	{
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		goto CLEANUP;
 	}
 
 	wcex.lpfnWndProc    = PopupTabWndProc;
@@ -349,6 +354,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if ( !_RegisterClassExW( &wcex ) )
 	{
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		goto CLEANUP;
 	}
 
 	wcex.lpfnWndProc    = GeneralTabWndProc;
@@ -357,6 +363,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	if ( !_RegisterClassExW( &wcex ) )
 	{
 		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		goto CLEANUP;
 	}
 
 	if ( web_server_state == WEB_SERVER_STATE_RUNNING )
@@ -367,6 +374,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		if ( !_RegisterClassExW( &wcex ) )
 		{
 			_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+			goto CLEANUP;
 		}
 	}
 
