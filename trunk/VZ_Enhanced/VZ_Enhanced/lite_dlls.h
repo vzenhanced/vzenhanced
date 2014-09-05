@@ -25,6 +25,7 @@
 
 #define VALIDATE_FUNCTION_POINTER( ret ){ if ( ret == NULL ){ return false; } }
 
+HMODULE LoadLibraryDEMW( LPCWSTR lpLibFileName );
 void *SetFunctionPointer( HMODULE &library, void **function_pointer, char *function_name );
 
 #endif

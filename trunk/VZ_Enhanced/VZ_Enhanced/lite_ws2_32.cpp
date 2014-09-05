@@ -51,7 +51,7 @@ unsigned char ws2_32_state = 0;	// 0 = Not running, 1 = running.
 			return true;
 		}
 
-		hModule_ws2_32 = LoadLibrary( L"ws2_32.dll" );
+		hModule_ws2_32 = LoadLibraryDEMW( L"ws2_32.dll" );
 
 		if ( hModule_ws2_32 == NULL )
 		{

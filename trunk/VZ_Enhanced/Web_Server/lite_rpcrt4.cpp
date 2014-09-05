@@ -36,7 +36,7 @@
 			return true;
 		}
 
-		hModule_rpcrt4 = LoadLibrary( L"rpcrt4.dll" );
+		hModule_rpcrt4 = LoadLibraryDEMW( L"rpcrt4.dll" );
 
 		if ( hModule_rpcrt4 == NULL )
 		{

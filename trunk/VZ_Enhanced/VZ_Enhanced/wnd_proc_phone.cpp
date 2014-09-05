@@ -19,7 +19,6 @@
 #include "globals.h"
 #include "utilities.h"
 #include "string_tables.h"
-#include "lite_gdi32.h"
 #include "connection.h"
 
 #define BTN_0			1000
@@ -318,7 +317,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						call_to[ length ] = 0;	// Sanity
 
 						callerinfo *ci = ( callerinfo * )GlobalAlloc( GMEM_FIXED, sizeof( callerinfo ) );
-						ci->call_from = GlobalStrDupA( service_phone_number );	// Our service number.
+						ci->call_from = ( service_phone_number != NULL ? GlobalStrDupA( service_phone_number[ current_phone_line ] ) : NULL );	// Our service number.
 						ci->call_to = call_to;
 						ci->call_reference_id = NULL;
 						ci->caller_id = NULL;

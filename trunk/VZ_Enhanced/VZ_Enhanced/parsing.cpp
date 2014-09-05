@@ -1500,9 +1500,9 @@ StackTree *GetElementAttributeValue( StackTree *tree, char *element_name, int el
 	return NULL;
 }
 
-bool GetAccountInformation( char *xml, char **client_id, char **account_id, char **account_status, char **account_type, char **principal_id, char **service_type, char **service_status, char **service_context, char **service_phone_number, char **service_privacy_value, char **service_notifications, char **service_features, bool client_id_only )
+bool GetAccountInformation( char *xml, char **client_id, char **account_id, char **account_status, char **account_type, char **principal_id, char **service_type, char **service_status, char **service_context, char ***service_phone_number, char **service_privacy_value, char ***service_notifications, char ***service_features, int &phone_lines )
 {
-	unsigned char status = 0;
+	bool status = false;
 
 	StackTree *xml_tree = BuildXMLTree( xml );
 
@@ -1513,232 +1513,253 @@ bool GetAccountInformation( char *xml, char **client_id, char **account_id, char
 		rtree = rtree->child;
 
 		GetElementAttributeValue( rtree, "Client", 6, "id", 2, client_id );
+		GetElementAttributeValue( rtree, "Principal", 9, "id", 2, principal_id );
 
-		if ( client_id_only == false )
+		StackTree *stree = GetElementAttributeValue( rtree, "Account", 7, "id", 2, account_id );
+
+		if ( stree != NULL && stree->child != NULL )
 		{
-			GetElementAttributeValue( rtree, "Principal", 9, "id", 2, principal_id );
+			stree = stree->child;
 
-			StackTree *stree = GetElementAttributeValue( rtree, "Account", 7, "id", 2, account_id );
+			GetElementValue( stree, "Type", 4, account_type );
+			GetElementValue( stree, "Status", 6, account_status );
+
+			char *stype = "DigitalPhone";
+			int stlength = 12;
+			stree = GetElementAttributeValue( stree, "Service", 7, "type", 4, &stype, &stlength );	// This essentially confirms the value of an attribute.
+			*service_type = stype;
 
 			if ( stree != NULL && stree->child != NULL )
 			{
 				stree = stree->child;
 
-				GetElementValue( stree, "Type", 4, account_type );
-				GetElementValue( stree, "Status", 6, account_status );
+				GetElementAttributeValue( stree, "Privacy", 7, "value", 5, service_privacy_value );
+				GetElementValue( stree, "Context", 7, service_context );
+				GetElementValue( stree, "Status", 6, service_status );
 
-				char *value = "DigitalPhone";
-				int length = 12;
-				stree = GetElementAttributeValue( stree, "Service", 7, "type", 4, &value, &length );	// This essentially confirms the value of an attribute.
-				*service_type = value;
+				/*stree = GetElement( stree, "PhoneNumber", 11 );
 
 				if ( stree != NULL && stree->child != NULL )
 				{
 					stree = stree->child;
 
-					GetElementAttributeValue( stree, "Privacy", 7, "value", 5, service_privacy_value );
-					GetElementValue( stree, "Context", 7, service_context );
-					GetElementValue( stree, "Status", 6, service_status );
+					GetElementValue( stree, "Number", 6, service_phone_number );
+				}*/
+			}
+		}
 
-					stree = GetElement( stree, "PhoneNumber", 11 );
+		char *sidtype = "telephone";
+		int sidtlength = 9;
 
-					if ( stree != NULL && stree->child != NULL )
+		// Count the number of phone lines associated with this account.
+		stree = rtree;
+		while ( true )
+		{
+			stree = GetElementAttributeValue( stree, "Service", 7, "idType", 6, &sidtype, &sidtlength, false );	// Attribute is not returned.
+			if ( stree != NULL )
+			{
+				++phone_lines;
+
+				stree = stree->sibling;
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if ( phone_lines > 0 )
+		{
+			// These are arrays of char strings.
+			*service_phone_number = ( char ** )GlobalAlloc( GPTR, sizeof( char * ) * phone_lines );
+			*service_notifications = ( char ** )GlobalAlloc( GPTR, sizeof( char * ) * phone_lines );
+			*service_features = ( char ** )GlobalAlloc( GPTR, sizeof( char * ) * phone_lines );
+
+			// Process the service information in reverse order.
+			for ( int line = phone_lines - 1; line >= 0; --line )
+			{
+				stree = rtree = GetElementAttributeValue( rtree, "Service", 7, "idType", 6, &sidtype, &sidtlength, false );	// Attribute is not returned.
+
+				if ( stree != NULL )
+				{
+					GetElementAttributeValue( stree, "Service", 7, "id", 2, &( *service_phone_number )[ line ] );
+
+					rtree = rtree->sibling;
+
+					if ( stree->child != NULL )
 					{
 						stree = stree->child;
 
-						GetElementValue( stree, "Number", 6, service_phone_number );
+						StackTree *ftree = stree;	// Save this so we can search for features.
 
-						status = 1;
+						int notification_length = 0;
+						int notification_count = 0;
+						int buffer_size = 8;
+						char **notification_array = ( char ** )GlobalAlloc( GMEM_FIXED, sizeof( char * ) * buffer_size );
+
+						for ( int i = 0; i < buffer_size; ++i )
+						{
+							char *notification = NULL;
+							int nlength = 0;
+							stree = GetElementAttributeValue( stree, "Notification", 12, "type", 4, &notification, &nlength );
+							notification_length += nlength;
+
+							if ( notification == NULL )
+							{
+								break;
+							}
+							else if ( i == buffer_size - 1 )
+							{
+								buffer_size += 8;
+								char **realloc_array = ( char ** )GlobalReAlloc( notification_array, sizeof( char * ) * buffer_size, GMEM_MOVEABLE );
+								if ( realloc_array == NULL )
+								{
+									break;
+								}
+
+								notification_array = realloc_array;
+							}
+
+							// Determine the status of the notification.
+							if ( stree != NULL && stree->child != NULL )
+							{
+								StackTree *ttree = stree->child;
+
+								// See if the child element's value is "available".
+								char *stat = "available";
+								int slength = 9;
+								if ( GetElementValue( ttree, "Status", 6, &stat, &slength, false ) != NULL )	// Value is not returned.
+								{
+									notification_array[ notification_count ] = notification;
+									++notification_count;
+								}
+							}
+
+							if ( stree != NULL && stree->sibling != NULL )
+							{
+								stree = stree->sibling;
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						notification_array[ notification_count ] = NULL;	// Sanity.
+
+						int offset = 0;
+						int service_notification_length = ( notification_count * 43 ) + notification_length + 1;
+						( *service_notifications )[ line ] = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * service_notification_length );
+
+						// Process the notifications in reverse order.
+						for ( int i = notification_count - 1; i >= 0; --i )
+						{
+							if ( notification_array[ i ] != NULL )
+							{
+								_memcpy_s( ( *service_notifications )[ line ] + offset, service_notification_length - offset, "<Notification operation=\"create\" type=\"", 39 );
+								offset += 39;
+								notification_length = lstrlenA( notification_array[ i ] );
+								_memcpy_s( ( *service_notifications )[ line ] + offset, service_notification_length - offset, notification_array[ i ], notification_length );
+								offset += notification_length;
+								_memcpy_s( ( *service_notifications )[ line ] + offset, service_notification_length - offset, "\" />", 4 );
+								offset += 4;
+
+								GlobalFree( notification_array[ i ] );
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						*( ( *service_notifications )[ line ] + ( service_notification_length - 1 ) ) = 0;	// Sanity.
+
+						GlobalFree( notification_array );
+
+						int feature_length = 0;
+						int feature_count = 0;
+						buffer_size = 4;
+						char **feature_array = ( char ** )GlobalAlloc( GMEM_FIXED, sizeof( char * ) * buffer_size );
+
+						for ( int i = 0; i < buffer_size; ++i )
+						{
+							char *feature = NULL;
+							int flength = 0;
+							stree = GetElementAttributeValue( ftree, "Feature", 7, "type", 4, &feature, &flength );
+							feature_length += flength;
+
+							if ( feature == NULL )
+							{
+								break;
+							}
+							else if ( i == buffer_size - 1 )
+							{
+								buffer_size += 4;
+								char **realloc_array = ( char ** )GlobalReAlloc( feature_array, sizeof( char * ) * buffer_size, GMEM_MOVEABLE );
+								if ( realloc_array == NULL )
+								{
+									break;
+								}
+
+								feature_array = realloc_array;
+							}
+
+							feature_array[ feature_count ] = feature;
+							++feature_count;
+
+							if ( ftree != NULL && ftree->sibling != NULL )
+							{
+								ftree = ftree->sibling;
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						feature_array[ feature_count ] = NULL;	// Sanity.
+
+						offset = 0;
+						int service_feature_length = ( ( feature_count > 0 ? ( feature_count - 1 ) : feature_count ) * 2 ) + feature_length + 1;
+						( *service_features )[ line ] = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * service_feature_length );
+
+						// Process the features in reverse order.
+						for ( int i = feature_count - 1; i >= 0; --i )
+						{
+							if ( feature_array[ i ] != NULL )
+							{
+								feature_length = lstrlenA( feature_array[ i ] );
+								_memcpy_s( ( *service_features )[ line ] + offset, service_feature_length - offset, feature_array[ i ], feature_length );
+								offset += feature_length;
+
+								if ( i > 0 )
+								{
+									_memcpy_s( ( *service_features )[ line ] + offset, service_feature_length - offset, ", ", 2 );
+									offset += 2;
+								}
+
+								GlobalFree( feature_array[ i ] );
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						*( ( *service_features )[ line ] + ( service_feature_length - 1 ) ) = 0;	// Sanity.
+
+						GlobalFree( feature_array );
+
+						status = true;
 					}
 				}
 			}
-
-			char *value = "telephone";
-			int length = 9;
-			stree = GetElementAttributeValue( rtree, "Service", 7, "idType", 6, &value, &length, false );	// Attribute is not returned.
-
-			// If the phone number was not set above, then use the alternative element.
-			if ( stree != NULL && *service_phone_number == NULL )
-			{
-				GetElementAttributeValue( stree, "Service", 7, "id", 2, service_phone_number );
-
-				status = 1;
-			}
-
-			if ( stree != NULL && stree->child != NULL )
-			{
-				stree = stree->child;
-
-				StackTree *ftree = stree;	// Save this so we can search for features.
-
-				int notification_length = 0;
-				int notification_count = 0;
-				int buffer_size = 8;
-				char **notification_array = ( char ** )GlobalAlloc( GMEM_FIXED, sizeof( char * ) * buffer_size );
-
-				for ( int i = 0; i < buffer_size; ++i )
-				{
-					int length = 0;
-					char *notification = NULL;
-					stree = GetElementAttributeValue( stree, "Notification", 12, "type", 4, &notification, &length );
-					notification_length += length;
-
-					if ( notification == NULL )
-					{
-						break;
-					}
-					else if ( i == buffer_size - 1 )
-					{
-						buffer_size += 8;
-						char **realloc_array = ( char ** )GlobalReAlloc( notification_array, sizeof( char * ) * buffer_size, GMEM_MOVEABLE );
-						if ( realloc_array == NULL )
-						{
-							break;
-						}
-
-						notification_array = realloc_array;
-					}
-
-					// Determine the status of the notification.
-					if ( stree != NULL && stree->child != NULL )
-					{
-						StackTree *ttree = stree->child;
-
-						// See if the child element's value is "available".
-						char *value = "available";
-						int length = 9;
-						if ( GetElementValue( ttree, "Status", 6, &value, &length, false ) != NULL )	// Value is not returned.
-						{
-							notification_array[ notification_count ] = notification;
-							++notification_count;
-						}
-					}
-
-					if ( stree != NULL && stree->sibling != NULL )
-					{
-						stree = stree->sibling;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				notification_array[ notification_count ] = NULL;	// Sanity.
-
-				int offset = 0;
-				int service_notification_length = ( notification_count * 43 ) + notification_length + 1;
-				*service_notifications = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * service_notification_length );
-
-				for ( int i = 0; i < notification_count; ++i )
-				{
-					if ( notification_array[ i ] != NULL )
-					{
-						_memcpy_s( *service_notifications + offset, service_notification_length - offset, "<Notification operation=\"create\" type=\"", 39 );
-						offset += 39;
-						notification_length = lstrlenA( notification_array[ i ] );
-						_memcpy_s( *service_notifications + offset, service_notification_length - offset, notification_array[ i ], notification_length );
-						offset += notification_length;
-						_memcpy_s( *service_notifications + offset, service_notification_length - offset, "\" />", 4 );
-						offset += 4;
-
-						GlobalFree( notification_array[ i ] );
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				*( *service_notifications + ( service_notification_length - 1 ) ) = 0;	// Sanity.
-
-				GlobalFree( notification_array );
-
-				int feature_length = 0;
-				int feature_count = 0;
-				buffer_size = 4;
-				char **feature_array = ( char ** )GlobalAlloc( GMEM_FIXED, sizeof( char * ) * buffer_size );
-
-				for ( int i = 0; i < buffer_size; ++i )
-				{
-					int length = 0;
-					char *feature = NULL;
-					stree = GetElementAttributeValue( ftree, "Feature", 7, "type", 4, &feature, &length );
-					feature_length += length;
-
-					if ( feature == NULL )
-					{
-						break;
-					}
-					else if ( i == buffer_size - 1 )
-					{
-						buffer_size += 4;
-						char **realloc_array = ( char ** )GlobalReAlloc( feature_array, sizeof( char * ) * buffer_size, GMEM_MOVEABLE );
-						if ( realloc_array == NULL )
-						{
-							break;
-						}
-
-						feature_array = realloc_array;
-					}
-
-					feature_array[ feature_count ] = feature;
-					++feature_count;
-
-					if ( ftree != NULL && ftree->sibling != NULL )
-					{
-						ftree = ftree->sibling;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				feature_array[ feature_count ] = NULL;	// Sanity.
-
-				offset = 0;
-				int service_feature_length = ( ( feature_count > 0 ? ( feature_count - 1 ) : feature_count ) * 2 ) + feature_length + 1;
-				*service_features = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * service_feature_length );
-
-				for ( int i = 0; i < feature_count; ++i )
-				{
-					if ( feature_array[ i ] != NULL )
-					{
-						feature_length = lstrlenA( feature_array[ i ] );
-						_memcpy_s( *service_features + offset, service_feature_length - offset, feature_array[ i ], feature_length );
-						offset += feature_length;
-
-						if ( i < feature_count - 1 )
-						{
-							_memcpy_s( *service_features + offset, service_feature_length - offset, ", ", 2 );
-							offset += 2;
-						}
-
-						GlobalFree( feature_array[ i ] );
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				*( *service_features + ( service_feature_length - 1 ) ) = 0;	// Sanity.
-
-				GlobalFree( feature_array );
-
-				status = 2;
-			}
-		}
-		else
-		{
-			status = 2;
 		}
 	}
 
 	DeleteXMLTree( xml_tree );
 
-	return ( status == 2 ? true : false );
+	return status;
 }
 
 bool GetCallerIDInformation( char *xml, char **call_to, char **call_from, char **caller_id, char **call_reference_id )

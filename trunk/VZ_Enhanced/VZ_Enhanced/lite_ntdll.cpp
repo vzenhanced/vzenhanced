@@ -72,7 +72,7 @@
 			return true;
 		}
 
-		hModule_ntdll = LoadLibrary( L"ntdll.dll" );
+		hModule_ntdll = LoadLibraryDEMW( L"ntdll.dll" );
 
 		if ( hModule_ntdll == NULL )
 		{

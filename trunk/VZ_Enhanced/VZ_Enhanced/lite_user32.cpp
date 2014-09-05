@@ -116,7 +116,7 @@
 			return true;
 		}
 
-		hModule_user32 = LoadLibrary( L"user32.dll" );
+		hModule_user32 = LoadLibraryDEMW( L"user32.dll" );
 
 		if ( hModule_user32 == NULL )
 		{

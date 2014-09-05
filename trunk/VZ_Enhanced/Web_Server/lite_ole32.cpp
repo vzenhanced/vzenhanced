@@ -34,7 +34,7 @@
 			return true;
 		}
 
-		hModule_ole32 = LoadLibrary( L"ole32.dll" );
+		hModule_ole32 = LoadLibraryDEMW( L"ole32.dll" );
 
 		if ( hModule_ole32 == NULL )
 		{

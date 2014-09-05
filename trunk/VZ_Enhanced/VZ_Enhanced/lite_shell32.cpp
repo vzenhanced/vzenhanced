@@ -45,7 +45,7 @@
 			return true;
 		}
 
-		hModule_shell32 = LoadLibrary( L"shell32.dll" );
+		hModule_shell32 = LoadLibraryDEMW( L"shell32.dll" );
 
 		if ( hModule_shell32 == NULL )
 		{

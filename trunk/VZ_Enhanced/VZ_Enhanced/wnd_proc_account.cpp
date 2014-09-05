@@ -18,7 +18,7 @@
 
 #include "globals.h"
 #include "string_tables.h"
-#include "lite_gdi32.h"
+#include "utilities.h"
 
 #define BTN_EXIT_INFO	1000
 
@@ -133,9 +133,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 			if ( service_phone_number != NULL )
 			{
-				val_length = MultiByteToWideChar( CP_UTF8, 0, service_phone_number, -1, NULL, 0 );	// Include the NULL terminator.
-				val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
-				MultiByteToWideChar( CP_UTF8, 0, service_phone_number, -1, val, val_length );
+				val = FormatPhoneNumber( service_phone_number[ current_phone_line ] );
 			}
 
 			HWND hWnd_edit8 = _CreateWindowW( WC_EDIT, val, ES_READONLY | WS_CHILD | ES_AUTOHSCROLL | WS_VISIBLE, 115, 160, 150, 20, hWnd, NULL, NULL, NULL );
@@ -155,11 +153,11 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			GlobalFree( val );
 			val = NULL;
 
-			if ( service_features != NULL )
+			if ( service_features != NULL && service_features[ current_phone_line ] != NULL )
 			{
-				val_length = MultiByteToWideChar( CP_UTF8, 0, service_features, -1, NULL, 0 );	// Include the NULL terminator.
+				val_length = MultiByteToWideChar( CP_UTF8, 0, service_features[ current_phone_line ], -1, NULL, 0 );	// Include the NULL terminator.
 				val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
-				MultiByteToWideChar( CP_UTF8, 0, service_features, -1, val, val_length );
+				MultiByteToWideChar( CP_UTF8, 0, service_features[ current_phone_line ], -1, val, val_length );
 			}
 
 			HWND hWnd_edit10 = _CreateWindowW( WC_EDIT, val, ES_READONLY | WS_CHILD | ES_AUTOHSCROLL | WS_VISIBLE, 115, 200, 150, 20, hWnd, NULL, NULL, NULL );

@@ -28,12 +28,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.2"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.3"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.1.2"
+#define USER_AGENT			"VZ-Enhanced/1.0.1.3"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -43,7 +43,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1012
+#define CURRENT_VERSION		1013
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -56,6 +56,8 @@ HANDLE connection_worker_semaphore = NULL;
 HANDLE connection_incoming_semaphore = NULL;
 HANDLE update_check_semaphore = NULL;
 HANDLE reconnect_semaphore = NULL;
+
+HANDLE select_line_semaphore = NULL;
 
 bool in_connection_thread = false;
 bool in_connection_worker_thread = false;
@@ -93,9 +95,12 @@ char *principal_id = NULL;
 char *service_type = NULL;
 char *service_status = NULL;
 char *service_context = NULL;
-char *service_phone_number = NULL;
+char **service_phone_number = NULL;
 char *service_privacy_value = NULL;
-char *service_features = NULL;
+char **service_features = NULL;
+
+int phone_lines = 0;
+int current_phone_line = 0;
 
 char *worker_send_buffer = NULL;
 char *connection_send_buffer = NULL;
@@ -189,12 +194,33 @@ void free_shared_variables()
 	service_status = NULL;
 	GlobalFree( service_context );
 	service_context = NULL;
-	GlobalFree( service_phone_number );
-	service_phone_number = NULL;
 	GlobalFree( service_privacy_value );
 	service_privacy_value = NULL;
-	GlobalFree( service_features );
-	service_features = NULL;
+
+	if ( service_phone_number != NULL )
+	{
+		for ( int i = 0; i < phone_lines; ++i )
+		{
+			GlobalFree( service_phone_number[ i ] );
+			service_phone_number[ i ] = NULL;
+		}
+		GlobalFree( service_phone_number );
+		service_phone_number = NULL;
+	}
+
+	if ( service_features != NULL )
+	{
+		for ( int i = 0; i < phone_lines; ++i )
+		{
+			GlobalFree( service_features[ i ] );
+			service_features[ i ] = NULL;
+		}
+		GlobalFree( service_features );
+		service_features = NULL;
+	}
+
+	phone_lines = 0;
+	current_phone_line = 0;
 
 	GlobalFree( worker_send_buffer );
 	worker_send_buffer = NULL;
@@ -253,6 +279,12 @@ void kill_connection_thread()
 		if ( reconnect_semaphore != NULL )
 		{
 			ReleaseSemaphore( reconnect_semaphore, 1, NULL );
+		}
+
+		// This will trigger the select_line_semaphore.
+		if ( g_hWnd_phone_lines != NULL )
+		{
+			_SendMessageW( g_hWnd_phone_lines, WM_CLOSE, 0, 0 );
 		}
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
@@ -2610,7 +2642,7 @@ THREAD_RETURN CallPhoneNumber( void *pArguments )
 			"<To id=\"%s\" name=\"\" />" \
 			"<From id=\"%s\" name=\"\" />" \
 		"</Call>" \
-	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ) );
+	"</CallControl>", SAFESTRA( client_id ), ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ) );
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, phone_call_reply, phone_call_reply_length );
 
@@ -2706,7 +2738,7 @@ THREAD_RETURN ForwardIncomingCall( void *pArguments )
 			"<ForwardNumber>%s</ForwardNumber>" \
 			"<CallReferenceId>%s</CallReferenceId>" \
 		"</Call>" \
-	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->forward_to ), SAFESTRA( ci->call_reference_id ) );
+	"</CallControl>", SAFESTRA( client_id ), ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->forward_to ), SAFESTRA( ci->call_reference_id ) );
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, forward_reply, forward_reply_length );
 
@@ -2793,7 +2825,7 @@ THREAD_RETURN IgnoreIncomingCall( void *pArguments )
 			"<From id=\"%s\" />" \
 			"<CallReferenceId>%s</CallReferenceId>" \
 		"</Call>" \
-	"</CallControl>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->call_reference_id ) );
+	"</CallControl>", SAFESTRA( client_id ), ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( ci->call_to ), SAFESTRA( ci->call_from ), SAFESTRA( ci->call_reference_id ) );
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, ignore_reply, ignore_reply_length );
 
@@ -3814,7 +3846,7 @@ THREAD_RETURN Connection( void *pArguments )
 	dllrbt_tree *session_cookie_tree = NULL;
 	char *session_cookies = NULL;
 
-	char *service_notifications = NULL;
+	char **service_notifications = NULL;
 
 	bool reauthorize = false;
 
@@ -3914,7 +3946,7 @@ THREAD_RETURN Connection( void *pArguments )
 	{
 		xml += 4;
 
-		if ( GetAccountInformation( xml, &client_id, &account_id, &account_status, &account_type, &principal_id, &service_type, &service_status, &service_context, &service_phone_number, &service_privacy_value, &service_notifications, &service_features ) == false )
+		if ( GetAccountInformation( xml, &client_id, &account_id, &account_status, &account_type, &principal_id, &service_type, &service_status, &service_context, &service_phone_number, &service_privacy_value, &service_notifications, &service_features, phone_lines ) == false )
 		{
 			if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse account information." ); }
 			goto CLEANUP;
@@ -3932,6 +3964,21 @@ THREAD_RETURN Connection( void *pArguments )
 		goto CLEANUP;
 	}
 
+	// Prompt the user to select the phone line they want to receive calls on.
+	// This will set current_phone_line.
+	if ( phone_lines > 1 )
+	{
+		// This semaphore will be released in g_hWnd_phone_lines' WM_DESTROY.
+		select_line_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
+
+		// Have the login window create the phone line prompt.
+		_SendMessageW( g_hWnd_login, WM_PROPAGATE, SELECT_LINE, 0 );
+
+		// Wait for the user selection.
+		WaitForSingleObject( select_line_semaphore, INFINITE );
+		CloseHandle( select_line_semaphore );
+		select_line_semaphore = NULL;
+	}
 
 	// v1_5 format.
 	// Update registration.
@@ -3940,10 +3987,18 @@ THREAD_RETURN Connection( void *pArguments )
 	"<Registration operation=\"update\">" \
 		"<Client id=\"%s\" />" \
 		"<Service id=\"%s\" idType=\"telephone\">%s</Service>" \
-	"</Registration>", SAFESTRA( client_id ), SAFESTRA( service_phone_number ), SAFESTRA( service_notifications ) );
+	"</Registration>", SAFESTRA( client_id ), ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), ( service_notifications != NULL ? SAFESTRA( service_notifications[ current_phone_line ] ) : "" ) );
 
-	GlobalFree( service_notifications );
-	service_notifications = NULL;
+	if ( service_notifications != NULL )
+	{
+		for ( int i = 0; i < phone_lines; ++i )
+		{
+			GlobalFree( service_notifications[ i ] );
+			service_notifications[ i ] = NULL;
+		}
+		GlobalFree( service_notifications );
+		service_notifications = NULL;
+	}
 
 	send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
 	"POST %sregistration " \
@@ -3997,7 +4052,7 @@ THREAD_RETURN Connection( void *pArguments )
 	"App-Name: %s\r\n" \
 	"User-Agent: %s\r\n" \
 	"Cookie: %s\r\n" \
-	"Connection: keep-alive\r\n\r\n", service_phone_number, client_id, host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
+	"Connection: keep-alive\r\n\r\n", ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( client_id ), host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
 	// Notification setup.
 	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
@@ -4069,7 +4124,7 @@ THREAD_RETURN Connection( void *pArguments )
 					"App-Name: %s\r\n" \
 					"User-Agent: %s\r\n" \
 					"Cookie: %s; %s\r\n" \
-					"Connection: keep-alive\r\n\r\n", service_phone_number, client_id, host, REFERER, APPLICATION_NAME, USER_AGENT, session_cookies, wayfarer_cookies );
+					"Connection: keep-alive\r\n\r\n", ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( client_id ), host, REFERER, APPLICATION_NAME, USER_AGENT, session_cookies, wayfarer_cookies );
 
 					// Notification setup.
 					if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout, false ) != -1 )
@@ -4315,8 +4370,16 @@ CLEANUP:
 	GlobalFree( resource );
 	resource = NULL;
 
-	GlobalFree( service_notifications );
-	service_notifications = NULL;
+	if ( service_notifications != NULL )
+	{
+		for ( int i = 0; i < phone_lines; ++i )
+		{
+			GlobalFree( service_notifications[ i ] );
+			service_notifications[ i ] = NULL;
+		}
+		GlobalFree( service_notifications );
+		service_notifications = NULL;
+	}
 
 	if ( ls != NULL )
 	{
