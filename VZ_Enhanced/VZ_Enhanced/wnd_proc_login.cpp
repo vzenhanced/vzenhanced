@@ -22,7 +22,6 @@
 #include "utilities.h"
 #include "string_tables.h"
 #include "file_operations.h"
-#include "lite_gdi32.h"
 
 #include "web_server.h"
 
@@ -92,6 +91,12 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				case IDOK:
 				case BTN_OK:
 				{
+					// This will trigger the select_line_semaphore.
+					if ( g_hWnd_phone_lines != NULL )
+					{
+						_SendMessageW( g_hWnd_phone_lines, WM_CLOSE, 0, 0 );
+					}
+
 					// Cancel the login procedure.
 					if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
 					{
@@ -347,7 +352,16 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 		case WM_PROPAGATE:
 		{
-			if ( wParam == AUTO_LOGIN )
+			if ( wParam == SELECT_LINE )
+			{
+				if ( g_hWnd_phone_lines == NULL )
+				{
+					g_hWnd_phone_lines = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phonelines", ST_Phone_Line, WS_OVERLAPPED | WS_CAPTION | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 300 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 300, 170, hWnd, NULL, NULL, NULL );
+					_ShowWindow( g_hWnd_phone_lines, SW_SHOWNORMAL );
+				}
+				_SetForegroundWindow( g_hWnd_phone_lines );
+			}
+			else if ( wParam == AUTO_LOGIN )
 			{
 				// It should be assumed that we have a saved username and password in order to auto log in.
 				if ( cfg_username != NULL && cfg_password != NULL )

@@ -20,7 +20,6 @@
 #include "utilities.h"
 #include "string_tables.h"
 #include "file_operations.h"
-#include "lite_gdi32.h"
 
 #define BTN_SAVE_COLUMNS	1000
 #define BTN_CANCEL_COLUMNS	1001

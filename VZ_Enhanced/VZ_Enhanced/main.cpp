@@ -37,12 +37,13 @@
 // We want to get these objects before the window is shown.
 
 // Object variables
-HWND g_hWnd_main = NULL;	// Handle to our main window.
-HWND g_hWnd_login = NULL;	// Handle to our login window.
+HWND g_hWnd_main = NULL;		// Handle to our main window.
+HWND g_hWnd_login = NULL;		// Handle to our login window.
+HWND g_hWnd_phone_lines = NULL;	// Handle to our phone lines window.
 
-HWND g_hWnd_active = NULL;	// Handle to the active window. Used to handle tab stops.
+HWND g_hWnd_active = NULL;		// Handle to the active window. Used to handle tab stops.
 
-HFONT hFont = NULL;			// Handle to our font object.
+HFONT hFont = NULL;				// Handle to our font object.
 
 
 wchar_t base_directory[ MAX_PATH ];
@@ -78,6 +79,8 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	{
 		UnInitializeWebServer();
 	}
+
+	unsigned char fail_type = 0;
 
 	// Count the number of parameters and split them into an array.
 	/*int argCount = 0;
@@ -216,7 +219,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -225,7 +228,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -234,7 +237,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -243,7 +246,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -252,7 +255,16 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
+		goto CLEANUP;
+	}
+
+	wcex.lpfnWndProc    = PhoneLinesWndProc;
+	wcex.lpszClassName  = L"phonelines";
+
+	if ( !_RegisterClassExW( &wcex ) )
+	{
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -261,7 +273,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -270,7 +282,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -280,7 +292,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -293,7 +305,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 		if ( !_RegisterClassExW( &wcex ) )
 		{
-			_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+			_MessageBoxA( NULL, "Call to _RegisterClassExW failed!", PROGRAM_CAPTION_A, MB_ICONWARNING );
 		}
 	}
 
@@ -308,7 +320,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -317,7 +329,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -326,7 +338,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -335,7 +347,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -344,7 +356,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -353,7 +365,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -362,7 +374,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
-		_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 1;
 		goto CLEANUP;
 	}
 
@@ -373,8 +385,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 		if ( !_RegisterClassExW( &wcex ) )
 		{
-			_MessageBoxW( NULL, L"Call to _RegisterClassExW failed!", PROGRAM_CAPTION, MB_ICONWARNING );
-			goto CLEANUP;
+			_MessageBoxA( NULL, "Call to _RegisterClassExW failed!", PROGRAM_CAPTION_A, MB_ICONWARNING );
 		}
 	}
 
@@ -382,7 +393,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !g_hWnd_main )
 	{
-		_MessageBoxW( NULL, L"Call to CreateWindow failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 2;
 		goto CLEANUP;
 	}
 
@@ -390,7 +401,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( !g_hWnd_login )
 	{
-		_MessageBoxW( NULL, L"Call to CreateWindow failed!", PROGRAM_CAPTION, MB_ICONWARNING );
+		fail_type = 2;
 		goto CLEANUP;
 	}
 
@@ -402,8 +413,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 		if ( !g_hWnd_connection_manager )
 		{
-			_MessageBoxW( NULL, L"Call to CreateWindow failed!", PROGRAM_CAPTION, MB_ICONWARNING );
-			goto CLEANUP;
+			_MessageBoxA( NULL, "Call to CreateWindow failed!", PROGRAM_CAPTION_A, MB_ICONWARNING );
 		}
 	}
 
@@ -571,6 +581,15 @@ CLEANUP:
 	DeleteCriticalSection( &cwt_cs );	// User initiated connections
 	DeleteCriticalSection( &cit_cs );	// Automated connections
 	DeleteCriticalSection( &cut_cs );	// Update check
+
+	if ( fail_type == 1 )
+	{
+		_MessageBoxA( NULL, "Call to _RegisterClassExW failed!", PROGRAM_CAPTION_A, MB_ICONWARNING );
+	}
+	else if ( fail_type == 2 )
+	{
+		_MessageBoxA( NULL, "Call to CreateWindow failed!", PROGRAM_CAPTION_A, MB_ICONWARNING );
+	}
 
 	// Delay loaded DLLs
 	SSL_library_uninit();

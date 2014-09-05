@@ -48,7 +48,7 @@ bool InitializeWebServer()
 		return true;
 	}
 
-	hModule_web_server = LoadLibrary( L"Web_Server.dll" );
+	hModule_web_server = LoadLibraryDEMW( L"Web_Server.dll" );
 
 	if ( hModule_web_server == NULL )
 	{

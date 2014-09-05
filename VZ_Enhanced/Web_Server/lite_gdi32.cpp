@@ -50,7 +50,7 @@
 			return true;
 		}
 
-		hModule_gdi32 = LoadLibrary( L"gdi32.dll" );
+		hModule_gdi32 = LoadLibraryDEMW( L"gdi32.dll" );
 
 		if ( hModule_gdi32 == NULL )
 		{

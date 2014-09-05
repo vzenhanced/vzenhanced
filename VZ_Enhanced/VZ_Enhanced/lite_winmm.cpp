@@ -34,7 +34,7 @@
 			return true;
 		}
 
-		hModule_winmm = LoadLibrary( L"winmm.dll" );
+		hModule_winmm = LoadLibraryDEMW( L"winmm.dll" );
 
 		if ( hModule_winmm == NULL )
 		{

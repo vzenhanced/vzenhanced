@@ -18,6 +18,17 @@
 
 #include "lite_dlls.h"
 
+// LoadLibrary with disabled error mode
+HMODULE LoadLibraryDEMW( LPCWSTR lpLibFileName )
+{
+	HMODULE hm = NULL;
+	SetErrorMode( SEM_FAILCRITICALERRORS );	// Disable error MessageBox.
+	hm = LoadLibraryW( lpLibFileName );
+	SetErrorMode( 0 );						// Reset to default.
+
+	return hm;
+}
+
 void *SetFunctionPointer( HMODULE &library, void **function_pointer, char *function_name )
 {
 	*function_pointer = GetProcAddress( library, function_name );

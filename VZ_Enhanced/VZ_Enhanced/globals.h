@@ -81,6 +81,7 @@
 #define LOGGING_OUT			2
 #define LOGGING_IN			3
 #define AUTO_LOGIN			4
+#define SELECT_LINE			5
 
 #define NUM_TABS			4
 
@@ -318,6 +319,7 @@ extern HWND g_hWnd_account;
 extern HWND g_hWnd_dial;
 extern HWND g_hWnd_forward;
 extern HWND g_hWnd_ignore_phone_number;
+extern HWND g_hWnd_phone_lines;
 extern HWND g_hWnd_list;				// Handle to the listview control.
 extern HWND g_hWnd_contact_list;
 extern HWND g_hWnd_ignore_list;
@@ -337,6 +339,8 @@ extern HANDLE connection_worker_semaphore;
 extern HANDLE connection_incoming_semaphore;
 extern HANDLE update_check_semaphore;
 extern HANDLE reconnect_semaphore;
+
+extern HANDLE select_line_semaphore;
 
 extern HFONT hFont;						// Handle to the system's message font.
 
@@ -391,9 +395,12 @@ extern char *principal_id;
 extern char *service_type;
 extern char *service_status;
 extern char *service_context;
-extern char *service_phone_number;
+extern char **service_phone_number;
 extern char *service_privacy_value;
-extern char *service_features;
+extern char **service_features;
+
+extern int phone_lines;
+extern int current_phone_line;
 
 // Saved configuration variables
 extern wchar_t *cfg_username;

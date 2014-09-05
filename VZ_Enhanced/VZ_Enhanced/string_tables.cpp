@@ -245,7 +245,9 @@ wchar_t *login_string_table[] =
 	L"Log In",
 	L"Logging In...",
 	L"Logged In",
-	L"Log Off"
+	L"Log Off",
+	L"Phone Number Selection",
+	L"Select the phone number you wish to log in with."
 };
 
 wchar_t *options_string_table[] =

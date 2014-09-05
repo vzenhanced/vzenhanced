@@ -358,5 +358,7 @@ extern wchar_t *login_string_table[];
 #define ST_Loggin_In___		login_string_table[ 4 ]
 #define ST_Logged_In		login_string_table[ 5 ]
 #define ST_Log_Off			login_string_table[ 6 ]
+#define ST_Phone_Line		login_string_table[ 7 ]
+#define ST_Select_line		login_string_table[ 8 ]
 
 #endif

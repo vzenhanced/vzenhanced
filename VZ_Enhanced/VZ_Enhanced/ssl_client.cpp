@@ -18,6 +18,7 @@
 
 #include "ssl_client.h"
 
+#include "lite_dlls.h"
 #include "lite_ntdll.h"
 
 HMODULE g_hSecurity = NULL;
@@ -46,7 +47,7 @@ int SSL_library_init( void )
 		return 1;
 	}
 
-	g_hSecurity = LoadLibrary( L"schannel.dll" );
+	g_hSecurity = LoadLibraryDEMW( L"schannel.dll" );
 	if ( g_hSecurity == NULL )
 	{
 		return 0;

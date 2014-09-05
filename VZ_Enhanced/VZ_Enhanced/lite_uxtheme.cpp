@@ -36,7 +36,7 @@
 			return true;
 		}
 
-		hModule_uxtheme = LoadLibrary( L"uxtheme.dll" );
+		hModule_uxtheme = LoadLibraryDEMW( L"uxtheme.dll" );
 
 		if ( hModule_uxtheme == NULL )
 		{

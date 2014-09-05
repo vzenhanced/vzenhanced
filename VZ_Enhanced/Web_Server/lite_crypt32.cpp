@@ -48,7 +48,7 @@
 			return true;
 		}
 
-		hModule_crypt32 = LoadLibrary( L"crypt32.dll" );
+		hModule_crypt32 = LoadLibraryDEMW( L"crypt32.dll" );
 
 		if ( hModule_crypt32 == NULL )
 		{

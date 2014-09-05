@@ -48,7 +48,7 @@ GdiplusStartupInput gdiplusStartupInput;
 			return true;
 		}
 
-		hModule_gdip = LoadLibrary( L"gdiplus.dll" );
+		hModule_gdip = LoadLibraryDEMW( L"gdiplus.dll" );
 
 		if ( hModule_gdip == NULL )
 		{

@@ -34,7 +34,7 @@
 			return true;
 		}
 
-		hModule_comctl32 = LoadLibrary( L"comctl32.dll" );
+		hModule_comctl32 = LoadLibraryDEMW( L"comctl32.dll" );
 
 		if ( hModule_comctl32 == NULL )
 		{

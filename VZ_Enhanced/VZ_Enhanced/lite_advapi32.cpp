@@ -38,7 +38,7 @@
 			return true;
 		}
 
-		hModule_advapi32 = LoadLibrary( L"advapi32.dll" );
+		hModule_advapi32 = LoadLibraryDEMW( L"advapi32.dll" );
 
 		if ( hModule_advapi32 == NULL )
 		{
