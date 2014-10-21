@@ -25,6 +25,8 @@
 
 #include "web_server.h"
 
+#define CID_LIST_COUNT	6
+
 HANDLE worker_semaphore = NULL;				// Blocks shutdown while a worker thread is active.
 bool kill_worker_thead = false;			// Allow for a clean shutdown.
 
@@ -38,6 +40,8 @@ bool skip_forward_draw = false;
 
 dllrbt_tree *call_log = NULL;
 bool call_log_changed = false;
+
+dllrbt_tree **custom_cid_list = NULL;
 
 wchar_t *cfg_username = NULL;
 wchar_t *cfg_password = NULL;
@@ -1416,6 +1420,256 @@ CLEANUP:
 	return 0;
 }
 
+char *combine_names( char *first_name, char *last_name )
+{
+	int first_name_length = 0;
+	int last_name_length = 0;
+	int combined_name_length = 0;
+	char *combined_name = NULL;
+
+	if ( first_name == NULL && last_name == NULL )
+	{
+		return NULL;
+	}
+	else if ( first_name != NULL && last_name == NULL )
+	{
+		return GlobalStrDupA( first_name );
+	}
+	else if ( first_name == NULL && last_name != NULL )
+	{
+		return GlobalStrDupA( last_name );
+	}
+
+	first_name_length = lstrlenA( first_name );
+	last_name_length = lstrlenA( last_name );
+
+	combined_name_length = first_name_length + last_name_length + 1 + 1;
+	combined_name = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * combined_name_length );
+	_memcpy_s( combined_name, combined_name_length, first_name, first_name_length );
+	combined_name[ first_name_length ] = ' ';
+	_memcpy_s( combined_name + first_name_length + 1, combined_name_length - ( first_name_length + 1 ), last_name, last_name_length );
+	combined_name[ combined_name_length - 1 ] = 0;	// Sanity.
+
+	return combined_name;
+}
+
+void cleanup_custom_caller_id()
+{
+	if ( custom_cid_list != NULL )
+	{
+		for ( char i = 0; i < CID_LIST_COUNT; ++i )
+		{
+			// Free the values of the call_log.
+			node_type *node = dllrbt_get_head( custom_cid_list[ i ] );
+			while ( node != NULL )
+			{
+				// Free the linked list if there is one.
+				DoublyLinkedList *ci_node = ( DoublyLinkedList * )node->val;
+				while ( ci_node != NULL )
+				{
+					DoublyLinkedList *del_ci_node = ci_node;
+
+					ci_node = ci_node->next;
+
+					GlobalFree( del_ci_node );
+				}
+
+				node = node->next;
+			}
+
+			dllrbt_delete_recursively( custom_cid_list[ i ] );
+			custom_cid_list[ i ] = NULL;
+		}
+
+		GlobalFree( custom_cid_list );
+		custom_cid_list = NULL;
+	}
+}
+
+char *get_custom_caller_id( char *phone_number )
+{
+	if ( phone_number != NULL && custom_cid_list != NULL )
+	{
+		contactinfo *ci = NULL;
+		DoublyLinkedList *dll = NULL;
+
+		for ( char i = 0; i < CID_LIST_COUNT; ++i )
+		{
+			dll = ( DoublyLinkedList * )dllrbt_find( custom_cid_list[ i ], ( void * )phone_number, true );
+			while ( dll != NULL )
+			{
+				ci = ( contactinfo * )dll->data;
+
+				if ( ci != NULL )
+				{
+					// If there are multiple people with the same office phone number, then use the business name to identify them.
+					if ( ( i == 2 && dll->prev != NULL ) || i == 3 )
+					{
+						if ( ci->contact.business_name != NULL && ci->contact.business_name[ 0 ] != NULL )
+						{
+							return GlobalStrDupA( ci->contact.business_name );
+						}
+					}
+					else
+					{
+						// See if there's a first name available.
+						if ( ci->contact.first_name != NULL && ci->contact.first_name[ 0 ] != NULL )
+						{
+							// See if there's a last name available.
+							if ( ci->contact.last_name != NULL && ci->contact.last_name[ 0 ] != NULL )
+							{
+								return combine_names( ci->contact.first_name, ci->contact.last_name );
+							}
+							else	// If there's no last name, then use the first name.
+							{
+								return GlobalStrDupA( ci->contact.first_name );
+							}
+						}
+						else if ( ci->contact.nickname != NULL && ci->contact.nickname[ 0 ] != NULL )	// If there's no first name, then try the nickname.
+						{
+							return GlobalStrDupA( ci->contact.nickname );
+						}
+					}
+				}
+
+				dll = dll->next;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+void remove_custom_caller_id( contactinfo *ci )
+{
+	if ( ci == NULL || custom_cid_list == NULL )
+	{
+		return;
+	}
+
+	char *phone_number = NULL;
+
+	for ( char i = 0; i < CID_LIST_COUNT; ++i )
+	{
+		switch ( i )
+		{
+			case 0: { phone_number = ci->contact.home_phone_number; } break;
+			case 1: { phone_number = ci->contact.cell_phone_number; } break;
+			case 2: { phone_number = ci->contact.office_phone_number; } break;
+			case 3: { phone_number = ci->contact.work_phone_number; } break;
+			case 4: { phone_number = ci->contact.other_phone_number; } break;
+			case 5: { phone_number = ci->contact.fax_number; } break;
+		}
+
+		// Skip blank phone numbers.
+		if ( phone_number == NULL || ( phone_number != NULL && phone_number[ 0 ] == NULL ) )
+		{
+			continue;
+		}
+
+		dllrbt_iterator *itr = dllrbt_find( custom_cid_list[ i ], ( void * )phone_number, false );
+		if ( itr != NULL )
+		{
+			// Head of the linked list.
+			DoublyLinkedList *ll = ( DoublyLinkedList * )( ( node_type * )itr )->val;
+
+			// Go through each linked list node and remove the one with ci.
+
+			DoublyLinkedList *current_node = ll;
+			while ( current_node != NULL )
+			{
+				if ( ( contactinfo * )current_node->data == ci )
+				{
+					DLL_RemoveNode( &ll, current_node );
+					GlobalFree( current_node );
+
+					if ( ll != NULL && ll->data != NULL )
+					{
+						// Reset the head in the tree.
+						( ( node_type * )itr )->val = ( void * )ll;
+
+						switch ( i )
+						{
+							case 0: { ( ( node_type * )itr )->key = ( void * )( ( contactinfo * )ll->data )->contact.home_phone_number; } break;
+							case 1: { ( ( node_type * )itr )->key = ( void * )( ( contactinfo * )ll->data )->contact.cell_phone_number; } break;
+							case 2: { ( ( node_type * )itr )->key = ( void * )( ( contactinfo * )ll->data )->contact.office_phone_number; } break;
+							case 3: { ( ( node_type * )itr )->key = ( void * )( ( contactinfo * )ll->data )->contact.work_phone_number; } break;
+							case 4: { ( ( node_type * )itr )->key = ( void * )( ( contactinfo * )ll->data )->contact.other_phone_number; } break;
+							case 5: { ( ( node_type * )itr )->key = ( void * )( ( contactinfo * )ll->data )->contact.fax_number; } break;
+						}
+					}
+
+					break;
+				}
+
+				current_node = current_node->next;
+			}
+
+			// If the head of the linked list is NULL, then we can remove the linked list from the tree.
+			if ( ll == NULL )
+			{
+				dllrbt_remove( custom_cid_list[ i ], itr );	// Remove the node from the tree. The tree will rebalance itself.
+			}
+		}
+	}
+}
+
+void add_custom_caller_id( contactinfo *ci )
+{
+	if ( ci == NULL )
+	{
+		return;
+	}
+
+	char *phone_number = NULL;
+
+	if ( custom_cid_list == NULL )
+	{
+		custom_cid_list = ( dllrbt_tree ** )GlobalAlloc( GPTR, sizeof( dllrbt_tree * ) * CID_LIST_COUNT );
+	}
+
+	for ( char i = 0; i < CID_LIST_COUNT; ++i )
+	{
+		if ( custom_cid_list[ i ] == NULL )
+		{
+			 custom_cid_list[ i ] = dllrbt_create( dllrbt_compare );
+		}
+
+		switch ( i )
+		{
+			case 0: { phone_number = ci->contact.home_phone_number; } break;
+			case 1: { phone_number = ci->contact.cell_phone_number; } break;
+			case 2: { phone_number = ci->contact.office_phone_number; } break;
+			case 3: { phone_number = ci->contact.work_phone_number; } break;
+			case 4: { phone_number = ci->contact.other_phone_number; } break;
+			case 5: { phone_number = ci->contact.fax_number; } break;
+		}
+
+		// Skip blank phone numbers.
+		if ( phone_number == NULL || ( phone_number != NULL && phone_number[ 0 ] == NULL ) )
+		{
+			continue;
+		}
+
+		// Create the node to insert into a linked list.
+		DoublyLinkedList *ci_node = DLL_CreateNode( ( void * )ci );
+
+		// See if our tree has the phone number to add the node to.
+		DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( custom_cid_list[ i ], ( void * )phone_number, true );
+		if ( dll == NULL )
+		{
+			// If no phone number exits, insert the node into the tree.
+			if ( dllrbt_insert( custom_cid_list[ i ], ( void * )phone_number, ( void * )ci_node ) != DLLRBT_STATUS_OK )
+			{
+				GlobalFree( ci_node );	// This shouldn't happen.
+			}
+		}
+		else	// If a phone number exits, insert the node into the linked list.
+		{
+			DLL_AddNode( &dll, ci_node, -1 );	// Insert at the end of the doubly linked list.
+		}
+	}
+}
 
 THREAD_RETURN remove_items( void *pArguments )
 {
@@ -1588,6 +1842,8 @@ THREAD_RETURN remove_items( void *pArguments )
 				{
 					dllrbt_remove( contact_list, itr );	// Remove the node from the tree. The tree will rebalance itself.
 				}
+
+				remove_custom_caller_id( ci );
 
 				free_contactinfo( &ci );
 			}
@@ -1944,112 +2200,124 @@ THREAD_RETURN update_call_log( void *pArguments )
 
 	in_worker_thread = true;
 
-	displayinfo *di = ( displayinfo * )pArguments;
-
 	char range_number[ 32 ];
 
-	// Each number in our call log contains a linked list. Find the number if it exists and add it to the linked list.
+	displayinfo *di = ( displayinfo * )pArguments;
 
-	// Create the node to insert into a linked list.
-	DoublyLinkedList *di_node = DLL_CreateNode( ( void * )di );
-
-	// See if our tree has the phone number to add the node to.
-	DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-	if ( dll == NULL )
+	if ( di != NULL )
 	{
-		// If no phone number exits, insert the node into the tree.
-		if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) != DLLRBT_STATUS_OK )
+		// Each number in our call log contains a linked list. Find the number if it exists and add it to the linked list.
+
+		// Create the node to insert into a linked list.
+		DoublyLinkedList *di_node = DLL_CreateNode( ( void * )di );
+
+		// See if our tree has the phone number to add the node to.
+		DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
+		if ( dll == NULL )
 		{
-			GlobalFree( di_node );	// This shouldn't happen.
+			// If no phone number exits, insert the node into the tree.
+			if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) != DLLRBT_STATUS_OK )
+			{
+				GlobalFree( di_node );	// This shouldn't happen.
+			}
+			else
+			{
+				call_log_changed = true;
+			}
 		}
-		else
+		else	// If a phone number exits, insert the node into the linked list.
 		{
+			DLL_AddNode( &dll, di_node, -1 );	// Insert at the end of the doubly linked list.
+
 			call_log_changed = true;
 		}
-	}
-	else	// If a phone number exits, insert the node into the linked list.
-	{
-		DLL_AddNode( &dll, di_node, -1 );	// Insert at the end of the doubly linked list.
 
-		call_log_changed = true;
-	}
+		// Search the ignore_list for a match.
+		ignoreinfo *ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )di->ci.call_from, true );
 
-	// Search the ignore_list for a match.
-	ignoreinfo *ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )di->ci.call_from, true );
-
-	// Try searching the range list.
-	if ( ii == NULL )
-	{
-		_memzero( range_number, 32 );
-
-		int range_index = lstrlenA( di->ci.call_from );
-		range_index = ( range_index > 0 ? range_index - 1 : 0 );
-
-		if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+		// Try searching the range list.
+		if ( ii == NULL )
 		{
-			ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )range_number, true );
+			_memzero( range_number, 32 );
+
+			int range_index = lstrlenA( di->ci.call_from );
+			range_index = ( range_index > 0 ? range_index - 1 : 0 );
+
+			if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+			{
+				ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )range_number, true );
+			}
 		}
-	}
 
-	if ( ii != NULL )
-	{
-		di->process_incoming = false;
-		di->ignore = true;
-		di->ci.ignored = true;
-
-		CloseHandle( ( HANDLE )_CreateThread( NULL, 0, IgnoreIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
-
-		ignoreupdateinfo *iui = ( ignoreupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreupdateinfo ) );
-		iui->ii = ii;
-		iui->phone_number = NULL;
-		iui->action = 3;	// Update the call count.
-		iui->hWnd = g_hWnd_ignore_list;
-
-		// iui is freed in the update_ignore_list thread.
-		CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_list, ( void * )iui, 0, NULL ) );
-	}
-
-	// Search the forward list for a match.
-	forwardinfo *fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )di->ci.call_from, true );
-
-	// Try searching the range list.
-	if ( fi == NULL )
-	{
-		_memzero( range_number, 32 );
-
-		int range_index = lstrlenA( di->ci.call_from );
-		range_index = ( range_index > 0 ? range_index - 1 : 0 );
-
-		if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+		if ( ii != NULL )
 		{
-			fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )range_number, true );
+			di->process_incoming = false;
+			di->ignore = true;
+			di->ci.ignored = true;
+
+			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, IgnoreIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
+
+			ignoreupdateinfo *iui = ( ignoreupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreupdateinfo ) );
+			iui->ii = ii;
+			iui->phone_number = NULL;
+			iui->action = 3;	// Update the call count.
+			iui->hWnd = g_hWnd_ignore_list;
+
+			// iui is freed in the update_ignore_list thread.
+			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_list, ( void * )iui, 0, NULL ) );
 		}
-	}
 
-	if ( fi != NULL )
-	{
-		di->process_incoming = false;
-		di->forward = true;
-		di->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
-		di->ci.forwarded = true;
+		// Search the forward list for a match.
+		forwardinfo *fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )di->ci.call_from, true );
 
-		// Ignore list has priority. If it's set, then we don't forward.
-		if ( di->ignore == false )
+		// Try searching the range list.
+		if ( fi == NULL )
 		{
-			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ForwardIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
+			_memzero( range_number, 32 );
 
-			forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
-			fui->fi = fi;
-			fui->call_from = NULL;
-			fui->forward_to = NULL;
-			fui->action = 4;	// Update the call count.
-			fui->hWnd = g_hWnd_forward_list;
+			int range_index = lstrlenA( di->ci.call_from );
+			range_index = ( range_index > 0 ? range_index - 1 : 0 );
 
-			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_list, ( void * )fui, 0, NULL ) );
+			if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+			{
+				fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )range_number, true );
+			}
 		}
-	}
 
-	_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_MODIFY, 0 ), ( LPARAM )di );	// Add entry to listview and show popup.
+		if ( fi != NULL )
+		{
+			di->process_incoming = false;
+			di->forward = true;
+			di->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
+			di->ci.forwarded = true;
+
+			// Ignore list has priority. If it's set, then we don't forward.
+			if ( di->ignore == false )
+			{
+				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ForwardIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
+
+				forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
+				fui->fi = fi;
+				fui->call_from = NULL;
+				fui->forward_to = NULL;
+				fui->action = 4;	// Update the call count.
+				fui->hWnd = g_hWnd_forward_list;
+
+				// fui is freed in the update_forward_list thread.
+				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_list, ( void * )fui, 0, NULL ) );
+			}
+		}
+
+		// If the incoming number matches a contact, then update the caller ID value.
+		char *custom_caller_id = get_custom_caller_id( di->ci.call_from );
+		if ( custom_caller_id != NULL )
+		{
+			GlobalFree( di->ci.caller_id );
+			di->ci.caller_id = custom_caller_id;
+		}
+
+		_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_MODIFY, 0 ), ( LPARAM )di );	// Add entry to listview and show popup.
+	}
 
 	// Release the semaphore if we're killing the thread.
 	if ( worker_semaphore != NULL )
@@ -2176,6 +2444,16 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.email_address != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.email_address == NULL || ( ci->contact.email_address != NULL && ci->contact.email_address[ 0 ] != NULL ) ) && uci->contact.email_address[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.email_address_id );
+				ci->contact.email_address_id = NULL;
+
+				GlobalFree( uci->contact.email_address_id );
+				uci->contact.email_address_id = NULL;
+			}
+
 			GlobalFree( ci->contact.email_address );
 			ci->contact.email_address = uci->contact.email_address;
 			GlobalFree( ci->email_address );
@@ -2190,6 +2468,16 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.web_page != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.web_page == NULL || ( ci->contact.web_page != NULL && ci->contact.web_page[ 0 ] != NULL ) ) && uci->contact.web_page[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.web_page_id );
+				ci->contact.web_page_id = NULL;
+
+				GlobalFree( uci->contact.web_page_id );
+				uci->contact.web_page_id = NULL;
+			}
+
 			GlobalFree( ci->contact.web_page );
 			ci->contact.web_page = uci->contact.web_page;
 			GlobalFree( ci->web_page );
@@ -2204,10 +2492,24 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.home_phone_number != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.home_phone_number == NULL || ( ci->contact.home_phone_number != NULL && ci->contact.home_phone_number[ 0 ] != NULL ) ) && uci->contact.home_phone_number[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.home_phone_number_id );
+				ci->contact.home_phone_number_id = NULL;
+
+				GlobalFree( uci->contact.home_phone_number_id );
+				uci->contact.home_phone_number_id = NULL;
+			}
+
+			remove_custom_caller_id( ci );
+
 			GlobalFree( ci->contact.home_phone_number );
 			ci->contact.home_phone_number = uci->contact.home_phone_number;
 			GlobalFree( ci->home_phone_number );
 			ci->home_phone_number = FormatPhoneNumber( ci->contact.home_phone_number );
+
+			add_custom_caller_id( ci );
 		}
 
 		if ( uci->contact.home_phone_number_id != NULL )
@@ -2218,10 +2520,24 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.cell_phone_number != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.cell_phone_number == NULL || ( ci->contact.cell_phone_number != NULL && ci->contact.cell_phone_number[ 0 ] != NULL ) ) && uci->contact.cell_phone_number[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.cell_phone_number_id );
+				ci->contact.cell_phone_number_id = NULL;
+
+				GlobalFree( uci->contact.cell_phone_number_id );
+				uci->contact.cell_phone_number_id = NULL;
+			}
+
+			remove_custom_caller_id( ci );
+
 			GlobalFree( ci->contact.cell_phone_number );
 			ci->contact.cell_phone_number = uci->contact.cell_phone_number;
 			GlobalFree( ci->cell_phone_number );
 			ci->cell_phone_number = FormatPhoneNumber( ci->contact.cell_phone_number );
+
+			add_custom_caller_id( ci );
 		}
 
 		if ( uci->contact.cell_phone_number_id != NULL )
@@ -2232,10 +2548,24 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.office_phone_number != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.office_phone_number == NULL || ( ci->contact.office_phone_number != NULL && ci->contact.office_phone_number[ 0 ] != NULL ) ) && uci->contact.office_phone_number[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.office_phone_number_id );
+				ci->contact.office_phone_number_id = NULL;
+
+				GlobalFree( uci->contact.office_phone_number_id );
+				uci->contact.office_phone_number_id = NULL;
+			}
+
+			remove_custom_caller_id( ci );
+
 			GlobalFree( ci->contact.office_phone_number );
 			ci->contact.office_phone_number = uci->contact.office_phone_number;
 			GlobalFree( ci->office_phone_number );
 			ci->office_phone_number = FormatPhoneNumber( ci->contact.office_phone_number );
+
+			add_custom_caller_id( ci );
 		}
 
 		if ( uci->contact.office_phone_number_id != NULL )
@@ -2246,10 +2576,24 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.other_phone_number != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.other_phone_number == NULL || ( ci->contact.other_phone_number != NULL && ci->contact.other_phone_number[ 0 ] != NULL ) ) && uci->contact.other_phone_number[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.other_phone_number_id );
+				ci->contact.other_phone_number_id = NULL;
+
+				GlobalFree( uci->contact.other_phone_number_id );
+				uci->contact.other_phone_number_id = NULL;
+			}
+
+			remove_custom_caller_id( ci );
+
 			GlobalFree( ci->contact.other_phone_number );
 			ci->contact.other_phone_number = uci->contact.other_phone_number;
 			GlobalFree( ci->other_phone_number );
 			ci->other_phone_number = FormatPhoneNumber( ci->contact.other_phone_number );
+
+			add_custom_caller_id( ci );
 		}
 
 		if ( uci->contact.other_phone_number_id != NULL )
@@ -2260,10 +2604,24 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.work_phone_number != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.work_phone_number == NULL || ( ci->contact.work_phone_number != NULL && ci->contact.work_phone_number[ 0 ] != NULL ) ) && uci->contact.work_phone_number[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.work_phone_number_id );
+				ci->contact.work_phone_number_id = NULL;
+
+				GlobalFree( uci->contact.work_phone_number_id );
+				uci->contact.work_phone_number_id = NULL;
+			}
+
+			remove_custom_caller_id( ci );
+
 			GlobalFree( ci->contact.work_phone_number );
 			ci->contact.work_phone_number = uci->contact.work_phone_number;
 			GlobalFree( ci->work_phone_number );
 			ci->work_phone_number = FormatPhoneNumber( ci->contact.work_phone_number );
+
+			add_custom_caller_id( ci );
 		}
 
 		if ( uci->contact.work_phone_number_id != NULL )
@@ -2274,10 +2632,24 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 		if ( uci->contact.fax_number != NULL )
 		{
+			// If we have a blank value, then there should be no ID for that value.
+			if ( ( ci->contact.fax_number == NULL || ( ci->contact.fax_number != NULL && ci->contact.fax_number[ 0 ] != NULL ) ) && uci->contact.fax_number[ 0 ] == NULL )
+			{
+				GlobalFree( ci->contact.fax_number_id );
+				ci->contact.fax_number_id = NULL;
+
+				GlobalFree( uci->contact.fax_number_id );
+				uci->contact.fax_number_id = NULL;
+			}
+
+			remove_custom_caller_id( ci );
+
 			GlobalFree( ci->contact.fax_number );
 			ci->contact.fax_number = uci->contact.fax_number;
 			GlobalFree( ci->fax_number );
 			ci->fax_number = FormatPhoneNumber( ci->contact.fax_number );
+
+			add_custom_caller_id( ci );
 		}
 
 		if ( uci->contact.fax_number_id != NULL )
@@ -2304,6 +2676,8 @@ THREAD_RETURN update_contact_list( void *pArguments )
 		ci->fax_number = FormatPhoneNumber( ci->contact.fax_number );
 
 		ci->displayed = true;
+
+		add_custom_caller_id( ci );
 
 		lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETITEMCOUNT, 0, 0 );
 		lvi.lParam = ( LPARAM )ci;	// lParam = our contactinfo structure from the connection thread.
@@ -2439,6 +2813,8 @@ THREAD_RETURN update_contact_list( void *pArguments )
 
 				ci->displayed = true;
 
+				add_custom_caller_id( ci );
+
 				lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETITEMCOUNT, 0, 0 );
 				lvi.lParam = ( LPARAM )ci;	// lParam = our contactinfo structure from the connection thread.
 				_SendMessageW( g_hWnd_contact_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
@@ -2459,7 +2835,12 @@ THREAD_RETURN update_contact_list( void *pArguments )
 			while ( node != NULL )
 			{
 				contactinfo *ci = ( contactinfo * )node->val;
-				free_contactinfo( &ci );
+
+				if ( ci != NULL )
+				{
+					free_contactinfo( &ci );
+				}
+
 				node = node->next;
 			}
 
@@ -2472,6 +2853,8 @@ THREAD_RETURN update_contact_list( void *pArguments )
 				SetContactList( contact_list );
 			}
 		}
+
+		cleanup_custom_caller_id();
 	}
 
 	GlobalFree( ui );

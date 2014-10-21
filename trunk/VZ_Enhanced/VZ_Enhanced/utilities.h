@@ -69,6 +69,8 @@ void free_ignoreinfo( ignoreinfo **ii );
 wchar_t *FormatPhoneNumber( char *phone_number );
 void FormatDisplayInfo( displayinfo *di );
 
+void cleanup_custom_caller_id();
+
 wchar_t *GetMonth( unsigned short month );
 wchar_t *GetDay( unsigned short day );
 char *url_encode( char *str, unsigned int str_len, unsigned int *enc_len = 0 );

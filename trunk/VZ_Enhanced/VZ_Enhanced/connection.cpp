@@ -28,12 +28,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.3"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.4"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.1.3"
+#define USER_AGENT			"VZ-Enhanced/1.0.1.4"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -43,7 +43,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1013
+#define CURRENT_VERSION		1014
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -3300,8 +3300,9 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 				update_status = false;
 			}
 		}
-		else	// If there's no response, then no additional values were added and the update was successful.
+		else	// If there's no response, then either a value was removed or no additional values were added and the update was successful.
 		{
+			// If a value was removed and it had an ID, then we'll need to free the ID. (Done in update_contact_list)
 			update_status = true;
 		}
 	}

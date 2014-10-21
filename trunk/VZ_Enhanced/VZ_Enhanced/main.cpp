@@ -541,7 +541,6 @@ CLEANUP:
 	dllrbt_delete_recursively( contact_list );
 	contact_list = NULL;
 
-
 	// Free the values of the call_log.
 	node = dllrbt_get_head( call_log );
 	while ( node != NULL )
@@ -571,6 +570,8 @@ CLEANUP:
 		RangeDelete( &forward_range_list[ i ] );
 		forward_range_list[ i ] = NULL;
 	}
+
+	cleanup_custom_caller_id();
 
 	// Delete our font.
 	_DeleteObject( hFont );
