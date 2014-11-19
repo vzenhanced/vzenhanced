@@ -21,6 +21,7 @@
 #include "connection.h"
 #include "menus.h"
 #include "utilities.h"
+#include "list_operations.h"
 #include "file_operations.h"
 #include "string_tables.h"
 #include <commdlg.h>
@@ -41,14 +42,22 @@ HWND g_hWnd_contact = NULL;
 HWND g_hWnd_dial = NULL;
 HWND g_hWnd_forward = NULL;
 HWND g_hWnd_ignore_phone_number = NULL;
-HWND g_hWnd_list = NULL;				// Handle to the listview control.
+HWND g_hWnd_forward_cid = NULL;
+HWND g_hWnd_ignore_cid = NULL;
+HWND g_hWnd_call_log = NULL;				// Handle to the call log listview control.
 HWND g_hWnd_contact_list = NULL;
+HWND g_hWnd_ignore_tab = NULL;
+HWND g_hWnd_ignore_cid_list = NULL;
 HWND g_hWnd_ignore_list = NULL;
+HWND g_hWnd_forward_tab = NULL;
+HWND g_hWnd_forward_cid_list = NULL;
 HWND g_hWnd_forward_list = NULL;
 HWND g_hWnd_edit = NULL;				// Handle to the listview edit control.
 HWND g_hWnd_tab = NULL;
 HWND g_hWnd_connection_manager = NULL;
 
+HWND g_hWnd_app = NULL;
+WNDPROC ListProc = NULL;
 
 NOTIFYICONDATA g_nid;					// Tray icon information.
 
@@ -58,10 +67,12 @@ int cy = 0;								// Current y (top) position of the main window based on the m
 
 unsigned char total_tabs = 0;
 
-unsigned char total_columns = 0;
+unsigned char total_columns1 = 0;
 unsigned char total_columns2 = 0;
 unsigned char total_columns3 = 0;
 unsigned char total_columns4 = 0;
+unsigned char total_columns5 = 0;
+unsigned char total_columns6 = 0;
 
 bool last_menu = false;	// true if context menu was last open, false if main menu was last open. See: WM_ENTERMENULOOP
 
@@ -81,25 +92,25 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 
 	int arr[ 17 ];
 
-	if ( si->hWnd == g_hWnd_list )
+	if ( si->hWnd == g_hWnd_call_log )
 	{
 		displayinfo *fi1 = ( displayinfo * )( ( si->direction == 1 ) ? lParam1 : lParam2 );
 		displayinfo *fi2 = ( displayinfo * )( ( si->direction == 1 ) ? lParam2 : lParam1 );
 
-		_SendMessageW( g_hWnd_list, LVM_GETCOLUMNORDERARRAY, total_columns, ( LPARAM )arr );
+		_SendMessageW( g_hWnd_call_log, LVM_GETCOLUMNORDERARRAY, total_columns1, ( LPARAM )arr );
 
 		// Offset the virtual indices to match the actual index.
-		OffsetVirtualIndices( arr, list_columns, NUM_COLUMNS, total_columns );
+		OffsetVirtualIndices( arr, call_log_columns, NUM_COLUMNS1, total_columns1 );
 
 		switch ( arr[ si->column ] )
 		{
-			case 5:
+			case 4:
 			{
-				if ( fi1->ignore == fi2->ignore )
+				if ( fi1->forward_phone_number == fi2->forward_phone_number )
 				{
 					return 0;
 				}
-				else if ( fi1->ignore == true && fi2->ignore == false )
+				else if ( fi1->forward_phone_number == true && fi2->forward_phone_number == false )
 				{
 					return 1;
 				}
@@ -110,13 +121,13 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 			}
 			break;
 
-			case 3:
+			case 7:
 			{
-				if ( fi1->forward == fi2->forward )
+				if ( fi1->ignore_phone_number == fi2->ignore_phone_number )
 				{
 					return 0;
 				}
-				else if ( fi1->forward == true && fi2->forward == false )
+				else if ( fi1->ignore_phone_number == true && fi2->ignore_phone_number == false )
 				{
 					return 1;
 				}
@@ -128,13 +139,15 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 			break;
 
 			case 1: { return _stricmp_s( fi1->ci.caller_id, fi2->ci.caller_id ); } break;
-			case 7: { return _stricmp_s( fi1->ci.call_reference_id, fi2->ci.call_reference_id ); } break;
+			case 9: { return _stricmp_s( fi1->ci.call_reference_id, fi2->ci.call_reference_id ); } break;
 
-			case 4:
-			case 6:
-			case 8: { return _wcsicmp_s( fi1->display_values[ arr[ si->column ] - 1 ], fi2->display_values[ arr[ si->column ] - 1 ] ); } break;
+			case 5:
+			case 8:
+			case 10: { return _wcsicmp_s( fi1->display_values[ arr[ si->column ] - 1 ], fi2->display_values[ arr[ si->column ] - 1 ] ); } break;
 
 			case 2: { return ( fi1->time.QuadPart > fi2->time.QuadPart ); } break;
+			case 3: { return ( fi1->forward_cid_match_count > fi2->forward_cid_match_count ); } break;
+			case 6: { return ( fi1->ignore_cid_match_count > fi2->ignore_cid_match_count ); } break;
 
 			default:
 			{
@@ -225,8 +238,138 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 			break;
 		}
 	}
+	else if ( si->hWnd == g_hWnd_forward_cid_list )
+	{
+		forwardcidinfo *fi1 = ( forwardcidinfo * )( ( si->direction == 1 ) ? lParam1 : lParam2 );
+		forwardcidinfo *fi2 = ( forwardcidinfo * )( ( si->direction == 1 ) ? lParam2 : lParam1 );
+
+		_SendMessageW( g_hWnd_forward_cid_list, LVM_GETCOLUMNORDERARRAY, total_columns5, ( LPARAM )arr );
+
+		// Offset the virtual indices to match the actual index.
+		OffsetVirtualIndices( arr, forward_cid_list_columns, NUM_COLUMNS5, total_columns5 );
+
+		switch ( arr[ si->column ] )
+		{
+			case 1: { return _stricmp_s( fi1->c_caller_id, fi2->c_caller_id ); } break;
+			case 2: { return _wcsicmp_s( fi1->forward_to, fi2->forward_to ); } break;
+			
+			case 3:
+			{
+				if ( fi1->match_case == fi2->match_case )
+				{
+					return 0;
+				}
+				else if ( fi1->match_case == true && fi2->match_case == false )
+				{
+					return 1;
+				}
+				else
+				{
+					return -1;
+				}
+			}
+			break;
+
+			case 4:
+			{
+				if ( fi1->match_whole_word == fi2->match_whole_word )
+				{
+					return 0;
+				}
+				else if ( fi1->match_whole_word == true && fi2->match_whole_word == false )
+				{
+					return 1;
+				}
+				else
+				{
+					return -1;
+				}
+			}
+			break;
+			
+			case 5:	{ return ( fi1->count > fi2->count ); } break;
+
+			default:
+			{
+				return 0;
+			}
+			break;
+		}
+	}
+	else if ( si->hWnd == g_hWnd_ignore_cid_list )
+	{
+		ignorecidinfo *fi1 = ( ignorecidinfo * )( ( si->direction == 1 ) ? lParam1 : lParam2 );
+		ignorecidinfo *fi2 = ( ignorecidinfo * )( ( si->direction == 1 ) ? lParam2 : lParam1 );
+
+		_SendMessageW( g_hWnd_ignore_cid_list, LVM_GETCOLUMNORDERARRAY, total_columns6, ( LPARAM )arr );
+
+		// Offset the virtual indices to match the actual index.
+		OffsetVirtualIndices( arr, ignore_cid_list_columns, NUM_COLUMNS6, total_columns6 );
+
+		switch ( arr[ si->column ] )
+		{
+			case 1: { return _stricmp_s( fi1->c_caller_id, fi2->c_caller_id ); } break;
+			
+			case 2:
+			{
+				if ( fi1->match_case == fi2->match_case )
+				{
+					return 0;
+				}
+				else if ( fi1->match_case == true && fi2->match_case == false )
+				{
+					return 1;
+				}
+				else
+				{
+					return -1;
+				}
+			}
+			break;
+
+			case 3:
+			{
+				if ( fi1->match_whole_word == fi2->match_whole_word )
+				{
+					return 0;
+				}
+				else if ( fi1->match_whole_word == true && fi2->match_whole_word == false )
+				{
+					return 1;
+				}
+				else
+				{
+					return -1;
+				}
+			}
+			break;
+			
+			case 4:	{ return ( fi1->count > fi2->count ); } break;
+
+			default:
+			{
+				return 0;
+			}
+			break;
+		}
+	}
 
 	return 0;
+}
+
+LRESULT CALLBACK ListSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+{
+	switch ( msg )
+	{
+		case WM_DRAWITEM:
+		{
+			_SendMessageW( g_hWnd_app, msg, wParam, lParam );
+			return 0;
+		}
+		break;
+	}
+
+	return _CallWindowProcW( ListProc, hWnd, msg, wParam, lParam );
 }
 
 LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
@@ -235,36 +378,66 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
     {
 		case WM_CREATE:
 		{
+			g_hWnd_app = hWnd;
+
 			CreateMenus();
 
 			// Set our menu bar.
 			_SetMenu( hWnd, g_hMenu );
 
-			// Create our listview windows.
-			g_hWnd_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, hWnd, NULL, NULL, NULL );
-			_SendMessageW( g_hWnd_list, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
+			g_hWnd_tab = _CreateWindowW( WC_TABCONTROL, NULL, WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE, 0, 0, 0, 0, hWnd, NULL, NULL, NULL );
 
-			g_hWnd_contact_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, hWnd, NULL, NULL, NULL );
+			// Create our listview windows.
+			g_hWnd_call_log = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, g_hWnd_tab, NULL, NULL, NULL );
+			_SendMessageW( g_hWnd_call_log, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
+
+			g_hWnd_contact_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, g_hWnd_tab, NULL, NULL, NULL );
 			_SendMessageW( g_hWnd_contact_list, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
 
-			g_hWnd_ignore_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, hWnd, NULL, NULL, NULL );
-			_SendMessageW( g_hWnd_ignore_list, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
+			g_hWnd_forward_tab = _CreateWindowW( WC_TABCONTROL, NULL, WS_CHILDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, 0, 0, 0, 0, g_hWnd_tab, NULL, NULL, NULL );
 
-			g_hWnd_forward_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, hWnd, NULL, NULL, NULL );
+			g_hWnd_forward_cid_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW | WS_VISIBLE, 0, 0, MIN_WIDTH, MIN_HEIGHT, g_hWnd_forward_tab, NULL, NULL, NULL );
+			_SendMessageW( g_hWnd_forward_cid_list, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
+
+			g_hWnd_forward_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, g_hWnd_forward_tab, NULL, NULL, NULL );
 			_SendMessageW( g_hWnd_forward_list, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
 
+			g_hWnd_ignore_tab = _CreateWindowW( WC_TABCONTROL, NULL, WS_CHILDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, 0, 0, 0, 0, g_hWnd_tab, NULL, NULL, NULL );
 
+			g_hWnd_ignore_cid_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW | WS_VISIBLE, 0, 0, MIN_WIDTH, MIN_HEIGHT, g_hWnd_ignore_tab, NULL, NULL, NULL );
+			_SendMessageW( g_hWnd_ignore_cid_list, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
 
-			g_hWnd_tab = _CreateWindowW( WC_TABCONTROL, NULL, WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE, 0, 0, 0, 0, hWnd, NULL, NULL, NULL );
+			g_hWnd_ignore_list = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW, 0, 0, MIN_WIDTH, MIN_HEIGHT, g_hWnd_ignore_tab, NULL, NULL, NULL );
+			_SendMessageW( g_hWnd_ignore_list, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_HEADERDRAGDROP );
+
+			TCITEM ti;
+			_memzero( &ti, sizeof( TCITEM ) );
+			ti.mask = TCIF_PARAM | TCIF_TEXT;			// The tab will have text and an lParam value.
+
+			ti.pszText = ( LPWSTR )ST_Caller_ID_Names;		// This will simply set the width of each tab item. We're not going to use it.
+			ti.lParam = ( LPARAM )g_hWnd_forward_cid_list;
+			_SendMessageW( g_hWnd_forward_tab, TCM_INSERTITEM, 0, ( LPARAM )&ti );	// Insert a new tab at the end.
+			ti.lParam = ( LPARAM )g_hWnd_ignore_cid_list;
+			_SendMessageW( g_hWnd_ignore_tab, TCM_INSERTITEM, 0, ( LPARAM )&ti );	// Insert a new tab at the end.
+
+			ti.pszText = ( LPWSTR )ST_Phone_Numbers;	// This will simply set the width of each tab item. We're not going to use it.
+			ti.lParam = ( LPARAM )g_hWnd_forward_list;
+			_SendMessageW( g_hWnd_forward_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
+			ti.lParam = ( LPARAM )g_hWnd_ignore_list;
+			_SendMessageW( g_hWnd_ignore_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
+
+			_SendMessageW( g_hWnd_forward_tab, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_ignore_tab, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			ListProc = ( WNDPROC )_GetWindowLongW( g_hWnd_tab, GWL_WNDPROC );
+			_SetWindowLongW( g_hWnd_tab, GWL_WNDPROC, ( LONG )ListSubProc );
+			_SetWindowLongW( g_hWnd_forward_tab, GWL_WNDPROC, ( LONG )ListSubProc );
+			_SetWindowLongW( g_hWnd_ignore_tab, GWL_WNDPROC, ( LONG )ListSubProc );
 
 			TabProc = ( WNDPROC )_GetWindowLongW( g_hWnd_tab, GWL_WNDPROC );
 			_SetWindowLongW( g_hWnd_tab, GWL_WNDPROC, ( LONG )TabSubProc );
 
 			_SendMessageW( g_hWnd_tab, WM_PROPAGATE, 1, 0 );	// Open theme data. Must be done after we subclass the control. Theme object will be closed when the tab control is destroyed.
-
-			TCITEM ti;
-			_memzero( &ti, sizeof( TCITEM ) );
-			ti.mask = TCIF_PARAM | TCIF_TEXT;			// The tab will have text and an lParam value.
 
 			for ( int i = 0; i < 4; ++i )
 			{
@@ -272,11 +445,11 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				{
 					if ( i == 0 )
 					{
-						_ShowWindow( g_hWnd_list, SW_SHOW );
+						_ShowWindow( g_hWnd_call_log, SW_SHOW );
 					}
 
 					ti.pszText = ( LPWSTR )ST_Call_Log;		// This will simply set the width of each tab item. We're not going to use it.
-					ti.lParam = ( LPARAM )g_hWnd_list;
+					ti.lParam = ( LPARAM )g_hWnd_call_log;
 					_SendMessageW( g_hWnd_tab, TCM_INSERTITEM, total_tabs++, ( LPARAM )&ti );	// Insert a new tab at the end.
 				}
 				else if ( i == cfg_tab_order2 )
@@ -294,22 +467,22 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				{
 					if ( i == 0 )
 					{
-						_ShowWindow( g_hWnd_forward_list, SW_SHOW );
+						_ShowWindow( g_hWnd_forward_tab, SW_SHOW );
 					}
 
-					ti.pszText = ( LPWSTR )ST_Forward_List;	// This will simply set the width of each tab item. We're not going to use it.
-					ti.lParam = ( LPARAM )g_hWnd_forward_list;
+					ti.pszText = ( LPWSTR )ST_Forward_Lists;	// This will simply set the width of each tab item. We're not going to use it.
+					ti.lParam = ( LPARAM )g_hWnd_forward_tab;
 					_SendMessageW( g_hWnd_tab, TCM_INSERTITEM, total_tabs++, ( LPARAM )&ti );	// Insert a new tab at the end.
 				}
 				else if ( i == cfg_tab_order4 )
 				{
 					if ( i == 0 )
 					{
-						_ShowWindow( g_hWnd_ignore_list, SW_SHOW );
+						_ShowWindow( g_hWnd_ignore_tab, SW_SHOW );
 					}
 
-					ti.pszText = ( LPWSTR )ST_Ignore_List;	// This will simply set the width of each tab item. We're not going to use it.
-					ti.lParam = ( LPARAM )g_hWnd_ignore_list;
+					ti.pszText = ( LPWSTR )ST_Ignore_Lists;	// This will simply set the width of each tab item. We're not going to use it.
+					ti.lParam = ( LPARAM )g_hWnd_ignore_tab;
 					_SendMessageW( g_hWnd_tab, TCM_INSERTITEM, total_tabs++, ( LPARAM )&ti );	// Insert a new tab at the end.
 				}
 			}
@@ -326,19 +499,19 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			_memzero( &lvc, sizeof( LVCOLUMN ) );
 			lvc.mask = LVCF_WIDTH | LVCF_TEXT;
 
-			for ( char i = 0; i < NUM_COLUMNS; ++i )
+			for ( char i = 0; i < NUM_COLUMNS1; ++i )
 			{
-				if ( *list_columns[ i ] != -1 )
+				if ( *call_log_columns[ i ] != -1 )
 				{
 					lvc.pszText = call_log_string_table[ i ];
-					lvc.cx = *list_columns_width[ i ];
-					_SendMessageW( g_hWnd_list, LVM_INSERTCOLUMN, total_columns, ( LPARAM )&lvc );
+					lvc.cx = *call_log_columns_width[ i ];
+					_SendMessageW( g_hWnd_call_log, LVM_INSERTCOLUMN, total_columns1, ( LPARAM )&lvc );
 
-					arr[ total_columns++ ] = *list_columns[ i ];
+					arr[ total_columns1++ ] = *call_log_columns[ i ];
 				}
 			}
 
-			_SendMessageW( g_hWnd_list, LVM_SETCOLUMNORDERARRAY, total_columns, ( LPARAM )arr );
+			_SendMessageW( g_hWnd_call_log, LVM_SETCOLUMNORDERARRAY, total_columns1, ( LPARAM )arr );
 
 			for ( char i = 0; i < NUM_COLUMNS2; ++i )
 			{
@@ -382,6 +555,34 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 			_SendMessageW( g_hWnd_ignore_list, LVM_SETCOLUMNORDERARRAY, total_columns4, ( LPARAM )arr );
 
+			for ( char i = 0; i < NUM_COLUMNS5; ++i )
+			{
+				if ( *forward_cid_list_columns[ i ] != -1 )
+				{
+					lvc.pszText = forward_cid_list_string_table[ i ];
+					lvc.cx = *forward_cid_list_columns_width[ i ];
+					_SendMessageW( g_hWnd_forward_cid_list, LVM_INSERTCOLUMN, total_columns5, ( LPARAM )&lvc );
+
+					arr[ total_columns5++ ] = *forward_cid_list_columns[ i ];
+				}
+			}
+
+			_SendMessageW( g_hWnd_forward_cid_list, LVM_SETCOLUMNORDERARRAY, total_columns5, ( LPARAM )arr );
+
+			for ( char i = 0; i < NUM_COLUMNS6; ++i )
+			{
+				if ( *ignore_cid_list_columns[ i ] != -1 )
+				{
+					lvc.pszText = ignore_cid_list_string_table[ i ];
+					lvc.cx = *ignore_cid_list_columns_width[ i ];
+					_SendMessageW( g_hWnd_ignore_cid_list, LVM_INSERTCOLUMN, total_columns6, ( LPARAM )&lvc );
+
+					arr[ total_columns6++ ] = *ignore_cid_list_columns[ i ];
+				}
+			}
+
+			_SendMessageW( g_hWnd_ignore_cid_list, LVM_SETCOLUMNORDERARRAY, total_columns6, ( LPARAM )arr );
+
 			if ( cfg_tray_icon == true )
 			{
 				_memzero( &g_nid, sizeof( NOTIFYICONDATA ) );
@@ -419,6 +620,29 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			// iui is freed in the update_ignore_list thread.
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_list, ( void * )iui, 0, NULL ) );
 
+			ignorecidupdateinfo *icidui = ( ignorecidupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignorecidupdateinfo ) );
+			icidui->icidi = NULL;
+			icidui->caller_id = NULL;
+			icidui->action = 2;	// Add all ignore_cid_list items.
+			icidui->hWnd = g_hWnd_ignore_cid_list;
+			icidui->match_case = false;
+			icidui->match_whole_word = false;
+
+			// icidui is freed in the update_ignore_cid_list thread.
+			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_cid_list, ( void * )icidui, 0, NULL ) );
+
+			forwardcidupdateinfo *fcidui = ( forwardcidupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardcidupdateinfo ) );
+			fcidui->fcidi = NULL;
+			fcidui->caller_id = NULL;
+			fcidui->forward_to = NULL;
+			fcidui->action = 2;	// Add all forward_cid_list items.
+			fcidui->hWnd = g_hWnd_forward_cid_list;
+			fcidui->match_case = false;
+			fcidui->match_whole_word = false;
+
+			// fcidui is freed in the update_forward_cid_list thread.
+			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_cid_list, ( void * )fcidui, 0, NULL ) );
+
 			if ( cfg_check_for_updates == true )
 			{
 				// Do not notify if it's up to date.
@@ -435,7 +659,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 		case WM_KEYDOWN:
 		{
 			// We'll just give the listview control focus since it's handling our keypress events.
-			_SetFocus( g_hWnd_list );
+			_SetFocus( GetCurrentListView() );
 
 			return 0;
 		}
@@ -494,7 +718,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				}
 
 				// Allow us to save the call log if there are any entries in the call log listview.
-				_EnableMenuItem( g_hMenu, MENU_SAVE_CALL_LOG, ( _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 ) > 0 ? MF_ENABLED : MF_DISABLED ) );
+				_EnableMenuItem( g_hMenu, MENU_SAVE_CALL_LOG, ( _SendMessageW( g_hWnd_call_log, LVM_GETITEMCOUNT, 0, 0 ) > 0 ? MF_ENABLED : MF_DISABLED ) );
 			}
 			else if ( ( BOOL )wParam == TRUE )
 			{
@@ -521,7 +745,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 		case WM_SIZE:
 		{
-			RECT rc, rc_tab;
+			RECT rc, rc_tab, rc_tab2;
 			_GetClientRect( hWnd, &rc );
 
 			// Calculate the display rectangle, assuming the tab control is the size of the client area.
@@ -529,14 +753,22 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			_SendMessageW( g_hWnd_tab, TCM_ADJUSTRECT, FALSE, ( LPARAM )&rc_tab );
 			rc_tab.top -= 2;	// Cut the last 2 lines off the tab control.
 
-			// Allow our listview to resize in proportion to the main window.
-			HDWP hdwp = _BeginDeferWindowPos( 4 );
-			_DeferWindowPos( hdwp, g_hWnd_tab, HWND_TOP, 1, 0, rc.right, rc.bottom, 0 );
-			_DeferWindowPos( hdwp, g_hWnd_list, HWND_TOP, 2, rc_tab.top + 2, rc.right - rc.left - 4, rc.bottom - rc_tab.top - 4, 0 );
-			_DeferWindowPos( hdwp, g_hWnd_contact_list, HWND_TOP, 2, rc_tab.top + 2, rc.right - rc.left - 4, rc.bottom - rc_tab.top - 4, 0 );
-			_DeferWindowPos( hdwp, g_hWnd_ignore_list, HWND_TOP, 2, rc_tab.top + 2, rc.right - rc.left - 4, rc.bottom - rc_tab.top - 4, 0 );
-			_DeferWindowPos( hdwp, g_hWnd_forward_list, HWND_TOP, 2, rc_tab.top + 2, rc.right - rc.left - 4, rc.bottom - rc_tab.top - 4, 0 );
-			_EndDeferWindowPos( hdwp );
+			_SetRect( &rc_tab2, 0, 0, rc.right, rc.bottom );
+			_SendMessageW( g_hWnd_forward_tab, TCM_ADJUSTRECT, FALSE, ( LPARAM )&rc_tab2 );
+			rc_tab2.top -= 2;	// Cut the last 2 lines off the tab control.
+
+			_SetWindowPos( g_hWnd_tab, NULL, 1, 0, rc.right, rc.bottom, 0 );
+			_SetWindowPos( g_hWnd_call_log, NULL, 1, rc_tab.top + 1, rc.right - rc.left - 4, rc.bottom - rc_tab.top - 3, 0 );
+			_SetWindowPos( g_hWnd_contact_list, NULL, 1, rc_tab.top + 1, rc.right - rc.left - 4, rc.bottom - rc_tab.top - 3, 0 );
+			_SetWindowPos( g_hWnd_forward_list, NULL, 1, rc_tab.top + 1, rc.right - rc.left - 4, rc.bottom - rc_tab.top - 3, 0 );
+
+			_SetWindowPos( g_hWnd_forward_tab, NULL, 8, 8 + rc_tab2.top + 1, rc.right - rc.left - 16, rc.bottom - rc_tab2.top - 3 - 16, 0 );
+			_SetWindowPos( g_hWnd_forward_list, NULL, 1, rc_tab2.top + 1, rc.right - rc.left - 20, rc.bottom - rc_tab2.top - 3 - 39, 0 );
+			_SetWindowPos( g_hWnd_forward_cid_list, NULL, 1, rc_tab2.top + 1, rc.right - rc.left - 20, rc.bottom - rc_tab2.top - 3 - 39, 0 );
+
+			_SetWindowPos( g_hWnd_ignore_tab, NULL, 8, 8 + rc_tab2.top + 1, rc.right - rc.left - 16, rc.bottom - rc_tab2.top - 3 - 16, 0 );
+			_SetWindowPos( g_hWnd_ignore_list, NULL, 1, rc_tab2.top + 1, rc.right - rc.left - 20, rc.bottom - rc_tab2.top - 3 - 39, 0 );
+			_SetWindowPos( g_hWnd_ignore_cid_list, NULL, 1, rc_tab2.top + 1, rc.right - rc.left - 20, rc.bottom - rc_tab2.top - 3 - 39, 0 );
 
 			return 0;
 		}
@@ -666,35 +898,35 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						{
 							case 0:
 							{
-								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_IGNORE_LIST, 0 ), 0 );
+								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_CALL_LOG, 0 ), 0 );
 							}
 							break;
 
 							case 1:
 							{
-								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_CALL_LOG, 0 ), 0 );
+								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_CONTACT_LIST, 0 ), 0 );
 							}
 							break;
 
 							case 2:
 							{
-								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_CONTACT_LIST, 0 ), 0 );
+								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_FORWARD_LISTS, 0 ), 0 );
 							}
 							break;
 
 							case 3:
 							{
-								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_FORWARD_LIST, 0 ), 0 );
+								_SendMessageW( hWnd, WM_COMMAND, MAKEWPARAM( MENU_VIEW_IGNORE_LISTS, 0 ), 0 );
 							}
 							break;
 						}
 					}
 					break;
 
-					case MENU_VIEW_IGNORE_LIST:
 					case MENU_VIEW_CALL_LOG:
 					case MENU_VIEW_CONTACT_LIST:
-					case MENU_VIEW_FORWARD_LIST:
+					case MENU_VIEW_FORWARD_LISTS:
+					case MENU_VIEW_IGNORE_LISTS:
 					{
 						char *tab_index = NULL;
 						HWND t_hWnd = NULL;
@@ -706,7 +938,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( LOWORD( wParam ) == MENU_VIEW_CALL_LOG )
 						{
 							tab_index = &cfg_tab_order1;
-							t_hWnd = g_hWnd_list;
+							t_hWnd = g_hWnd_call_log;
 							ti.pszText = ( LPWSTR )ST_Call_Log;		// This will simply set the width of each tab item. We're not going to use it.
 						}
 						else if ( LOWORD( wParam ) == MENU_VIEW_CONTACT_LIST )
@@ -715,17 +947,17 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							t_hWnd = g_hWnd_contact_list;
 							ti.pszText = ( LPWSTR )ST_Contact_List;		// This will simply set the width of each tab item. We're not going to use it.
 						}
-						else if ( LOWORD( wParam ) == MENU_VIEW_FORWARD_LIST )
+						else if ( LOWORD( wParam ) == MENU_VIEW_FORWARD_LISTS )
 						{
 							tab_index = &cfg_tab_order3;
-							t_hWnd = g_hWnd_forward_list;
-							ti.pszText = ( LPWSTR )ST_Forward_List;		// This will simply set the width of each tab item. We're not going to use it.
+							t_hWnd = g_hWnd_forward_tab;
+							ti.pszText = ( LPWSTR )ST_Forward_Lists;		// This will simply set the width of each tab item. We're not going to use it.
 						}
-						else if ( LOWORD( wParam ) == MENU_VIEW_IGNORE_LIST )
+						else if ( LOWORD( wParam ) == MENU_VIEW_IGNORE_LISTS )
 						{
 							tab_index = &cfg_tab_order4;
-							t_hWnd = g_hWnd_ignore_list;
-							ti.pszText = ( LPWSTR )ST_Ignore_List;		// This will simply set the width of each tab item. We're not going to use it.
+							t_hWnd = g_hWnd_ignore_tab;
+							ti.pszText = ( LPWSTR )ST_Ignore_Lists;		// This will simply set the width of each tab item. We're not going to use it.
 						}
 
 						if ( *tab_index != -1 )	// Remove the tab.
@@ -820,19 +1052,23 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					case MENU_COPY_SEL_COL33:
 					case MENU_COPY_SEL_COL41:
 					case MENU_COPY_SEL_COL42:
+					case MENU_COPY_SEL_COL51:
+					case MENU_COPY_SEL_COL52:
+					case MENU_COPY_SEL_COL53:
+					case MENU_COPY_SEL_COL54:
+					case MENU_COPY_SEL_COL55:
+					case MENU_COPY_SEL_COL61:
+					case MENU_COPY_SEL_COL62:
+					case MENU_COPY_SEL_COL63:
+					case MENU_COPY_SEL_COL64:
 					case MENU_COPY_SEL:
 					{
-						int index = _SendMessageW( g_hWnd_tab, TCM_GETCURSEL, 0, 0 );		// Get the selected tab
-						if ( index != -1 )
+						HWND c_hWnd = GetCurrentListView();
+						if ( c_hWnd != NULL )
 						{
-							TCITEM tie;
-							_memzero( &tie, sizeof( TCITEM ) );
-							tie.mask = TCIF_PARAM; // Get the lparam value
-							_SendMessageW( g_hWnd_tab, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-							
 							copyinfo *ci = ( copyinfo * )GlobalAlloc( GMEM_FIXED, sizeof( copyinfo ) );
 							ci->column = LOWORD( wParam );
-							ci->hWnd = ( HWND )tie.lParam;
+							ci->hWnd = c_hWnd;
 
 							// ci is freed in the copy items thread.
 							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, copy_items, ( void * )ci, 0, NULL ) );
@@ -842,45 +1078,40 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_REMOVE_SEL:
 					{
-						int index = _SendMessageW( g_hWnd_tab, TCM_GETCURSEL, 0, 0 );		// Get the selected tab
-						if ( index != -1 )
+						HWND c_hWnd = GetCurrentListView();
+						if ( c_hWnd != NULL )
 						{
-							TCITEM tie;
-							_memzero( &tie, sizeof( TCITEM ) );
-							tie.mask = TCIF_PARAM; // Get the lparam value
-							_SendMessageW( g_hWnd_tab, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-							
-							if ( ( HWND )tie.lParam == g_hWnd_list )
+							if ( c_hWnd == g_hWnd_call_log )
 							{
-								if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
+								if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
 								{
 									removeinfo *ri = ( removeinfo * )GlobalAlloc( GMEM_FIXED, sizeof( removeinfo ) );
 									ri->disable_critical_section = false;
-									ri->hWnd = g_hWnd_list;
+									ri->hWnd = g_hWnd_call_log;
 
 									// ri will be freed in the remove_items thread.
 									CloseHandle( ( HANDLE )_CreateThread( NULL, 0, remove_items, ( void * )ri, 0, NULL ) );
 								}
 							}
-							else if ( ( HWND )tie.lParam == g_hWnd_contact_list )
+							else if ( c_hWnd == g_hWnd_contact_list )
 							{
 								// Remove the first selected (not the focused & selected).
 								LVITEM lvi;
 								_memzero( &lvi, sizeof( LVITEM ) );
 								lvi.mask = LVIF_PARAM;
-								lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETNEXTITEM, -1, LVNI_SELECTED );//_SendMessageW( g_hWnd_contact_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+								lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETNEXTITEM, -1, LVNI_SELECTED );
 
 								if ( lvi.iItem != -1 )
 								{
 									_SendMessageW( g_hWnd_contact_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
-									if ( _MessageBoxW( hWnd, ST_PROMPT_delete_contact, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
+									if ( _MessageBoxW( hWnd, ST_PROMPT_delete_contact, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
 									{
 										CloseHandle( ( HANDLE )_CreateThread( NULL, 0, DeleteContact, ( void * )( ( contactinfo * )lvi.lParam ), 0, NULL ) );
 									}
 								}
 							}
-							else if ( ( HWND )tie.lParam == g_hWnd_ignore_list )
+							else if ( c_hWnd == g_hWnd_ignore_list )
 							{
 								// Retrieve the lParam value from the selected listview item.
 								LVITEM lvi;
@@ -890,7 +1121,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 								if ( lvi.iItem != -1 )
 								{
-									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
 									{
 										ignoreupdateinfo *iui = ( ignoreupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreupdateinfo ) );
 										iui->ii = NULL;
@@ -903,7 +1134,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 									}
 								}
 							}
-							else if ( ( HWND )tie.lParam == g_hWnd_forward_list )
+							else if ( c_hWnd == g_hWnd_forward_list )
 							{
 								// Retrieve the lParam value from the selected listview item.
 								LVITEM lvi;
@@ -913,7 +1144,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 								if ( lvi.iItem != -1 )
 								{
-									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
 									{
 										forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
 										fui->fi = NULL;
@@ -927,52 +1158,75 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 									}
 								}
 							}
+							else if ( c_hWnd == g_hWnd_ignore_cid_list )
+							{
+								// Retrieve the lParam value from the selected listview item.
+								LVITEM lvi;
+								_memzero( &lvi, sizeof( LVITEM ) );
+								lvi.mask = LVIF_PARAM;
+								lvi.iItem = _SendMessageW( g_hWnd_ignore_cid_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+								if ( lvi.iItem != -1 )
+								{
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
+									{
+										ignorecidupdateinfo *icidui = ( ignorecidupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignorecidupdateinfo ) );
+										icidui->icidi = NULL;
+										icidui->caller_id = NULL;
+										icidui->match_case = false;
+										icidui->match_whole_word = false;
+										icidui->action = 1;	// 1 = Remove, 0 = Add
+										icidui->hWnd = g_hWnd_ignore_cid_list;
+
+										// icidui is freed in the update_ignore_cid_list thread.
+										CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_cid_list, ( void * )icidui, 0, NULL ) );
+									}
+								}
+							}
+							else if ( c_hWnd == g_hWnd_forward_cid_list )
+							{
+								// Retrieve the lParam value from the selected listview item.
+								LVITEM lvi;
+								_memzero( &lvi, sizeof( LVITEM ) );
+								lvi.mask = LVIF_PARAM;
+								lvi.iItem = _SendMessageW( g_hWnd_forward_cid_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+								if ( lvi.iItem != -1 )
+								{
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
+									{
+										forwardcidupdateinfo *fcidui = ( forwardcidupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardcidupdateinfo ) );
+										fcidui->fcidi = NULL;
+										fcidui->caller_id = NULL;
+										fcidui->forward_to = NULL;
+										fcidui->match_case = false;
+										fcidui->match_whole_word = false;
+										fcidui->action = 1;	// 1 = Remove, 0 = Add
+										fcidui->hWnd = g_hWnd_forward_cid_list;
+
+										// fcidui is freed in the update_forward_cid_list thread.
+										CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_cid_list, ( void * )fcidui, 0, NULL ) );
+									}
+								}
+							}
 						}
 					}
 					break;
 
 					case MENU_SELECT_ALL:
 					{
-						int index = _SendMessageW( g_hWnd_tab, TCM_GETCURSEL, 0, 0 );		// Get the selected tab
-						if ( index != -1 )
+						HWND c_hWnd = GetCurrentListView();
+						if ( c_hWnd != NULL )
 						{
-							TCITEM tie;
-							_memzero( &tie, sizeof( TCITEM ) );
-							tie.mask = TCIF_PARAM; // Get the lparam value
-							_SendMessageW( g_hWnd_tab, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-							
 							// Set the state of all items to selected.
 							LVITEM lvi;
 							_memzero( &lvi, sizeof( LVITEM ) );
 							lvi.mask = LVIF_STATE;
 							lvi.state = LVIS_SELECTED;
 							lvi.stateMask = LVIS_SELECTED;
-							_SendMessageW( ( HWND )tie.lParam, LVM_SETITEMSTATE, -1, ( LPARAM )&lvi );
+							_SendMessageW( c_hWnd, LVM_SETITEMSTATE, -1, ( LPARAM )&lvi );
 
 							UpdateMenus( UM_ENABLE );
-						}
-					}
-					break;
-
-					case MENU_INCOMING_IGNORE:
-					{
-						LVITEM lvi;
-						_memzero( &lvi, sizeof( LVITEM ) );
-						lvi.mask = LVIF_PARAM;
-						lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-						if ( lvi.iItem != -1 )
-						{
-							_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-							displayinfo *di = ( displayinfo * )lvi.lParam;
-
-							di->process_incoming = false;
-							di->ci.ignored = true;
-
-							_InvalidateRect( g_hWnd_list, NULL, TRUE );
-
-							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, IgnoreIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
 						}
 					}
 					break;
@@ -1016,81 +1270,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						unsigned short column = ( unsigned short )mii.dwItemData;
 
-						char *phone_number = NULL;
-
-						LVITEM lvi;
-						_memzero( &lvi, sizeof( LVITEM ) );
-						lvi.mask = LVIF_PARAM;
-
-						if ( column == MENU_CALL_PHONE_COL14 ||
-							 column == MENU_CALL_PHONE_COL16 ||
-							 column == MENU_CALL_PHONE_COL18 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								switch ( column )
-								{
-									case MENU_CALL_PHONE_COL14: { phone_number = ( ( displayinfo * )lvi.lParam )->ci.forward_to; } break;
-									case MENU_CALL_PHONE_COL16: { phone_number = ( ( displayinfo * )lvi.lParam )->ci.call_from; } break;
-									case MENU_CALL_PHONE_COL18: { phone_number = ( ( displayinfo * )lvi.lParam )->ci.call_to; } break;
-								}
-							}
-						}
-						else if ( column == MENU_CALL_PHONE_COL21 ||
-								  column == MENU_CALL_PHONE_COL25 ||
-								  column == MENU_CALL_PHONE_COL27 ||
-								  column == MENU_CALL_PHONE_COL211 ||
-								  column == MENU_CALL_PHONE_COL212 || 
-								  column == MENU_CALL_PHONE_COL216 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_contact_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								switch ( column )
-								{
-									case MENU_CALL_PHONE_COL21: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.cell_phone_number; } break;
-									case MENU_CALL_PHONE_COL25: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.fax_number; } break;
-									case MENU_CALL_PHONE_COL27: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.home_phone_number; } break;
-									case MENU_CALL_PHONE_COL211: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.office_phone_number; } break;
-									case MENU_CALL_PHONE_COL212: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.other_phone_number; } break;
-									case MENU_CALL_PHONE_COL216: { phone_number = ( ( contactinfo * )lvi.lParam )->contact.work_phone_number; } break;
-								}
-							}
-						}
-						else if ( column == MENU_CALL_PHONE_COL31 ||
-								  column == MENU_CALL_PHONE_COL32 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_forward_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_forward_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								switch ( column )
-								{
-									case MENU_CALL_PHONE_COL31: { phone_number = ( ( forwardinfo * )lvi.lParam )->c_forward_to; } break;
-									case MENU_CALL_PHONE_COL32: { phone_number = ( ( forwardinfo * )lvi.lParam )->c_call_from; } break;
-								}
-							}
-						}
-						else if ( column == MENU_CALL_PHONE_COL41 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_ignore_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_ignore_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								phone_number = ( ( ignoreinfo * )lvi.lParam )->c_phone_number;
-							}
-						}
+						char *phone_number = GetSelectedColumnPhoneNumber( column );
 
 						wchar_t *url = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * 128 );
 						_memzero( url, sizeof( wchar_t ) * 128 );
@@ -1143,9 +1323,9 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					}
 					break;
 
-					case MENU_CALL_PHONE_COL14:
-					case MENU_CALL_PHONE_COL16:
+					case MENU_CALL_PHONE_COL15:
 					case MENU_CALL_PHONE_COL18:
+					case MENU_CALL_PHONE_COL110:
 					case MENU_CALL_PHONE_COL21:
 					case MENU_CALL_PHONE_COL25:
 					case MENU_CALL_PHONE_COL27:
@@ -1155,83 +1335,10 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					case MENU_CALL_PHONE_COL31:
 					case MENU_CALL_PHONE_COL32:
 					case MENU_CALL_PHONE_COL41:
+					case MENU_CALL_PHONE_COL52:
 					case MENU_DIAL_PHONE_NUM:
 					{
-						char *call_to = NULL;
-
-						LVITEM lvi;
-						_memzero( &lvi, sizeof( LVITEM ) );
-						lvi.mask = LVIF_PARAM;
-
-						if ( LOWORD( wParam ) == MENU_CALL_PHONE_COL14 ||
-							 LOWORD( wParam ) == MENU_CALL_PHONE_COL16 ||
-							 LOWORD( wParam ) == MENU_CALL_PHONE_COL18 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								switch ( LOWORD( wParam ) )
-								{
-									case MENU_CALL_PHONE_COL14: { call_to = ( ( displayinfo * )lvi.lParam )->ci.forward_to; } break;
-									case MENU_CALL_PHONE_COL16: { call_to = ( ( displayinfo * )lvi.lParam )->ci.call_from; } break;
-									case MENU_CALL_PHONE_COL18: { call_to = ( ( displayinfo * )lvi.lParam )->ci.call_to; } break;
-								}
-							}
-						}
-						else if ( LOWORD( wParam ) == MENU_CALL_PHONE_COL21 ||
-								  LOWORD( wParam ) == MENU_CALL_PHONE_COL25 ||
-								  LOWORD( wParam ) == MENU_CALL_PHONE_COL27 ||
-								  LOWORD( wParam ) == MENU_CALL_PHONE_COL211 ||
-								  LOWORD( wParam ) == MENU_CALL_PHONE_COL212 || 
-								  LOWORD( wParam ) == MENU_CALL_PHONE_COL216 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_contact_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								switch ( LOWORD( wParam ) )
-								{
-									case MENU_CALL_PHONE_COL21: { call_to = ( ( contactinfo * )lvi.lParam )->contact.cell_phone_number; } break;
-									case MENU_CALL_PHONE_COL25: { call_to = ( ( contactinfo * )lvi.lParam )->contact.fax_number; } break;
-									case MENU_CALL_PHONE_COL27: { call_to = ( ( contactinfo * )lvi.lParam )->contact.home_phone_number; } break;
-									case MENU_CALL_PHONE_COL211: { call_to = ( ( contactinfo * )lvi.lParam )->contact.office_phone_number; } break;
-									case MENU_CALL_PHONE_COL212: { call_to = ( ( contactinfo * )lvi.lParam )->contact.other_phone_number; } break;
-									case MENU_CALL_PHONE_COL216: { call_to = ( ( contactinfo * )lvi.lParam )->contact.work_phone_number; } break;
-								}
-							}
-						}
-						else if ( LOWORD( wParam ) == MENU_CALL_PHONE_COL31 ||
-								  LOWORD( wParam ) == MENU_CALL_PHONE_COL32 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_forward_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_forward_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								switch ( LOWORD( wParam ) )
-								{
-									case MENU_CALL_PHONE_COL31: { call_to = ( ( forwardinfo * )lvi.lParam )->c_forward_to; } break;
-									case MENU_CALL_PHONE_COL32: { call_to = ( ( forwardinfo * )lvi.lParam )->c_call_from; } break;
-								}
-							}
-						}
-						else if ( LOWORD( wParam ) == MENU_CALL_PHONE_COL41 )
-						{
-							lvi.iItem = _SendMessageW( g_hWnd_ignore_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-							if ( lvi.iItem != -1 )
-							{
-								_SendMessageW( g_hWnd_ignore_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-								call_to = ( ( ignoreinfo * )lvi.lParam )->c_phone_number;
-							}
-						}
+						char *call_to = GetSelectedColumnPhoneNumber( LOWORD( wParam ) );
 
 						if ( g_hWnd_dial == NULL )
 						{
@@ -1241,6 +1348,29 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						_SendMessageW( g_hWnd_dial, WM_PROPAGATE, 0, ( LPARAM )call_to );
 
 						_SetForegroundWindow( g_hWnd_dial );
+					}
+					break;
+
+					case MENU_INCOMING_IGNORE:
+					{
+						LVITEM lvi;
+						_memzero( &lvi, sizeof( LVITEM ) );
+						lvi.mask = LVIF_PARAM;
+						lvi.iItem = _SendMessageW( g_hWnd_call_log, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+						if ( lvi.iItem != -1 )
+						{
+							_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
+
+							displayinfo *di = ( displayinfo * )lvi.lParam;
+
+							di->process_incoming = false;
+							di->ci.ignored = true;
+
+							_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
+
+							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, IgnoreIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
+						}
 					}
 					break;
 
@@ -1258,26 +1388,108 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					}
 					break;
 
+					case MENU_EDIT_IGNORE_CID_LIST:
+					case MENU_ADD_IGNORE_CID_LIST:	// ignore cid list listview right click.
+					{
+						if ( g_hWnd_ignore_cid == NULL )
+						{
+							g_hWnd_ignore_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Ignore_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 205, 170, NULL, NULL, NULL, ( LPVOID )0 );
+						}
+
+						if ( LOWORD( wParam ) == MENU_ADD_IGNORE_CID_LIST )
+						{
+							_SendMessageW( g_hWnd_ignore_cid, WM_PROPAGATE, 2, 0 );
+						}
+						else if ( LOWORD( wParam ) == MENU_EDIT_IGNORE_CID_LIST )
+						{
+							LVITEM lvi;
+							_memzero( &lvi, sizeof( LVITEM ) );
+							lvi.mask = LVIF_PARAM;
+							lvi.iItem = _SendMessageW( g_hWnd_ignore_cid_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+							if ( lvi.iItem != -1 )
+							{
+								_SendMessageW( g_hWnd_ignore_cid_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+								_SendMessageW( g_hWnd_ignore_cid, WM_PROPAGATE, 4, lvi.lParam );
+							}
+						}
+
+						_SetForegroundWindow( g_hWnd_ignore_cid );
+					}
+					break;
+
 					case MENU_IGNORE_LIST:	// call log listview right click.
+					case MENU_IGNORE_CID_LIST:	// call log listview right click.
 					{
 						// Retrieve the lParam value from the selected listview item.
 						LVITEM lvi;
 						_memzero( &lvi, sizeof( LVITEM ) );
 						lvi.mask = LVIF_PARAM;
-						lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+						lvi.iItem = _SendMessageW( g_hWnd_call_log, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
 
 						if ( lvi.iItem != -1 )
 						{
-							_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+							_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
-							ignoreupdateinfo *iui = ( ignoreupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreupdateinfo ) );
-							iui->ii = NULL;
-							iui->phone_number = NULL;
-							iui->action = ( ( ( displayinfo * )lvi.lParam )->ignore == true ? 1 : 0 );	// 1 = Remove, 0 = Add
-							iui->hWnd = g_hWnd_list;
+							if ( LOWORD( wParam ) == MENU_IGNORE_LIST )
+							{
+								// This item we've selected is in the ignorelist tree.
+								if ( ( ( displayinfo * )lvi.lParam )->ignore_phone_number == true )
+								{
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries_ipn, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
+									{
+										ignoreupdateinfo *iui = ( ignoreupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreupdateinfo ) );
+										iui->ii = NULL;
+										iui->phone_number = NULL;
+										iui->action = 1;	// 1 = Remove, 0 = Add
+										iui->hWnd = g_hWnd_call_log;
 
-							// iui is freed in the update_ignore_list thread.
-							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_list, ( void * )iui, 0, NULL ) );
+										// iui is freed in the update_ignore_list thread.
+										CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_list, ( void * )iui, 0, NULL ) );
+									}
+								}
+								else	// Add items to the ignore list.
+								{
+									ignoreupdateinfo *iui = ( ignoreupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreupdateinfo ) );
+									iui->ii = NULL;
+									iui->phone_number = NULL;
+									iui->action = 0;	// 1 = Remove, 0 = Add
+									iui->hWnd = g_hWnd_call_log;
+
+									// iui is freed in the update_ignore_list thread.
+									CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_list, ( void * )iui, 0, NULL ) );
+								}
+							}
+							else if ( LOWORD( wParam ) == MENU_IGNORE_CID_LIST )
+							{
+								// This item we've selected is in the ignorecidlist tree.
+								if ( ( ( displayinfo * )lvi.lParam )->ignore_cid_match_count > 0 )
+								{
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries_icid, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
+									{
+										ignorecidupdateinfo *icidui = ( ignorecidupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignorecidupdateinfo ) );
+										icidui->icidi = NULL;
+										icidui->caller_id = NULL;
+										icidui->match_case = false;
+										icidui->match_whole_word = false;
+										icidui->action = 1;	// 1 = Remove, 0 = Add
+										icidui->hWnd = g_hWnd_call_log;
+
+										// Remove items.
+										CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_ignore_cid_list, ( void * )icidui, 0, NULL ) );
+									}
+								}
+								else	// The item we've selected is not in the ignorecidlist tree. Prompt the user.
+								{
+									if ( g_hWnd_ignore_cid == NULL )
+									{
+										g_hWnd_ignore_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Ignore_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 205, 170, NULL, NULL, NULL, ( LPVOID )0 );
+									}
+
+									_SendMessageW( g_hWnd_ignore_cid, WM_PROPAGATE, ( _SendMessageW( g_hWnd_call_log, LVM_GETSELECTEDCOUNT, 0, 0 ) > 1 ? 6 : 2 ), lvi.lParam );
+
+									_SetForegroundWindow( g_hWnd_ignore_cid );
+								}
+							}
 						}
 					}
 					break;
@@ -1314,11 +1526,11 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							}
 							else if ( LOWORD( wParam ) == MENU_INCOMING_FORWARD )
 							{
-								lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+								lvi.iItem = _SendMessageW( g_hWnd_call_log, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
 
 								if ( lvi.iItem != -1 )
 								{
-									_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+									_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 									_SendMessageW( g_hWnd_forward, WM_PROPAGATE, 4, lvi.lParam );
 								}
 							}
@@ -1328,42 +1540,110 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					}
 					break;
 
+					case MENU_EDIT_FORWARD_CID_LIST:
+					case MENU_ADD_FORWARD_CID_LIST:	// forward cid list listview right click.
+					{
+						if ( g_hWnd_forward_cid == NULL )
+						{
+							g_hWnd_forward_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Forward_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 210 ) / 2 ), 205, 210, NULL, NULL, NULL, ( LPVOID )1 );
+						}
+
+						if ( LOWORD( wParam ) == MENU_ADD_FORWARD_CID_LIST )
+						{
+							_SendMessageW( g_hWnd_forward_cid, WM_PROPAGATE, 1, 0 );
+						}
+						else if ( LOWORD( wParam ) == MENU_EDIT_FORWARD_CID_LIST )
+						{
+							LVITEM lvi;
+							_memzero( &lvi, sizeof( LVITEM ) );
+							lvi.mask = LVIF_PARAM;
+							lvi.iItem = _SendMessageW( g_hWnd_forward_cid_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+							if ( lvi.iItem != -1 )
+							{
+								_SendMessageW( g_hWnd_forward_cid_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+								_SendMessageW( g_hWnd_forward_cid, WM_PROPAGATE, 3, lvi.lParam );
+							}
+						}
+
+						_SetForegroundWindow( g_hWnd_forward_cid );
+					}
+					break;
+
 					case MENU_FORWARD_LIST:	// call log listview right click.
+					case MENU_FORWARD_CID_LIST:	// call log listview right click.
 					{
 						// Retrieve the lParam value from the selected listview item.
 						LVITEM lvi;
 						_memzero( &lvi, sizeof( LVITEM ) );
 						lvi.mask = LVIF_PARAM;
-						lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+						lvi.iItem = _SendMessageW( g_hWnd_call_log, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
 
 						if ( lvi.iItem != -1 )
 						{
-							_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+							_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
-							// This item we've selected is in the forwardlist tree.
-							if ( ( ( displayinfo * )lvi.lParam )->forward == true )
+							if ( LOWORD( wParam ) == MENU_FORWARD_LIST )
 							{
-								forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
-								fui->fi = NULL;
-								fui->call_from = NULL;
-								fui->forward_to = NULL;
-								fui->action = 1;	// 1 = Remove, 0 = Add
-								fui->hWnd = g_hWnd_list;
-
-								// Remove items.
-								CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_list, ( void * )fui, 0, NULL ) );
-							}
-							else	// The item we've selected is not in the forwardlist tree. Prompt the user for a number to forward.
-							{
-								if ( g_hWnd_forward == NULL )
+								// This item we've selected is in the forwardlist tree.
+								if ( ( ( displayinfo * )lvi.lParam )->forward_phone_number == true )
 								{
-									// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
-									g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries_fpn, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
+									{
+										forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
+										fui->fi = NULL;
+										fui->call_from = NULL;
+										fui->forward_to = NULL;
+										fui->action = 1;	// 1 = Remove, 0 = Add
+										fui->hWnd = g_hWnd_call_log;
+
+										// Remove items.
+										CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_list, ( void * )fui, 0, NULL ) );
+									}
 								}
+								else	// The item we've selected is not in the forwardlist tree. Prompt the user for a number to forward.
+								{
+									if ( g_hWnd_forward == NULL )
+									{
+										// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
+										g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
+									}
 
-								_SendMessageW( g_hWnd_forward, WM_PROPAGATE, 1, lvi.lParam );
+									_SendMessageW( g_hWnd_forward, WM_PROPAGATE, ( _SendMessageW( g_hWnd_call_log, LVM_GETSELECTEDCOUNT, 0, 0 ) > 1 ? 5 : 1 ), lvi.lParam );
 
-								_SetForegroundWindow( g_hWnd_forward );
+									_SetForegroundWindow( g_hWnd_forward );
+								}
+							}
+							else if ( LOWORD( wParam ) == MENU_FORWARD_CID_LIST )
+							{
+								// This item we've selected is in the forwardcidlist tree.
+								if ( ( ( displayinfo * )lvi.lParam )->forward_cid_match_count > 0 )
+								{
+									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries_fcid, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
+									{
+										forwardcidupdateinfo *fcidui = ( forwardcidupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardcidupdateinfo ) );
+										fcidui->fcidi = NULL;
+										fcidui->caller_id = NULL;
+										fcidui->forward_to = NULL;
+										fcidui->match_case = false;
+										fcidui->match_whole_word = false;
+										fcidui->action = 1;	// 1 = Remove, 0 = Add
+										fcidui->hWnd = g_hWnd_call_log;
+
+										// Remove items.
+										CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_cid_list, ( void * )fcidui, 0, NULL ) );
+									}
+								}
+								else	// The item we've selected is not in the forwardcidlist tree. Prompt the user.
+								{
+									if ( g_hWnd_forward_cid == NULL )
+									{
+										g_hWnd_forward_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Forward_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 210 ) / 2 ), 205, 210, NULL, NULL, NULL, ( LPVOID )1 );
+									}
+
+									_SendMessageW( g_hWnd_forward_cid, WM_PROPAGATE, ( _SendMessageW( g_hWnd_call_log, LVM_GETSELECTEDCOUNT, 0, 0 ) > 1 ? 5 : 1 ), lvi.lParam );
+
+									_SetForegroundWindow( g_hWnd_forward );
+								}
 							}
 						}
 					}
@@ -1374,30 +1654,27 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( g_hWnd_columns == NULL )
 						{
 							// Show columns window.
-							g_hWnd_columns = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"columns", ST_Select_Columns, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 425 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 260 ) / 2 ), 425, 260, NULL, NULL, NULL, NULL );
+							g_hWnd_columns = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"columns", ST_Select_Columns, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 410 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - MIN_HEIGHT ) / 2 ), 410, MIN_HEIGHT, NULL, NULL, NULL, NULL );
 						}
 
-						int index = _SendMessageW( g_hWnd_tab, TCM_GETCURSEL, 0, 0 );		// Get the selected tab
-						if ( index != -1 )
+						unsigned char index = 0;
+
+						HWND c_hWnd = GetCurrentListView();
+						if ( c_hWnd != NULL )
 						{
-							TCITEM tie;
-							_memzero( &tie, sizeof( TCITEM ) );
-							tie.mask = TCIF_PARAM; // Get the lparam value
-							_SendMessageW( g_hWnd_tab, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-							
-							if ( ( HWND )tie.lParam == g_hWnd_list )
+							if ( c_hWnd == g_hWnd_call_log )
 							{
 								index = 0;
 							}
-							else if ( ( HWND )tie.lParam == g_hWnd_contact_list )
+							else if ( c_hWnd == g_hWnd_contact_list )
 							{
 								index = 1;
 							}
-							else if ( ( HWND )tie.lParam == g_hWnd_forward_list )
+							else if ( c_hWnd == g_hWnd_forward_list || c_hWnd == g_hWnd_forward_cid_list )
 							{
 								index = 2;
 							}
-							else if ( ( HWND )tie.lParam == g_hWnd_ignore_list )
+							else if ( c_hWnd == g_hWnd_ignore_list || c_hWnd == g_hWnd_ignore_cid_list )
 							{
 								index = 3;
 							}
@@ -1590,7 +1867,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_options == NULL )
 						{
-							g_hWnd_options = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 580 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 385 ) / 2 ), 580, 385, NULL, NULL, NULL, NULL );
+							g_hWnd_options = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 600 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 395 ) / 2 ), 600, 395, NULL, NULL, NULL, NULL );
 							_ShowWindow( g_hWnd_options, SW_SHOWNORMAL );
 						}
 						_SetForegroundWindow( g_hWnd_options );
@@ -1632,7 +1909,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.1.4\r\n\r\nCopyright \xA9 2013-2014 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.1.5\r\n\r\nCopyright \xA9 2013-2014 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -1735,12 +2012,22 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					if ( index != -1 )
 					{
 						_SendMessageW( nmhdr->hwndFrom, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-						_ShowWindow( ( HWND )( tie.lParam ), SW_SHOW );
+
+						_ShowWindow( ( HWND )tie.lParam, SW_SHOW );
+
+						if ( ( HWND )tie.lParam == g_hWnd_ignore_tab || ( HWND )tie.lParam == g_hWnd_forward_tab )
+						{
+							index = _SendMessageW( ( HWND )tie.lParam, TCM_GETCURSEL, 0, 0 );	// Get the selected tab
+							if ( index != -1 )
+							{
+								_SendMessageW( ( HWND )tie.lParam, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
+							}
+						}
 
 						_InvalidateRect( nmhdr->hwndFrom, NULL, TRUE );	// Repaint the control
 					}
 
-					ChangeMenuByHWND( ( HWND )( tie.lParam ) );
+					ChangeMenuByHWND( ( HWND )tie.lParam );
 
 					UpdateMenus( UM_ENABLE );
 
@@ -1757,20 +2044,34 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					if ( nmh->iItem == 0 || nmh->pitem->iOrder == 0 )
 					{
 						// Make sure the # columns are visible.
-						if ( hWnd_parent == g_hWnd_list && *list_columns[ 0 ] != -1 )
+						if ( hWnd_parent == g_hWnd_call_log && *call_log_columns[ 0 ] != -1 )
 						{
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, call_log_columns, NUM_COLUMNS1 );
 							return TRUE;
 						}
 						else if ( hWnd_parent == g_hWnd_contact_list && *contact_list_columns[ 0 ] != -1 )
 						{
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, contact_list_columns, NUM_COLUMNS2 );
 							return TRUE;
 						}
 						else if ( hWnd_parent == g_hWnd_ignore_list && *ignore_list_columns[ 0 ] != -1 )
 						{
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, ignore_list_columns, NUM_COLUMNS3 );
 							return TRUE;
 						}
 						else if ( hWnd_parent == g_hWnd_forward_list && *forward_list_columns[ 0 ] != -1 )
 						{
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, forward_list_columns, NUM_COLUMNS4 );
+							return TRUE;
+						}
+						else if ( hWnd_parent == g_hWnd_forward_cid_list && *forward_cid_list_columns[ 0 ] != -1 )
+						{
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, forward_cid_list_columns, NUM_COLUMNS5 );
+							return TRUE;
+						}
+						else if ( hWnd_parent == g_hWnd_ignore_cid_list && *ignore_cid_list_columns[ 0 ] != -1 )
+						{
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, ignore_cid_list_columns, NUM_COLUMNS6 );
 							return TRUE;
 						}
 					}
@@ -1786,13 +2087,13 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					int index = nmh->iItem;
 
 					HWND parent = _GetParent( nmh->hdr.hwndFrom );
-					if ( parent == g_hWnd_list )
+					if ( parent == g_hWnd_call_log )
 					{
-						index = GetVirtualIndexFromColumnIndex( index, list_columns, NUM_COLUMNS );
+						index = GetVirtualIndexFromColumnIndex( index, call_log_columns, NUM_COLUMNS1 );
 
 						if ( index != -1 )
 						{
-							*list_columns_width[ index ] = nmh->pitem->cxy;
+							*call_log_columns_width[ index ] = nmh->pitem->cxy;
 						}
 					}
 					else if ( parent == g_hWnd_contact_list )
@@ -1820,6 +2121,24 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( index != -1 )
 						{
 							*ignore_list_columns_width[ index ] = nmh->pitem->cxy;
+						}
+					}
+					else if ( parent == g_hWnd_forward_cid_list )
+					{
+						index = GetVirtualIndexFromColumnIndex( index, forward_cid_list_columns, NUM_COLUMNS5 );
+
+						if ( index != -1 )
+						{
+							*forward_cid_list_columns_width[ index ] = nmh->pitem->cxy;
+						}
+					}
+					else if ( parent == g_hWnd_ignore_cid_list )
+					{
+						index = GetVirtualIndexFromColumnIndex( index, ignore_cid_list_columns, NUM_COLUMNS6 );
+
+						if ( index != -1 )
+						{
+							*ignore_cid_list_columns_width[ index ] = nmh->pitem->cxy;
 						}
 					}
 				}
@@ -1855,7 +2174,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 							case 'S':	// Save Call Log items if Ctrl + S is down and there are items in the list.
 							{
-								if ( _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 ) > 0 )
+								if ( _SendMessageW( g_hWnd_call_log, LVM_GETITEMCOUNT, 0, 0 ) > 0 )
 								{
 									_SendMessageW( hWnd, WM_COMMAND, MENU_SAVE_CALL_LOG, 0 );
 								}
@@ -1901,8 +2220,15 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					}
 					else	// Column has no sorting set.
 					{
+						unsigned char column_count = ( nmlv->hdr.hwndFrom == g_hWnd_call_log ? total_columns1 :
+													 ( nmlv->hdr.hwndFrom == g_hWnd_contact_list ? total_columns2 :
+													 ( nmlv->hdr.hwndFrom == g_hWnd_forward_list ? total_columns3 :
+													 ( nmlv->hdr.hwndFrom == g_hWnd_ignore_list ? total_columns4 :
+													 ( nmlv->hdr.hwndFrom == g_hWnd_forward_cid_list ? total_columns5 :
+													 ( nmlv->hdr.hwndFrom == g_hWnd_ignore_cid_list ? total_columns6 : 0 ) ) ) ) ) );
+
 						// Remove the sort format for all columns.
-						for ( int i = 0; i < ( nmlv->hdr.hwndFrom == g_hWnd_list ? total_columns : NUM_COLUMNS2 ); i++ )
+						for ( unsigned char i = 0; i < column_count; ++i )
 						{
 							// Get the current format
 							_SendMessageW( nmlv->hdr.hwndFrom, LVM_GETCOLUMN, i, ( LPARAM )&lvc );
@@ -1980,10 +2306,12 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				bool selected = false;
 				if ( dis->itemState & ( ODS_FOCUS || ODS_SELECTED ) )
 				{
-					if ( ( skip_log_draw == true && dis->hwndItem == g_hWnd_list ) ||
+					if ( ( skip_log_draw == true && dis->hwndItem == g_hWnd_call_log ) ||
 						 ( skip_contact_draw == true && dis->hwndItem == g_hWnd_contact_list ) ||
 						 ( skip_ignore_draw == true && dis->hwndItem == g_hWnd_ignore_list ) ||
-						 ( skip_forward_draw == true && dis->hwndItem == g_hWnd_forward_list ) )
+						 ( skip_ignore_cid_draw == true && dis->hwndItem == g_hWnd_ignore_cid_list ) ||
+						 ( skip_forward_draw == true && dis->hwndItem == g_hWnd_forward_list ) ||
+						 ( skip_forward_cid_draw == true && dis->hwndItem == g_hWnd_forward_cid_list ) )
 					{
 						return TRUE;	// Don't draw selected items because their lParam values are being deleted.
 					}
@@ -2022,16 +2350,16 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				int arr2[ 17 ];
 
 				int column_count = 0;
-				if ( dis->hwndItem == g_hWnd_list )
+				if ( dis->hwndItem == g_hWnd_call_log )
 				{
-					_SendMessageW( dis->hwndItem, LVM_GETCOLUMNORDERARRAY, total_columns, ( LPARAM )arr );
+					_SendMessageW( dis->hwndItem, LVM_GETCOLUMNORDERARRAY, total_columns1, ( LPARAM )arr );
 
-					_memcpy_s( arr2, sizeof( int ) * 17, arr, sizeof( int ) * NUM_COLUMNS );
+					_memcpy_s( arr2, sizeof( int ) * 17, arr, sizeof( int ) * NUM_COLUMNS1 );
 
 					// Offset the virtual indices to match the actual index.
-					OffsetVirtualIndices( arr2, list_columns, NUM_COLUMNS, total_columns );
+					OffsetVirtualIndices( arr2, call_log_columns, NUM_COLUMNS1, total_columns1 );
 
-					column_count = total_columns;
+					column_count = total_columns1;
 				}
 				else if ( dis->hwndItem == g_hWnd_contact_list )
 				{
@@ -2066,6 +2394,28 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					column_count = total_columns4;
 				}
+				else if ( dis->hwndItem == g_hWnd_forward_cid_list )
+				{
+					_SendMessageW( dis->hwndItem, LVM_GETCOLUMNORDERARRAY, total_columns5, ( LPARAM )arr );
+
+					_memcpy_s( arr2, sizeof( int ) * 17, arr, sizeof( int ) * NUM_COLUMNS5 );
+
+					// Offset the virtual indices to match the actual index.
+					OffsetVirtualIndices( arr2, forward_cid_list_columns, NUM_COLUMNS5, total_columns5 );
+
+					column_count = total_columns5;
+				}
+				else if ( dis->hwndItem == g_hWnd_ignore_cid_list )
+				{
+					_SendMessageW( dis->hwndItem, LVM_GETCOLUMNORDERARRAY, total_columns6, ( LPARAM )arr );
+
+					_memcpy_s( arr2, sizeof( int ) * 17, arr, sizeof( int ) * NUM_COLUMNS6 );
+
+					// Offset the virtual indices to match the actual index.
+					OffsetVirtualIndices( arr2, ignore_cid_list_columns, NUM_COLUMNS6, total_columns6 );
+
+					column_count = total_columns6;
+				}
 
 				LVCOLUMN lvc;
 				_memzero( &lvc, sizeof( LVCOLUMN ) );
@@ -2074,7 +2424,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				// Loop through all the columns
 				for ( int i = 0; i < column_count; ++i )
 				{
-					if ( dis->hwndItem == g_hWnd_list )
+					if ( dis->hwndItem == g_hWnd_call_log )
 					{
 						// Save the appropriate text in our buffer for the current column.
 						switch ( arr2[ i ] )
@@ -2093,7 +2443,9 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							case 5:
 							case 6:
 							case 7:
-							case 8: { buf = ( ( displayinfo * )lvi.lParam )->display_values[ arr2[ i ] - 1 ]; } break;
+							case 8:
+							case 9:
+							case 10: { buf = ( ( displayinfo * )lvi.lParam )->display_values[ arr2[ i ] - 1 ]; } break;
 						}
 					}
 					else if ( dis->hwndItem == g_hWnd_contact_list )
@@ -2160,6 +2512,41 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							case 2: { buf = ( ( ignoreinfo * )lvi.lParam )->ignoreinfo_values[ arr2[ i ] - 1 ]; } break;
 						}
 					}
+					else if ( dis->hwndItem == g_hWnd_forward_cid_list )
+					{
+						switch ( arr2[ i ] )
+						{
+							case 0:
+							{
+								buf = tbuf;	// Reset the buffer pointer.
+
+								__snwprintf( buf, MAX_PATH, L"%lu", dis->itemID + 1 );
+							}
+							break;
+							case 1:
+							case 2:
+							case 3:
+							case 4:
+							case 5: { buf = ( ( forwardcidinfo * )lvi.lParam )->forwardcidinfo_values[ arr2[ i ] - 1 ]; } break;
+						}
+					}
+					else if ( dis->hwndItem == g_hWnd_ignore_cid_list )
+					{
+						switch ( arr2[ i ] )
+						{
+							case 0:
+							{
+								buf = tbuf;	// Reset the buffer pointer.
+
+								__snwprintf( buf, MAX_PATH, L"%lu", dis->itemID + 1 );
+							}
+							break;
+							case 1:
+							case 2:
+							case 3:
+							case 4: { buf = ( ( ignorecidinfo * )lvi.lParam )->ignorecidinfo_values[ arr2[ i ] - 1 ]; } break;
+						}
+					}
 
 					if ( buf == NULL )
 					{
@@ -2221,7 +2608,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						_DeleteObject( color );
 
 						// Black text for normal entries, red for ignored, and orange for forwarded.
-						if ( dis->hwndItem != g_hWnd_list )
+						if ( dis->hwndItem != g_hWnd_call_log )
 						{
 							_SetTextColor( hdcMem, RGB( 0x00, 0x00, 0x00 ) );
 						}
@@ -2305,16 +2692,16 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				LVITEM lvi;
 				_memzero( &lvi, sizeof( LVITEM ) );
 				lvi.mask = LVIF_PARAM; // Our listview items will display the text contained the lParam value.
-				lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 );
+				lvi.iItem = _SendMessageW( g_hWnd_call_log, LVM_GETITEMCOUNT, 0, 0 );
 				lvi.iSubItem = 0;
 				lvi.lParam = lParam;
-				int index = _SendMessageW( g_hWnd_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+				int index = _SendMessageW( g_hWnd_call_log, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
 
 				// 0 = show popups, etc. 1 = don't show.
 				if ( HIWORD( wParam ) == 0 )
 				{
 					// Scroll to the newest entry.
-					_SendMessageW( g_hWnd_list, LVM_ENSUREVISIBLE, index, FALSE );
+					_SendMessageW( g_hWnd_call_log, LVM_ENSUREVISIBLE, index, FALSE );
 
 					if ( cfg_enable_popups == true )
 					{
@@ -2446,6 +2833,16 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				_EnableWindow( g_hWnd_ignore_phone_number, FALSE );
 				_ShowWindow( g_hWnd_ignore_phone_number, SW_HIDE );
 			}
+			if ( g_hWnd_forward_cid != NULL )
+			{
+				_EnableWindow( g_hWnd_forward_cid, FALSE );
+				_ShowWindow( g_hWnd_forward_cid, SW_HIDE );
+			}
+			if ( g_hWnd_ignore_cid != NULL )
+			{
+				_EnableWindow( g_hWnd_ignore_cid, FALSE );
+				_ShowWindow( g_hWnd_ignore_cid, SW_HIDE );
+			}
 			if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL )
 			{
 				_EnableWindow( g_hWnd_connection_manager, FALSE );
@@ -2511,6 +2908,16 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				_DestroyWindow( g_hWnd_ignore_phone_number );
 			}
 
+			if ( g_hWnd_forward_cid != NULL )
+			{
+				_DestroyWindow( g_hWnd_forward_cid );
+			}
+
+			if ( g_hWnd_ignore_cid != NULL )
+			{
+				_DestroyWindow( g_hWnd_ignore_cid );
+			}
+
 			if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL )
 			{
 				_DestroyWindow( g_hWnd_connection_manager );
@@ -2522,7 +2929,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			}
 
 			// Get the number of items in the listview.
-			int num_items = _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 );
+			int num_items = _SendMessageW( g_hWnd_call_log, LVM_GETITEMCOUNT, 0, 0 );
 
 			LVITEM lvi;
 			_memzero( &lvi, sizeof( LVITEM ) );
@@ -2532,7 +2939,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			for ( int i = 0; i < num_items; ++i )
 			{
 				lvi.iItem = i;
-				_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+				_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 				displayinfo *di = ( displayinfo * )lvi.lParam;
 				free_displayinfo( &di );
@@ -2617,6 +3024,18 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			{
 				save_forward_list();
 				forward_list_changed = false;
+			}
+
+			if ( ignore_cid_list_changed == true )
+			{
+				save_ignore_cid_list();
+				ignore_cid_list_changed = false;
+			}
+
+			if ( forward_cid_list_changed == true )
+			{
+				save_forward_cid_list();
+				forward_cid_list_changed = false;
 			}
 
 			if ( cfg_enable_call_log_history == true && call_log_changed == true )

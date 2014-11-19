@@ -20,6 +20,7 @@
 
 #include "file_operations.h"
 #include "utilities.h"
+#include "string_tables.h"
 
 RANGE *ignore_range_list[ 16 ];
 RANGE *forward_range_list[ 16 ];
@@ -29,6 +30,12 @@ bool ignore_list_changed = false;
 
 dllrbt_tree *forward_list = NULL;
 bool forward_list_changed = false;
+
+dllrbt_tree *ignore_cid_list = NULL;
+bool ignore_cid_list_changed = false;
+
+dllrbt_tree *forward_cid_list = NULL;
+bool forward_cid_list_changed = false;
 
 void read_config()
 {
@@ -44,7 +51,7 @@ void read_config()
 		DWORD fz = GetFileSize( hFile_cfg, NULL );
 
 		// Our config file is going to be small. If it's something else, we're not going to read it.
-		if ( fz >= 298 && fz < 10240 )
+		if ( fz >= 363 && fz < 10240 )
 		{
 			char *cfg_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * fz + 1 );
 
@@ -111,6 +118,10 @@ void read_config()
 				next += sizeof( int );
 				_memcpy_s( &cfg_column_width9, sizeof( int ), next, sizeof( int ) );
 				next += sizeof( int );
+				_memcpy_s( &cfg_column_width10, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column_width11, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
 
 				_memcpy_s( &cfg_column2_width1, sizeof( int ), next, sizeof( int ) );
 				next += sizeof( int );
@@ -164,6 +175,30 @@ void read_config()
 				_memcpy_s( &cfg_column4_width3, sizeof( int ), next, sizeof( int ) );
 				next += sizeof( int );
 
+				_memcpy_s( &cfg_column5_width1, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column5_width2, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column5_width3, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column5_width4, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column5_width5, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column5_width6, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+
+				_memcpy_s( &cfg_column6_width1, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column6_width2, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column6_width3, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column6_width4, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+				_memcpy_s( &cfg_column6_width5, sizeof( int ), next, sizeof( int ) );
+				next += sizeof( int );
+
 				_memcpy_s( &cfg_column_order1, sizeof( char ), next, sizeof( char ) );
 				next += sizeof( char );
 				_memcpy_s( &cfg_column_order2, sizeof( char ), next, sizeof( char ) );
@@ -181,6 +216,10 @@ void read_config()
 				_memcpy_s( &cfg_column_order8, sizeof( char ), next, sizeof( char ) );
 				next += sizeof( char );
 				_memcpy_s( &cfg_column_order9, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column_order10, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column_order11, sizeof( char ), next, sizeof( char ) );
 				next += sizeof( char );
 
 				_memcpy_s( &cfg_column2_order1, sizeof( char ), next, sizeof( char ) );
@@ -233,6 +272,30 @@ void read_config()
 				_memcpy_s( &cfg_column4_order2, sizeof( char ), next, sizeof( char ) );
 				next += sizeof( char );
 				_memcpy_s( &cfg_column4_order3, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+
+				_memcpy_s( &cfg_column5_order1, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column5_order2, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column5_order3, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column5_order4, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column5_order5, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column5_order6, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+
+				_memcpy_s( &cfg_column6_order1, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column6_order2, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column6_order3, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column6_order4, sizeof( char ), next, sizeof( char ) );
+				next += sizeof( char );
+				_memcpy_s( &cfg_column6_order5, sizeof( char ), next, sizeof( char ) );
 				next += sizeof( char );
 
 				_memcpy_s( &cfg_tray_icon, sizeof( bool ), next, sizeof( bool ) );
@@ -469,10 +532,12 @@ void read_config()
 				if ( cfg_connection_retries > 10 ) cfg_connection_retries = 3;
 				if ( cfg_connection_timeout > 300 || ( cfg_connection_timeout > 0 && cfg_connection_timeout < 60 ) ) cfg_connection_timeout = 60;
 
-				CheckColumnOrders( 0, list_columns, NUM_COLUMNS );
+				CheckColumnOrders( 0, call_log_columns, NUM_COLUMNS1 );
 				CheckColumnOrders( 1, contact_list_columns, NUM_COLUMNS2 );
 				CheckColumnOrders( 2, forward_list_columns, NUM_COLUMNS3 );
 				CheckColumnOrders( 3, ignore_list_columns, NUM_COLUMNS4 );
+				CheckColumnOrders( 4, forward_cid_list_columns, NUM_COLUMNS5 );
+				CheckColumnOrders( 5, ignore_cid_list_columns, NUM_COLUMNS6 );
 
 				// Revert column widths if they exceed our limits.
 				CheckColumnWidths();
@@ -494,7 +559,7 @@ void save_config()
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_cfg != INVALID_HANDLE_VALUE )
 	{
-		int size = ( sizeof( int ) * 53 ) + ( sizeof( bool ) * 18 ) + ( sizeof( char ) * 58 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
+		int size = ( sizeof( int ) * 66 ) + ( sizeof( bool ) * 18 ) + ( sizeof( char ) * 71 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
 		int pos = 0;
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
@@ -553,6 +618,10 @@ void save_config()
 		pos += sizeof( int );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column_width9, sizeof( int ) );
 		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column_width10, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column_width11, sizeof( int ) );
+		pos += sizeof( int );
 
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column2_width1, sizeof( int ) );
 		pos += sizeof( int );
@@ -606,6 +675,30 @@ void save_config()
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column4_width3, sizeof( int ) );
 		pos += sizeof( int );
 
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_width1, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_width2, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_width3, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_width4, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_width5, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_width6, sizeof( int ) );
+		pos += sizeof( int );
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_width1, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_width2, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_width3, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_width4, sizeof( int ) );
+		pos += sizeof( int );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_width5, sizeof( int ) );
+		pos += sizeof( int );
+
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column_order1, sizeof( char ) );
 		pos += sizeof( char );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column_order2, sizeof( char ) );
@@ -623,6 +716,10 @@ void save_config()
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column_order8, sizeof( char ) );
 		pos += sizeof( char );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column_order9, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column_order10, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column_order11, sizeof( char ) );
 		pos += sizeof( char );
 
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column2_order1, sizeof( char ) );
@@ -675,6 +772,30 @@ void save_config()
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column4_order2, sizeof( char ) );
 		pos += sizeof( char );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_column4_order3, sizeof( char ) );
+		pos += sizeof( char );
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_order1, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_order2, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_order3, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_order4, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_order5, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column5_order6, sizeof( char ) );
+		pos += sizeof( char );
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_order1, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_order2, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_order3, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_order4, sizeof( char ) );
+		pos += sizeof( char );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_column6_order5, sizeof( char ) );
 		pos += sizeof( char );
 
 		_memcpy_s( write_buf + pos, size - pos, &cfg_tray_icon, sizeof( bool ) );
@@ -959,9 +1080,19 @@ void read_ignore_list()
 				p = _StrStrA( s, "\r\n" );
 
 				// If we found one, copy the number.
-				if ( p != NULL )
+				if ( p != NULL || ( total_read >= fz ) )
 				{
-					*p = 0;
+					char *tp = p;
+
+					if ( p != NULL )
+					{
+						*p = 0;
+						p += 2;
+					}
+					else	// Handle an EOF.
+					{
+						tp = ( ignore_buf + read );
+					}
 
 					char *t = _StrChrA( s, ':' );	// Find the ignore count.
 
@@ -970,13 +1101,13 @@ void read_ignore_list()
 
 					if ( t == NULL )
 					{
-						length1 = ( p - s );
+						length1 = ( tp - s );
 					}
 					else
 					{
 						length1 = ( t - s );
 						++t;
-						length2 = ( ( p - t ) > 10 ? 10 : ( p - t ) );
+						length2 = ( ( tp - t ) > 10 ? 10 : ( tp - t ) );
 					}
 
 					// Make sure the number is at most 15 + 1 digits.
@@ -1026,7 +1157,6 @@ void read_ignore_list()
 					}
 
 					// Move to the next value.
-					p += 2;
 					s = p;
 				}
 				else if ( total_read < fz )	// Reached the end of what we've read.
@@ -1047,14 +1177,14 @@ void read_ignore_list()
 					{
 						length1 = ( t - s );
 						++t;
-						length2 = ( ( ignore_buf + read ) - t );
+						length2 = ( ( ( ignore_buf + read ) - t ) > 10 ? 10 : ( ( ignore_buf + read ) - t ) );
 					}
 
 					// Max recommended number length is 15 + 1.
 					// We can only offset back less than what we've read, and no more than 27 digits (bytes). 15 + 1 + 1 + 10
 					// This means read, and our buffer size should be greater than 27.
 					// Based on the token we're searching for: "\r\n", the buffer NEEDS to be greater or equal to 29.
-					if ( offset < read && offset <= 16 && length2 <= 10 )
+					if ( offset < read && length1 <= 16 && length2 <= 10 )
 					{
 						total_read -= offset;
 						SetFilePointer( hFile_ignore, total_read, NULL, FILE_BEGIN );
@@ -1064,68 +1194,224 @@ void read_ignore_list()
 						skip_next_newline = true;
 					}
 				}
-				else	// We reached the EOF and there was no newline token.
+			}
+		}
+
+		GlobalFree( ignore_buf );
+
+		CloseHandle( hFile_ignore );
+	}
+}
+
+void read_ignore_cid_list()
+{
+	ignore_cid_list = dllrbt_create( dllrbt_icid_compare );
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_cnam.txt\0", 17 );
+	base_directory[ base_directory_length + 16 ] = 0;	// Sanity.
+
+	// Open our config file if it exists.
+	HANDLE hFile_ignore = CreateFile( base_directory, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( hFile_ignore != INVALID_HANDLE_VALUE )
+	{
+		DWORD read = 0, total_read = 0;
+
+		DWORD fz = GetFileSize( hFile_ignore, NULL );
+
+		char *ignore_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 32768 + 1 ) );	// This buffer must be greater than, or equal to 31 bytes.
+
+		bool skip_next_newline = false;
+
+		while ( total_read < fz )
+		{
+			ReadFile( hFile_ignore, ignore_buf, sizeof( char ) * 32768, &read, NULL );
+			ignore_buf[ read ] = 0;	// Guarantee a NULL terminated buffer.
+
+			total_read += read;
+
+			char *p = ignore_buf;
+			char *s = ignore_buf;
+
+			while ( p != NULL && *s != NULL )
+			{
+				// If we read a partial number and it was too long.
+				if ( skip_next_newline == true )
 				{
-					char *t = _StrChrA( s, ':' );	// Find the ignore count.
+					skip_next_newline = false;
+
+					// Then we skip the remainder of the number.
+					p = _StrStrA( s, "\r\n" );
+
+					// If it was the last number, then we're done.
+					if ( p == NULL )
+					{
+						continue;
+					}
+
+					// Move to the next value.
+					p += 2;
+					s = p;
+				}
+
+				// Find the newline token.
+				p = _StrStrA( s, "\r\n" );
+
+				// If we found one, copy the number.
+				if ( p != NULL || ( total_read >= fz ) )
+				{
+					char *tp = p;
+
+					if ( p != NULL )
+					{
+						*p = 0;
+						p += 2;
+					}
+					else	// Handle an EOF.
+					{
+						tp = ( ignore_buf + read );
+					}
+
+					char *t = _StrChrA( s, '\x1f' );	// Find the match values.
+
+					if ( t != NULL && ( ( tp - t ) >= 3 ) )
+					{
+						DWORD length1 = ( t - s );
+						DWORD length2 = 0;
+
+						unsigned char match_case = t[ 1 ];
+						unsigned char match_whole_word = t[ 2 ];
+
+						t = _StrChrA( t + 3, '\x1f' );
+
+						if ( t != NULL )
+						{
+							++t;
+							length2 = ( ( tp - t ) > 10 ? 10 : ( tp - t ) );
+						}
+
+						// Make sure the number is at most 15 digits.
+						if ( ( length1 <= 15 && length1 > 0 ) && ( length2 <= 10 && length2 >= 0 ) )
+						{
+							ignorecidinfo *icidi = ( ignorecidinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignorecidinfo ) );
+
+							icidi->c_caller_id = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length1 + 1 ) );
+							_memcpy_s( icidi->c_caller_id, length1 + 1, s, length1 );
+							*( icidi->c_caller_id + length1 ) = 0;	// Sanity
+
+							int val_length = MultiByteToWideChar( CP_UTF8, 0, icidi->c_caller_id, -1, NULL, 0 );	// Include the NULL terminator.
+							wchar_t *val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
+							MultiByteToWideChar( CP_UTF8, 0, icidi->c_caller_id, -1, val, val_length );
+
+							icidi->caller_id = val;
+
+							if ( length2 == 0 )
+							{
+								icidi->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * 2 );
+								*icidi->c_total_calls = '0';
+								*( icidi->c_total_calls + 1 ) = 0;	// Sanity
+
+								icidi->count = 0;
+							}
+							else
+							{
+								icidi->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length2 + 1 ) );
+								_memcpy_s( icidi->c_total_calls, length2 + 1, t, length2 );
+								*( icidi->c_total_calls + length2 ) = 0;	// Sanity
+
+								icidi->count = _strtoul( icidi->c_total_calls, NULL, 10 );
+							}
+
+							val_length = MultiByteToWideChar( CP_UTF8, 0, icidi->c_total_calls, -1, NULL, 0 );	// Include the NULL terminator.
+							val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
+							MultiByteToWideChar( CP_UTF8, 0, icidi->c_total_calls, -1, val, val_length );
+
+							icidi->total_calls = val;
+
+							icidi->match_case = ( match_case == '0' ? false : true );
+							icidi->match_whole_word = ( match_whole_word == '0' ? false : true );
+
+							if ( icidi->match_case == false )
+							{
+								icidi->c_match_case = GlobalStrDupA( "No" );
+								icidi->w_match_case = GlobalStrDupW( ST_No );
+							}
+							else
+							{
+								icidi->c_match_case = GlobalStrDupA( "Yes" );
+								icidi->w_match_case = GlobalStrDupW( ST_Yes );
+							}
+
+							if ( icidi->match_whole_word == false )
+							{
+								icidi->c_match_whole_word = GlobalStrDupA( "No" );
+								icidi->w_match_whole_word = GlobalStrDupW( ST_No );
+							}
+							else
+							{
+								icidi->c_match_whole_word = GlobalStrDupA( "Yes" );
+								icidi->w_match_whole_word = GlobalStrDupW( ST_Yes );
+							}
+
+							icidi->state = 0;
+							icidi->active = false;
+
+							if ( dllrbt_insert( ignore_cid_list, ( void * )icidi, ( void * )icidi ) != DLLRBT_STATUS_OK )
+							{
+								free_ignorecidinfo( &icidi );
+							}
+						}
+					}
+
+					// Move to the next value.
+					s = p;
+				}
+				else if ( total_read < fz )	// Reached the end of what we've read.
+				{
+					// If we didn't find a token and haven't finished reading the entire file, then offset the file pointer back to the end of the last valid caller ID.
+					DWORD offset = ( ( ignore_buf + read ) - s );
+
+					char *t = _StrChrA( s, '\x1f' );	// Find the match values.
 
 					DWORD length1 = 0;
 					DWORD length2 = 0;
+					DWORD length3 = 0;
 
 					if ( t == NULL )
 					{
-						length1 = ( ( ignore_buf + read ) - s );
+						length1 = offset;
 					}
 					else
 					{
 						length1 = ( t - s );
-						++t;
-						length2 = ( ( ( ignore_buf + read ) - t ) > 10 ? 10 : ( ( ignore_buf + read ) - t ) );
-					}
 
-					// Make sure the number is at most 15 + 1 digits.
-					if ( ( length1 <= 16 && length1 > 0 ) && ( length2 <= 10 && length2 >= 0 ) )
-					{
-						ignoreinfo *ii = ( ignoreinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ignoreinfo ) );
+						s = t + 1;
 
-						ii->c_phone_number = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length1 + 1 ) );
-						_memcpy_s( ii->c_phone_number, length1 + 1, s, length1 );
-						*( ii->c_phone_number + length1 ) = 0;	// Sanity
+						t = _StrChrA( s, '\x1f' );	// Find the total count.
 
-						ii->phone_number = FormatPhoneNumber( ii->c_phone_number );
-
-						if ( length2 == 0 )
+						if ( t == NULL )
 						{
-							ii->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * 2 );
-							*ii->c_total_calls = '0';
-							*( ii->c_total_calls + 1 ) = 0;	// Sanity
-
-							ii->count = 0;
+							length2 = ( ( ignore_buf + read ) - s );
 						}
 						else
 						{
-							ii->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length2 + 1 ) );
-							_memcpy_s( ii->c_total_calls, length2 + 1, t, length2 );
-							*( ii->c_total_calls + length2 ) = 0;	// Sanity
-
-							ii->count = _strtoul( ii->c_total_calls, NULL, 10 );
+							length2 = ( t - s );
+							++t;
+							length3 = ( ( ( ignore_buf + read ) - t ) > 10 ? 10 : ( ( ignore_buf + read ) - t ) );
 						}
+					}
 
-						int val_length = MultiByteToWideChar( CP_UTF8, 0, ii->c_total_calls, -1, NULL, 0 );	// Include the NULL terminator.
-						wchar_t *val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
-						MultiByteToWideChar( CP_UTF8, 0, ii->c_total_calls, -1, val, val_length );
-
-						ii->total_calls = val;
-
-						ii->state = 0;
-
-						if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) != DLLRBT_STATUS_OK )
-						{
-							free_ignoreinfo( &ii );
-						}
-						else if ( is_num( ii->c_phone_number ) == 1 )	// See if the value we're adding is a range (has wildcard values in it).
-						{
-							RangeAdd( &ignore_range_list[ length1 - 1 ], ii->c_phone_number, length1 );
-						}
+					// Max recommended caller ID length is 15.
+					// We can only offset back less than what we've read, and no more than 29 bytes. 15 + 1 + 2 + 1 + 10.
+					// This means read, and our buffer size should be greater than 29.
+					// Based on the token we're searching for: "\r\n", the buffer NEEDS to be greater or equal to 31.
+					if ( offset < read && length1 <= 15 && length2 <= 2 && length3 <= 10 )
+					{
+						total_read -= offset;
+						SetFilePointer( hFile_ignore, total_read, NULL, FILE_BEGIN );
+					}
+					else	// The length of the next caller ID is too long.
+					{
+						skip_next_newline = true;
 					}
 				}
 			}
@@ -1178,6 +1464,71 @@ void save_ignore_list()
 					pos += phone_number_length;
 					write_buf[ pos++ ] = ':';
 					_memcpy_s( write_buf + pos, size - pos, ii->c_total_calls, total_calls_length );
+					pos += total_calls_length;
+					write_buf[ pos++ ] = '\r';
+					write_buf[ pos++ ] = '\n';
+				}
+			}
+
+			node = node->next;
+		}
+
+		// If there's anything remaining in the buffer, then write it to the file.
+		if ( pos > 0 )
+		{
+			WriteFile( hFile_ignore, write_buf, pos, &write, NULL );
+		}
+
+		GlobalFree( write_buf );
+
+		CloseHandle( hFile_ignore );
+	}
+}
+
+void save_ignore_cid_list()
+{
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_cnam.txt\0", 17 );
+	base_directory[ base_directory_length + 16 ] = 0;	// Sanity
+
+	// Open our config file if it exists.
+	HANDLE hFile_ignore = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( hFile_ignore != INVALID_HANDLE_VALUE )
+	{
+		int size = ( 32768 + 1 );
+		int pos = 0;
+		DWORD write = 0;
+
+		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 29 bytes.
+
+		node_type *node = dllrbt_get_head( ignore_cid_list );
+		while ( node != NULL )
+		{
+			ignorecidinfo *icidi = ( ignorecidinfo * )node->val;
+
+			if ( icidi != NULL && icidi->c_caller_id != NULL && icidi->c_total_calls != NULL )
+			{
+				int caller_id_length = lstrlenA( icidi->c_caller_id );
+				int total_calls_length = lstrlenA( icidi->c_total_calls );
+
+				// See if the next number can fit in the buffer. If it can't, then we dump the buffer.
+				if ( pos + caller_id_length + total_calls_length + 2 + 4 > size )
+				{
+					// Dump the buffer.
+					WriteFile( hFile_ignore, write_buf, pos, &write, NULL );
+					pos = 0;
+				}
+
+				// Ignore caller ID names that are greater than 15 digits (bytes).
+				if ( caller_id_length + total_calls_length + 2 + 4 <= 31 )
+				{
+					// Add to the buffer.
+					_memcpy_s( write_buf + pos, size - pos, icidi->c_caller_id, caller_id_length );
+					pos += caller_id_length;
+					write_buf[ pos++ ] = '\x1f';
+					write_buf[ pos++ ] = ( icidi->match_case == true ? '1' : '0' );
+					write_buf[ pos++ ] = ( icidi->match_whole_word == true ? '1' : '0' );
+					write_buf[ pos++ ] = '\x1f';
+					_memcpy_s( write_buf + pos, size - pos, icidi->c_total_calls, total_calls_length );
 					pos += total_calls_length;
 					write_buf[ pos++ ] = '\r';
 					write_buf[ pos++ ] = '\n';
@@ -1254,9 +1605,19 @@ void read_forward_list()
 				p = _StrStrA( s, "\r\n" );
 
 				// If we found one, copy the number.
-				if ( p != NULL )
+				if ( p != NULL || ( total_read >= fz ) )
 				{
-					*p = 0;
+					char *tp = p;
+
+					if ( p != NULL )
+					{
+						*p = 0;
+						p += 2;
+					}
+					else	// Handle an EOF.
+					{
+						tp = ( forward_buf + read );
+					}
 
 					char *t = _StrChrA( s, ':' );
 
@@ -1273,13 +1634,13 @@ void read_forward_list()
 
 						if ( t2 == NULL )
 						{
-							length2 = ( p - t );
+							length2 = ( tp - t );
 						}
 						else
 						{
 							length2 = ( t2 - t );
 							++t2;
-							length3 = ( ( p - t2 ) > 10 ? 10 : ( p - t2 ) );
+							length3 = ( ( tp - t2 ) > 10 ? 10 : ( tp - t2 ) );
 						}
 
 						// Make sure the number is at most 15 + 1 digits.
@@ -1336,7 +1697,6 @@ void read_forward_list()
 					}
 
 					// Move to the next value.
-					p += 2;
 					s = p;
 				}
 				else if ( total_read < fz )	// Reached the end of what we've read.
@@ -1357,9 +1717,8 @@ void read_forward_list()
 					else
 					{
 						length1 = ( t - s );
-						++t;
 
-						s = t;
+						s = t + 1;
 
 						t = _StrChrA( s, ':' );	// Find the forward count.
 
@@ -1389,83 +1748,253 @@ void read_forward_list()
 						skip_next_newline = true;
 					}
 				}
-				else	// We reached the EOF and there was no newline token.
-				{
-					char *t = _StrChrA( s, ':' );
+			}
+		}
 
-					// We must have at least a second phone number.
+		GlobalFree( forward_buf );
+
+		CloseHandle( hFile_forward );
+	}
+}
+
+void read_forward_cid_list()
+{
+	forward_cid_list = dllrbt_create( dllrbt_fcid_compare );
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_cnam.txt\0", 18 );
+	base_directory[ base_directory_length + 17 ] = 0;	// Sanity.
+
+	// Open our config file if it exists.
+	HANDLE hFile_forward = CreateFile( base_directory, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( hFile_forward != INVALID_HANDLE_VALUE )
+	{
+		DWORD read = 0, total_read = 0;
+
+		DWORD fz = GetFileSize( hFile_forward, NULL );
+
+		char *forward_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 32768 + 1 ) );	// This buffer must be greater than, or equal to 48 bytes.
+
+		bool skip_next_newline = false;
+
+		while ( total_read < fz )
+		{
+			ReadFile( hFile_forward, forward_buf, sizeof( char ) * 32768, &read, NULL );
+			forward_buf[ read ] = 0;	// Guarantee a NULL terminated buffer.
+
+			total_read += read;
+
+			char *p = forward_buf;
+			char *s = forward_buf;
+
+			while ( p != NULL && *s != NULL )
+			{
+				// If we read a partial number and it was too long.
+				if ( skip_next_newline == true )
+				{
+					skip_next_newline = false;
+
+					// Then we skip the remainder of the number.
+					p = _StrStrA( s, "\r\n" );
+
+					// If it was the last number, then we're done.
+					if ( p == NULL )
+					{
+						continue;
+					}
+
+					// Move to the next value.
+					p += 2;
+					s = p;
+				}
+
+				// Find the newline token.
+				p = _StrStrA( s, "\r\n" );
+
+				// If we found one, copy the number.
+				if ( p != NULL || ( total_read >= fz ) )
+				{
+					char *tp = p;
+
+					if ( p != NULL )
+					{
+						*p = 0;
+						p += 2;
+					}
+					else	// Handle an EOF.
+					{
+						tp = ( forward_buf + read );
+					}
+
+					char *t = _StrChrA( s, '\x1f' );	// Find the forward to phone number.
+
+					// We must have a forward phone number.
 					if ( t != NULL )
 					{
 						DWORD length1 = ( t - s );
 						++t;
 
-						char *t2 = _StrChrA( t, ':' );	// Find the forward count.
+						char *t2 = _StrChrA( t, '\x1f' );	// Find the match values.
 
-						DWORD length2 = 0;
-						DWORD length3 = 0;
-
-						if ( t2 == NULL )
+						if ( t2 != NULL && ( ( tp - t2 ) >= 3 ) )
 						{
-							length2 = ( ( forward_buf + read ) - t );
+							DWORD length2 = ( t2 - t );
+							DWORD length3 = 0;
+
+							unsigned char match_case = t2[ 1 ];
+							unsigned char match_whole_word = t2[ 2 ];
+
+							t2 = _StrChrA( t2 + 3, '\x1f' );
+
+							if ( t2 != NULL )
+							{
+								++t2;
+								length3 = ( ( tp - t2 ) > 10 ? 10 : ( tp - t2 ) );
+							}
+
+							// Make sure the caller ID is at most 15 digits and the number is at most 16 digits.
+							if ( ( length1 <= 15 && length1 > 0 ) && ( length2 <= 16 && length2 > 0 ) && ( length3 <= 10 && length3 >= 0 ) )
+							{
+								forwardcidinfo *fcidi = ( forwardcidinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardcidinfo ) );
+
+								fcidi->c_caller_id = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length1 + 1 ) );
+								_memcpy_s( fcidi->c_caller_id, length1 + 1, s, length1 );
+								*( fcidi->c_caller_id + length1 ) = 0;	// Sanity
+
+								int val_length = MultiByteToWideChar( CP_UTF8, 0, fcidi->c_caller_id, -1, NULL, 0 );	// Include the NULL terminator.
+								wchar_t *val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
+								MultiByteToWideChar( CP_UTF8, 0, fcidi->c_caller_id, -1, val, val_length );
+
+								fcidi->caller_id = val;
+
+								fcidi->c_forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length2 + 1 ) );
+								_memcpy_s( fcidi->c_forward_to, length2 + 1, t, length2 );
+								*( fcidi->c_forward_to + length2 ) = 0;	// Sanity
+
+								fcidi->forward_to = FormatPhoneNumber( fcidi->c_forward_to );
+
+								if ( length3 == 0 )
+								{
+									fcidi->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * 2 );
+									*fcidi->c_total_calls = '0';
+									*( fcidi->c_total_calls + 1 ) = 0;	// Sanity
+
+									fcidi->count = 0;
+								}
+								else
+								{
+									fcidi->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length3 + 1 ) );
+									_memcpy_s( fcidi->c_total_calls, length3 + 1, t2, length3 );
+									*( fcidi->c_total_calls + length3 ) = 0;	// Sanity
+
+									fcidi->count = _strtoul( fcidi->c_total_calls, NULL, 10 );
+								}
+
+								val_length = MultiByteToWideChar( CP_UTF8, 0, fcidi->c_total_calls, -1, NULL, 0 );	// Include the NULL terminator.
+								val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
+								MultiByteToWideChar( CP_UTF8, 0, fcidi->c_total_calls, -1, val, val_length );
+
+								fcidi->total_calls = val;
+
+								fcidi->match_case = ( match_case == '0' ? false : true );
+								fcidi->match_whole_word = ( match_whole_word == '0' ? false : true );
+
+								if ( fcidi->match_case == false )
+								{
+									fcidi->c_match_case = GlobalStrDupA( "No" );
+									fcidi->w_match_case = GlobalStrDupW( ST_No );
+								}
+								else
+								{
+									fcidi->c_match_case = GlobalStrDupA( "Yes" );
+									fcidi->w_match_case = GlobalStrDupW( ST_Yes );
+								}
+
+								if ( fcidi->match_whole_word == false )
+								{
+									fcidi->c_match_whole_word = GlobalStrDupA( "No" );
+									fcidi->w_match_whole_word = GlobalStrDupW( ST_No );
+								}
+								else
+								{
+									fcidi->c_match_whole_word = GlobalStrDupA( "Yes" );
+									fcidi->w_match_whole_word = GlobalStrDupW( ST_Yes );
+								}
+
+								fcidi->state = 0;
+								fcidi->active = false;
+
+								if ( dllrbt_insert( forward_cid_list, ( void * )fcidi, ( void * )fcidi ) != DLLRBT_STATUS_OK )
+								{
+									free_forwardcidinfo( &fcidi );
+								}
+							}
+						}
+					}
+
+					// Move to the next value.
+					s = p;
+				}
+				else if ( total_read < fz )	// Reached the end of what we've read.
+				{
+					// If we didn't find a token and haven't finished reading the entire file, then offset the file pointer back to the end of the last valid number.
+					DWORD offset = ( ( forward_buf + read ) - s );
+
+					char *t = _StrChrA( s, '\x1f' );	// Find the forward to phone number.
+
+					DWORD length1 = 0;
+					DWORD length2 = 0;
+					DWORD length3 = 0;
+					DWORD length4 = 0;
+
+					if ( t == NULL )
+					{
+						length1 = offset;
+					}
+					else
+					{
+						length1 = ( t - s );
+
+						s = t + 1;
+
+						t = _StrChrA( s, '\x1f' );	// Find the match values.
+
+						if ( t == NULL )
+						{
+							length2 = ( ( forward_buf + read ) - s );
 						}
 						else
 						{
-							length2 = ( t2 - t );
-							++t2;
-							length3 = ( ( ( forward_buf + read ) - t2 ) > 10 ? 10 : ( ( forward_buf + read ) - t2 ) );
-						}
+							length2 = ( t - s );
+							
+							s = t + 1;
 
-						// Make sure the number is at most 15 + 1 digits.
-						if ( ( length1 <= 16 && length1 > 0 ) && ( length2 <= 16 && length2 > 0 ) && ( length3 <= 10 && length3 >= 0 ) )
-						{
-							forwardinfo *fi = ( forwardinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardinfo ) );
+							t = _StrChrA( s, '\x1f' );	// Find the total count.
 
-							fi->c_call_from = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length1 + 1 ) );
-							_memcpy_s( fi->c_call_from, length1 + 1, s, length1 );
-							*( fi->c_call_from + length1 ) = 0;	// Sanity
-
-							fi->call_from = FormatPhoneNumber( fi->c_call_from );
-
-							fi->c_forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length2 + 1 ) );
-							_memcpy_s( fi->c_forward_to, length2 + 1, t, length2 );
-							*( fi->c_forward_to + length2 ) = 0;	// Sanity
-
-							fi->forward_to = FormatPhoneNumber( fi->c_forward_to );
-
-							if ( length3 == 0 )
+							if ( t == NULL )
 							{
-								fi->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * 2 );
-								*fi->c_total_calls = '0';
-								*( fi->c_total_calls + 1 ) = 0;	// Sanity
-
-								fi->count = 0;
+								length3 = ( ( forward_buf + read ) - s );
 							}
 							else
 							{
-								fi->c_total_calls = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length3 + 1 ) );
-								_memcpy_s( fi->c_total_calls, length3 + 1, t2, length3 );
-								*( fi->c_total_calls + length3 ) = 0;	// Sanity
-
-								fi->count = _strtoul( fi->c_total_calls, NULL, 10 );
-							}
-
-							int val_length = MultiByteToWideChar( CP_UTF8, 0, fi->c_total_calls, -1, NULL, 0 );	// Include the NULL terminator.
-							wchar_t *val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
-							MultiByteToWideChar( CP_UTF8, 0, fi->c_total_calls, -1, val, val_length );
-
-							fi->total_calls = val;
-
-							fi->state = 0;
-
-							if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) != DLLRBT_STATUS_OK )
-							{
-								free_forwardinfo( &fi );
-							}
-							else if ( is_num( fi->c_call_from ) == 1 )	// See if the value we're adding is a range (has wildcard values in it).
-							{
-								RangeAdd( &forward_range_list[ length1 - 1 ], fi->c_call_from, length1 );
+								length3 = ( t - s );
+								++t;
+								length4 = ( ( ( forward_buf + read ) - t ) > 10 ? 10 : ( ( forward_buf + read ) - t ) );
 							}
 						}
+					}
+
+					// Max recommended number length is 15 + 1.
+					// We can only offset back less than what we've read, and no more than 46 bytes. 15 + 1 + 15 + 1 + 1 + 2 + 1 + 10.
+					// This means read, and our buffer size should be greater than 46.
+					// Based on the token we're searching for: "\r\n", the buffer NEEDS to be greater or equal to 48.
+					if ( offset < read && length1 <= 15 && length2 <= 16 && length3 <= 2 && length4 <= 10 )
+					{
+						total_read -= offset;
+						SetFilePointer( hFile_forward, total_read, NULL, FILE_BEGIN );
+					}
+					else	// The length of the next number is too long.
+					{
+						skip_next_newline = true;
 					}
 				}
 			}
@@ -1543,6 +2072,75 @@ void save_forward_list()
 	}
 }
 
+void save_forward_cid_list()
+{
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_cnam.txt\0", 18 );
+	base_directory[ base_directory_length + 17 ] = 0;	// Sanity.
+
+	// Open our config file if it exists.
+	HANDLE hFile_forward = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
+	if ( hFile_forward != INVALID_HANDLE_VALUE )
+	{
+		int size = ( 32768 + 1 );
+		int pos = 0;
+		DWORD write = 0;
+
+		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );	// This buffer must be greater than, or equal to 46 bytes.
+
+		node_type *node = dllrbt_get_head( forward_cid_list );
+		while ( node != NULL )
+		{
+			forwardcidinfo *fcidi = ( forwardcidinfo * )node->val;
+
+			if ( fcidi != NULL && fcidi->c_caller_id != NULL && fcidi->c_forward_to != NULL && fcidi->c_total_calls != NULL )
+			{
+				int caller_id_length = lstrlenA( fcidi->c_caller_id );
+				int phone_number_length = lstrlenA( fcidi->c_forward_to );
+				int total_calls_length = lstrlenA( fcidi->c_total_calls );
+
+				// See if the next number can fit in the buffer. If it can't, then we dump the buffer.
+				if ( pos + caller_id_length + phone_number_length + total_calls_length + 2 + 5 > size )
+				{
+					// Dump the buffer.
+					WriteFile( hFile_forward, write_buf, pos, &write, NULL );
+					pos = 0;
+				}
+
+				// Ignore caller ID names that are greater than 15 and numbers that are greater than 15 + 1 digits (bytes).
+				if ( caller_id_length + phone_number_length + total_calls_length + 2 + 5 <= 48 )
+				{
+					// Add to the buffer.
+					_memcpy_s( write_buf + pos, size - pos, fcidi->c_caller_id, caller_id_length );
+					pos += caller_id_length;
+					write_buf[ pos++ ] = '\x1f';
+					_memcpy_s( write_buf + pos, size - pos, fcidi->c_forward_to, phone_number_length );
+					pos += phone_number_length;
+					write_buf[ pos++ ] = '\x1f';
+					write_buf[ pos++ ] = ( fcidi->match_case == true ? '1' : '0' );
+					write_buf[ pos++ ] = ( fcidi->match_whole_word == true ? '1' : '0' );
+					write_buf[ pos++ ] = '\x1f';
+					_memcpy_s( write_buf + pos, size - pos, fcidi->c_total_calls, total_calls_length );
+					pos += total_calls_length;
+					write_buf[ pos++ ] = '\r';
+					write_buf[ pos++ ] = '\n';
+				}
+			}
+
+			node = node->next;
+		}
+
+		// If there's anything remaining in the buffer, then write it to the file.
+		if ( pos > 0 )
+		{
+			WriteFile( hFile_forward, write_buf, pos, &write, NULL );
+		}
+
+		GlobalFree( write_buf );
+
+		CloseHandle( hFile_forward );
+	}
+}
+
 void save_call_log_history()
 {
 	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history.bin\0", 22 );
@@ -1558,7 +2156,7 @@ void save_call_log_history()
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
 
-		int item_count = _SendMessageW( g_hWnd_list, LVM_GETITEMCOUNT, 0, 0 );
+		int item_count = _SendMessageW( g_hWnd_call_log, LVM_GETITEMCOUNT, 0, 0 );
 
 		LVITEM lvi;
 		_memzero( &lvi, sizeof( LVITEM ) );
@@ -1567,7 +2165,7 @@ void save_call_log_history()
 		for ( int i = 0; i < item_count; ++i )
 		{
 			lvi.iItem = i;
-			_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
+			_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 			displayinfo *di = ( displayinfo * )lvi.lParam;
 

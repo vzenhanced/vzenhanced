@@ -20,6 +20,7 @@
 #include "menus.h"
 #include "connection.h"
 #include "utilities.h"
+#include "list_operations.h"
 #include "string_tables.h"
 #include "file_operations.h"
 
@@ -162,7 +163,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 					if ( cfg_remember_login != save_info )
 					{
-						if ( _MessageBoxW( hWnd, ST_PROMPT_auto_log_in, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
+						if ( _MessageBoxW( hWnd, ST_PROMPT_auto_log_in, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
 						{
 							cfg_connection_auto_login = true;
 

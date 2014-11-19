@@ -198,6 +198,34 @@ void SetCallLog( dllrbt_tree *call_log )
 	}
 }
 
+void SetIgnoreCIDList( dllrbt_tree *ignore_cid_list )
+{
+	if ( web_server_state != WEB_SERVER_STATE_SHUTDOWN )
+	{
+		dllrbt_tree **dll = ( dllrbt_tree ** )GetProcAddress( hModule_web_server, "ignore_cid_list" );
+		if ( dll != NULL )
+		{
+			EnterCriticalSection( &pe_cs );
+			*dll = ignore_cid_list;
+			LeaveCriticalSection( &pe_cs );
+		}
+	}
+}
+
+void SetForwardCIDList( dllrbt_tree *forward_cid_list )
+{
+	if ( web_server_state != WEB_SERVER_STATE_SHUTDOWN )
+	{
+		dllrbt_tree **dll = ( dllrbt_tree ** )GetProcAddress( hModule_web_server, "forward_cid_list" );
+		if ( dll != NULL )
+		{
+			EnterCriticalSection( &pe_cs );
+			*dll = forward_cid_list;
+			LeaveCriticalSection( &pe_cs );
+		}
+	}
+}
+
 bool UnInitializeWebServer()
 {
 	if ( web_server_state != WEB_SERVER_STATE_SHUTDOWN )
@@ -222,7 +250,7 @@ bool WebIgnoreIncomingCall( displayinfo *di )
 	di->process_incoming = false;
 	di->ci.ignored = true;
 
-	_InvalidateRect( g_hWnd_list, NULL, TRUE );
+	_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
 
 	CloseHandle( ( HANDLE )_CreateThread( NULL, 0, IgnoreIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
 
@@ -243,7 +271,7 @@ bool WebForwardIncomingCall( displayinfo *di, char *forward_to )
 	// Forward to phone number
 	di->forward_to = FormatPhoneNumber( di->ci.forward_to );
 
-	_InvalidateRect( g_hWnd_list, NULL, TRUE );
+	_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
 
 	CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ForwardIncomingCall, ( void * )&( di->ci ), 0, NULL ) );
 

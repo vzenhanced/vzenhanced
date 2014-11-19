@@ -58,6 +58,8 @@ enum OVERLAP_TYPE
 	OVERLAP_CONTACT_LIST,
 	OVERLAP_FORWARD_LIST,
 	OVERLAP_IGNORE_LIST,
+	OVERLAP_FORWARD_CID_LIST,
+	OVERLAP_IGNORE_CID_LIST,
 	OVERLAP_UPDATE,
 	OVERLAP_CLOSE,
 };
@@ -116,6 +118,8 @@ struct SOCKET_CONTEXT
 	node_type					*forward_node;
 	node_type					*contact_node;
 	node_type					*call_node;
+	node_type					*ignore_cid_node;
+	node_type					*forward_cid_node;
 	DoublyLinkedList			*call_list;
 
 	DoublyLinkedList			*list_data;

@@ -150,6 +150,8 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	read_config();
 	read_ignore_list();
 	read_forward_list();
+	read_ignore_cid_list();
+	read_forward_cid_list();
 
 	// Create a tree of linked lists. Each linked list contains a list of displayinfo structs that share the same "call from" phone number.
 	call_log = dllrbt_create( dllrbt_compare );
@@ -164,6 +166,8 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		SetForwardList( forward_list );
 		SetContactList( contact_list );
 		SetCallLog( call_log );
+		SetIgnoreCIDList( ignore_cid_list );
+		SetForwardCIDList( forward_cid_list );
 
 		SetWebIgnoreIncomingCall( ( pWebIgnoreIncomingCall * )WebIgnoreIncomingCall );
 		SetWebForwardIncomingCall( ( pWebForwardIncomingCall * )WebForwardIncomingCall );
@@ -279,6 +283,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	wcex.lpfnWndProc    = PhoneWndProc;
 	wcex.lpszClassName  = L"phone";
+
+	if ( !_RegisterClassExW( &wcex ) )
+	{
+		fail_type = 1;
+		goto CLEANUP;
+	}
+
+	wcex.lpfnWndProc    = CIDWndProc;
+	wcex.lpszClassName  = L"cid";
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
@@ -460,6 +473,16 @@ CLEANUP:
 		save_forward_list();
 	}
 
+	if ( ignore_cid_list_changed == true )
+	{
+		save_ignore_cid_list();
+	}
+
+	if ( forward_cid_list_changed == true )
+	{
+		save_forward_cid_list();
+	}
+
 	if ( cfg_username != NULL )
 	{
 		GlobalFree( cfg_username );
@@ -523,6 +546,40 @@ CLEANUP:
 
 	dllrbt_delete_recursively( forward_list );
 	forward_list = NULL;
+
+	// Free the values of the ignore_cid_list.
+	node = dllrbt_get_head( ignore_cid_list );
+	while ( node != NULL )
+	{
+		ignorecidinfo *icidi = ( ignorecidinfo * )node->val;
+
+		if ( icidi != NULL )
+		{
+			free_ignorecidinfo( &icidi );
+		}
+
+		node = node->next;
+	}
+
+	dllrbt_delete_recursively( ignore_cid_list );
+	ignore_cid_list = NULL;
+
+	// Free the values of the forward_cid_list.
+	node = dllrbt_get_head( forward_cid_list );
+	while ( node != NULL )
+	{
+		forwardcidinfo *fcidi = ( forwardcidinfo * )node->val;
+
+		if ( fcidi != NULL )
+		{
+			free_forwardcidinfo( &fcidi );
+		}
+
+		node = node->next;
+	}
+
+	dllrbt_delete_recursively( forward_cid_list );
+	forward_cid_list = NULL;
 
 	// Free the values of the contact_list.
 	node = dllrbt_get_head( contact_list );

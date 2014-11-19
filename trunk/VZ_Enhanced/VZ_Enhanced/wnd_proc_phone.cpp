@@ -18,6 +18,7 @@
 
 #include "globals.h"
 #include "utilities.h"
+#include "list_operations.h"
 #include "string_tables.h"
 #include "connection.h"
 
@@ -36,13 +37,12 @@
 #define EDIT_NUMBER		1013
 #define EDIT_NUMBER2	1014
 
-static unsigned short bad_area_codes[ 29 ] = { 211, 242, 246, 264, 268, 284, 311, 345, 411, 441, 473, 511, 611, 649, 664, 711, 758, 767, 784, 809, 811, 829, 849, 868, 869, 876, 900, 911, 976 };
-
 bool forward_incoming = false;	// If the call is incoming and not in the forward list, then let us forward the call manually.
 displayinfo *edit_di = NULL;	// Display the number we want to forward (when forwarding a number in the call log listview).
 forwardinfo *edit_fi = NULL;	// Display the numbers we want to edit (when editing a number in the forward list listview).
 
 bool forward_focus = false;		// Allows number buttons to insert a value into the correct edit box.
+bool multiple_phone_numbers = false;	// Change the call from phone number if we're adding multiple phone numbers.
 
 WNDPROC EditProc = NULL;
 
@@ -255,14 +255,6 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 		}
 		break;
 
-		case WM_LBUTTONDOWN:
-		case WM_RBUTTONDOWN:
-		case WM_MBUTTONDOWN:
-		{
-			_SetFocus( hWnd );
-		}
-		break;
-
 		case WM_COMMAND:
 		{
 			switch( LOWORD( wParam ) )
@@ -270,44 +262,53 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				case BTN_ACTION:
 				{
 					char number[ 17 ];
-					int length = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_GETTEXT, 17, ( LPARAM )number );
-
-					if ( length > 0 )
+					int length =  0;
+					
+					if ( multiple_phone_numbers == false )
 					{
-						if ( length == 10 || ( length == 11 && number[ 0 ] == '1' ) )
+						length = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_GETTEXT, 17, ( LPARAM )number );
+
+						if ( length > 0 )
 						{
-							char value[ 3 ];
-							if ( length == 10 )
+							if ( length == 10 || ( length == 11 && number[ 0 ] == '1' ) )
 							{
-								value[ 0 ] = number[ 0 ];
-								value[ 1 ] = number[ 1 ];
-								value[ 2 ] = number[ 2 ];
-							}
-							else
-							{
-								value[ 0 ] = number[ 1 ];
-								value[ 1 ] = number[ 2 ];
-								value[ 2 ] = number[ 3 ];
-							}
-
-							unsigned short area_code = ( unsigned short )_strtoul( value, NULL, 10 );
-
-							for ( int i = 0; i < 29; ++i )
-							{
-								if ( area_code == bad_area_codes[ i ] )
+								char value[ 3 ];
+								if ( length == 10 )
 								{
-									_MessageBoxW( hWnd, ST_restricted_area_code, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING );
-									_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER ) );
-									return 0;
+									value[ 0 ] = number[ 0 ];
+									value[ 1 ] = number[ 1 ];
+									value[ 2 ] = number[ 2 ];
+								}
+								else
+								{
+									value[ 0 ] = number[ 1 ];
+									value[ 1 ] = number[ 2 ];
+									value[ 2 ] = number[ 3 ];
+								}
+
+								unsigned short area_code = ( unsigned short )_strtoul( value, NULL, 10 );
+
+								for ( int i = 0; i < 29; ++i )
+								{
+									if ( area_code == bad_area_codes[ i ] )
+									{
+										_MessageBoxW( hWnd, ST_restricted_area_code, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING );
+										_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER ) );
+										return 0;
+									}
 								}
 							}
+						}
+						else
+						{
+							_MessageBoxW( hWnd, ST_enter_valid_phone_number, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING );
+							_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER ) );
+							break;
 						}
 					}
 					else
 					{
-						_MessageBoxW( hWnd, ST_enter_valid_phone_number, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING );
-						_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER ) );
-						break;
+						number[ 0 ] = 0;
 					}
 
 					if ( hWnd == g_hWnd_dial )
@@ -375,7 +376,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						{
 							if ( edit_di != NULL )
 							{
-								char *forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * length2 + 1 );
+								char *forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length2 + 1 ) );
 								_memcpy_s( forward_to, length2 + 1, number2, length2 );
 								forward_to[ length2 ] = 0;	// Sanity
 
@@ -386,7 +387,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 								// Forward to phone number
 								edit_di->forward_to = FormatPhoneNumber( edit_di->ci.forward_to );
 
-								_InvalidateRect( g_hWnd_list, NULL, TRUE );
+								_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
 
 								CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ForwardIncomingCall, ( void * )&( edit_di->ci ), 0, NULL ) );
 							}
@@ -398,36 +399,30 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 							forwardupdateinfo *fui = ( forwardupdateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( forwardupdateinfo ) );
 							fui->fi = NULL;
 							fui->action = 0;	// Add = 0, 1 = Remove, 2 = Add all tree items, 3 = Update
+							fui->hWnd = g_hWnd_forward_list;	// Update forward list items.
 							fui->call_from = NULL;
 							fui->forward_to = NULL;
 
 							if ( edit_di != NULL )	// Add item from call log listview to forward_list and forward list listview.
 							{
-								fui->hWnd = g_hWnd_list;	// Update call log items.
+								fui->hWnd = g_hWnd_call_log;	// Update call log items.
 							}
 							else if ( edit_fi != NULL )	// Update all the forward information.
 							{
-								char *call_from = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * length + 1 );
-								_memcpy_s( call_from, length + 1, number, length );
-								call_from[ length ] = 0;	// Sanity
+								fui->fi = edit_fi;
 
-								fui->call_from = call_from;
-
-								fui->hWnd = g_hWnd_forward_list;	// Update forward list items.
 								fui->action = 3;	// Update
 							}
 							else	// Add item to forward list listview and update items in call log listview.
 							{
-								char *call_from = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * length + 1 );
+								char *call_from = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length + 1 ) );
 								_memcpy_s( call_from, length + 1, number, length );
 								call_from[ length ] = 0;	// Sanity
 
 								fui->call_from = call_from;
-
-								fui->hWnd = g_hWnd_forward_list;	// Update forward list items.
 							}
 
-							char *forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * length2 + 1 );
+							char *forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length2 + 1 ) );
 							_memcpy_s( forward_to, length2 + 1, number2, length2 );
 							forward_to[ length2 ] = 0;	// Sanity
 
@@ -444,7 +439,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						iui->action = 0;	// Add = 0, 1 = Remove
 						iui->hWnd = g_hWnd_ignore_list;
 
-						char *ignore_number = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * length + 1 );
+						char *ignore_number = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( length + 1 ) );
 						_memcpy_s( ignore_number, length + 1, number, length );
 						ignore_number[ length ] = 0;	// Sanity
 
@@ -615,13 +610,14 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 		case WM_PROPAGATE:
 		{
-			if ( wParam == 1 )	// Forward phone number.
+			if ( wParam == 1 || wParam == 5 )	// Forward phone number(s).
 			{
 				forward_focus = false;
 				forward_incoming = false;
 				edit_fi = NULL;
 
 				edit_di = ( displayinfo * )lParam;
+				multiple_phone_numbers = ( wParam == 5 ? true : false );
 
 				_SendMessageW( _GetDlgItem( hWnd, BTN_ACTION ), WM_SETTEXT, 0, ( LPARAM )ST_Forward_Phone_Number );
 
@@ -629,7 +625,14 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				if ( edit_di != NULL )	// If this is not NULL, then we're adding a forwarding number from the call log listview.
 				{
-					_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )edit_di->ci.call_from );
+					if ( multiple_phone_numbers == false )
+					{
+						_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )edit_di->ci.call_from );
+					}
+					else
+					{
+						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )ST__multiple_phone_numbers_ );
+					}
 
 					_EnableWindow( _GetDlgItem( hWnd, EDIT_NUMBER ), FALSE );		// We don't want to edit this number.
 					_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER2 ) );
@@ -671,6 +674,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			{
 				forward_focus = false;
 				forward_incoming = false;
+				multiple_phone_numbers = false;
 				edit_di = NULL;
 
 				edit_fi = ( forwardinfo * )lParam;
@@ -700,6 +704,10 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			}
 			else if ( wParam == 4 )	// An incoming number to forward.
 			{
+				forward_focus = false;
+				multiple_phone_numbers = false;
+				edit_fi = NULL;
+
 				edit_di = ( displayinfo * )lParam;
 
 				if ( edit_di != NULL )
@@ -761,6 +769,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				edit_fi = NULL;
 				forward_focus = false;
 				forward_incoming = false;
+				multiple_phone_numbers = false;
 
 				g_hWnd_forward = NULL;
 			}

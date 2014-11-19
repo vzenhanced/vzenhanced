@@ -85,10 +85,12 @@
 
 #define NUM_TABS			4
 
-#define NUM_COLUMNS			9
+#define NUM_COLUMNS1		11
 #define NUM_COLUMNS2		17
 #define NUM_COLUMNS3		4
 #define NUM_COLUMNS4		3
+#define NUM_COLUMNS5		6
+#define NUM_COLUMNS6		5
 
 #define SAFESTRA( s ) ( s != NULL ? s : "" )
 #define SAFESTR2A( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : "" ) )
@@ -125,25 +127,30 @@ struct displayinfo
 	{
 		struct	// Keep these in alphabetical order.
 		{
-			wchar_t *caller_id;		// Caller ID
-			wchar_t *w_time;		// Date and Time
-			wchar_t *w_forward;		// Forward
-			wchar_t *forward_to;	// Forward to
-			wchar_t *w_ignore;		// Ignore
-			wchar_t *phone_number;	// Phone Number
-			wchar_t *reference;		// Reference
-			wchar_t *sent_to;		// Sent to
+			wchar_t *caller_id;					// Caller ID
+			wchar_t *w_time;					// Date and Time
+			wchar_t *w_forward_caller_id;		// Forward Caller ID
+			wchar_t *w_forward_phone_number;	// Forward Phone Number
+			wchar_t *forward_to;				// Forward to
+			wchar_t *w_ignore_caller_id;		// Ignore Caller ID
+			wchar_t *w_ignore_phone_number;		// Ignore Phone Number
+			wchar_t *phone_number;				// Phone Number
+			wchar_t *reference;					// Reference
+			wchar_t *sent_to;					// Sent to
 		};
 
-		wchar_t *display_values[ 8 ];
+		wchar_t *display_values[ 10 ];
 	};
 
 	callerinfo ci;
 
 	LARGE_INTEGER time;
 
-	bool ignore;			// Ignore	(phone number is in ignore_list)
-	bool forward;			// Forward	(phone number is in forward_list)
+	unsigned int forward_cid_match_count;	// Number of forward cid matches.
+	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.
+
+	bool ignore_phone_number;		// phone number is in ignore_list
+	bool forward_phone_number;		// phone number is in forward_list
 
 	bool process_incoming;	// false, true = ignore or forward
 };
@@ -260,12 +267,59 @@ struct ignoreinfo
 	unsigned char state;	// 0 = keep, 1 = remove.
 };
 
+struct ignorecidinfo
+{
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			char *c_caller_id;
+			char *c_match_case;
+			char *c_match_whole_word;
+			char *c_total_calls;
+		};
+
+		char *c_ignorecidinfo_values[ 4 ];
+	};
+
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			wchar_t *caller_id;
+			wchar_t *w_match_case;
+			wchar_t *w_match_whole_word;
+			wchar_t *total_calls;
+		};
+
+		wchar_t *ignorecidinfo_values[ 4 ];
+	};
+
+	unsigned int count;		// Number of times the call has been ignored.
+	unsigned char state;	// 0 = keep, 1 = remove.
+
+	bool match_case;
+	bool match_whole_word;
+
+	bool active;			// A caller ID value has been matched.
+};
+
 struct ignoreupdateinfo
 {
 	HWND hWnd;
 	char *phone_number;		// Phone number to add.
 	ignoreinfo *ii;			// Ignore info to update.
-	unsigned char action;	// 0 Add, 1 Remove, 2 Add all from ignorelist, 3 Update ii.
+	unsigned char action;	// 0 Add, 1 Remove, 2 Add all from ignore_list, 3 Update ii.
+};
+
+struct ignorecidupdateinfo
+{
+	HWND hWnd;
+	char *caller_id;		// Caller ID to add.
+	ignorecidinfo *icidi;	// Ignore info to update.
+	unsigned char action;	// 0 Add, 1 Remove, 2 Add all from ignore_cid_list, 3 Update icidi.
+	bool match_case;
+	bool match_whole_word;
 };
 
 struct forwardinfo
@@ -298,6 +352,45 @@ struct forwardinfo
 	unsigned char state;	// 0 = keep, 1 = remove.
 };
 
+struct forwardcidinfo
+{
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			char *c_caller_id;
+			char *c_forward_to;
+			char *c_match_case;
+			char *c_match_whole_word;
+			char *c_total_calls;
+		};
+
+		char *c_fowardcidinfo_values[ 5 ];
+	};
+
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			wchar_t *caller_id;
+			wchar_t *forward_to;
+			wchar_t *w_match_case;
+			wchar_t *w_match_whole_word;
+			wchar_t *total_calls;
+		};
+
+		wchar_t *forwardcidinfo_values[ 5 ];
+	};
+
+	unsigned int count;		// Number of times the call has been forwarded.
+	unsigned char state;	// 0 = keep, 1 = remove.
+
+	bool match_case;
+	bool match_whole_word;
+
+	bool active;			// A caller ID value has been matched.
+};
+
 struct forwardupdateinfo
 {
 	HWND hWnd;
@@ -305,6 +398,17 @@ struct forwardupdateinfo
 	char *forward_to;
 	forwardinfo *fi;		// Forward info to update.
 	unsigned char action;	// 0 Add, 1 Remove, 2 Add all from forward_list, 3 Update entry, 4 Update fi.
+};
+
+struct forwardcidupdateinfo
+{
+	HWND hWnd;
+	char *caller_id;		// Caller ID to add.
+	char *forward_to;
+	forwardcidinfo *fcidi;	// Forward info to update.
+	unsigned char action;	// 0 Add, 1 Remove, 2 Add all from forward_cid_list, 3 Update entry, 4 Update fcidi.
+	bool match_case;
+	bool match_whole_word;
 };
 
 // These are all variables that are shared among the separate .cpp files.
@@ -319,10 +423,16 @@ extern HWND g_hWnd_account;
 extern HWND g_hWnd_dial;
 extern HWND g_hWnd_forward;
 extern HWND g_hWnd_ignore_phone_number;
+extern HWND g_hWnd_forward_cid;
+extern HWND g_hWnd_ignore_cid;
 extern HWND g_hWnd_phone_lines;
-extern HWND g_hWnd_list;				// Handle to the listview control.
+extern HWND g_hWnd_call_log;				// Handle to the call log listview control.
 extern HWND g_hWnd_contact_list;
+extern HWND g_hWnd_ignore_tab;
+extern HWND g_hWnd_ignore_cid_list;
 extern HWND g_hWnd_ignore_list;
+extern HWND g_hWnd_forward_tab;
+extern HWND g_hWnd_forward_cid_list;
 extern HWND g_hWnd_forward_list;
 extern HWND g_hWnd_tab;
 extern HWND g_hWnd_connection_manager;
@@ -339,6 +449,8 @@ extern HANDLE connection_worker_semaphore;
 extern HANDLE connection_incoming_semaphore;
 extern HANDLE update_check_semaphore;
 extern HANDLE reconnect_semaphore;
+
+extern HANDLE worker_semaphore;			// Blocks shutdown while a worker thread is active.
 
 extern HANDLE select_line_semaphore;
 
@@ -364,6 +476,8 @@ extern bool skip_log_draw;				// Prevents WM_DRAWITEM from accessing listview it
 extern bool skip_contact_draw;
 extern bool skip_ignore_draw;
 extern bool skip_forward_draw;
+extern bool skip_ignore_cid_draw;
+extern bool skip_forward_cid_draw;
 
 extern RANGE *ignore_range_list[ 16 ];
 extern RANGE *forward_range_list[ 16 ];
@@ -374,6 +488,12 @@ extern bool ignore_list_changed;
 extern dllrbt_tree *forward_list;
 extern bool forward_list_changed;
 
+extern dllrbt_tree *ignore_cid_list;
+extern bool ignore_cid_list_changed;
+
+extern dllrbt_tree *forward_cid_list;
+extern bool forward_cid_list_changed;
+
 extern dllrbt_tree *contact_list;
 
 extern dllrbt_tree *call_log;
@@ -382,10 +502,12 @@ extern bool call_log_changed;
 
 extern unsigned char total_tabs;
 
-extern unsigned char total_columns;
+extern unsigned char total_columns1;
 extern unsigned char total_columns2;
 extern unsigned char total_columns3;
 extern unsigned char total_columns4;
+extern unsigned char total_columns5;
+extern unsigned char total_columns6;
 
 // Account information
 extern char *account_id;
@@ -486,6 +608,8 @@ extern int cfg_column_width6;
 extern int cfg_column_width7;
 extern int cfg_column_width8;
 extern int cfg_column_width9;
+extern int cfg_column_width10;
+extern int cfg_column_width11;
 
 extern char cfg_column_order1;
 extern char cfg_column_order2;
@@ -496,6 +620,8 @@ extern char cfg_column_order6;
 extern char cfg_column_order7;
 extern char cfg_column_order8;
 extern char cfg_column_order9;
+extern char cfg_column_order10;
+extern char cfg_column_order11;
 
 extern int cfg_column2_width1;
 extern int cfg_column2_width2;
@@ -551,6 +677,32 @@ extern char cfg_column4_order1;
 extern char cfg_column4_order2;
 extern char cfg_column4_order3;
 
+extern int cfg_column5_width1;
+extern int cfg_column5_width2;
+extern int cfg_column5_width3;
+extern int cfg_column5_width4;
+extern int cfg_column5_width5;
+extern int cfg_column5_width6;
+
+extern char cfg_column5_order1;
+extern char cfg_column5_order2;
+extern char cfg_column5_order3;
+extern char cfg_column5_order4;
+extern char cfg_column5_order5;
+extern char cfg_column5_order6;
+
+extern int cfg_column6_width1;
+extern int cfg_column6_width2;
+extern int cfg_column6_width3;
+extern int cfg_column6_width4;
+extern int cfg_column6_width5;
+
+extern char cfg_column6_order1;
+extern char cfg_column6_order2;
+extern char cfg_column6_order3;
+extern char cfg_column6_order4;
+extern char cfg_column6_order5;
+
 extern bool cfg_connection_auto_login;
 extern bool cfg_connection_reconnect;
 extern bool cfg_download_pictures;
@@ -561,15 +713,19 @@ extern unsigned char cfg_connection_ssl_version;
 
 extern char *tab_order[ NUM_TABS ];
 
-extern char *list_columns[ NUM_COLUMNS ];
+extern char *call_log_columns[ NUM_COLUMNS1 ];
 extern char *contact_list_columns[ NUM_COLUMNS2 ];
 extern char *forward_list_columns[ NUM_COLUMNS3 ];
 extern char *ignore_list_columns[ NUM_COLUMNS4 ];
+extern char *forward_cid_list_columns[ NUM_COLUMNS5 ];
+extern char *ignore_cid_list_columns[ NUM_COLUMNS6 ];
 
-extern int *list_columns_width[ NUM_COLUMNS ];
+extern int *call_log_columns_width[ NUM_COLUMNS1 ];
 extern int *contact_list_columns_width[ NUM_COLUMNS2 ];
 extern int *forward_list_columns_width[ NUM_COLUMNS3 ];
 extern int *ignore_list_columns_width[ NUM_COLUMNS4 ];
+extern int *forward_cid_list_columns_width[ NUM_COLUMNS5 ];
+extern int *ignore_cid_list_columns_width[ NUM_COLUMNS6 ];
 
 struct WINDOW_SETTINGS
 {

@@ -84,5 +84,7 @@ void SetIgnoreList( dllrbt_tree *ignore_list );
 void SetForwardList( dllrbt_tree *forward_list );
 void SetContactList( dllrbt_tree *contact_list );
 void SetCallLog( dllrbt_tree *call_log );
+void SetIgnoreCIDList( dllrbt_tree *ignore_cid_list );
+void SetForwardCIDList( dllrbt_tree *forward_cid_list );
 
 #endif
