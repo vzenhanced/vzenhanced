@@ -16,19 +16,21 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _FILE_OPERATIONS_H
-#define _FILE_OPERATIONS_H
+#ifndef _LIST_OPERATIONS_H
+#define _LIST_OPERATIONS_H
 
-void read_config();
-void save_config();
-void read_ignore_list();
-void read_ignore_cid_list();
-void save_ignore_list();
-void save_ignore_cid_list();
-void read_forward_list();
-void read_forward_cid_list();
-void save_forward_list();
-void save_forward_cid_list();
-void save_call_log_history();
+THREAD_RETURN remove_items( void *pArguments );
+
+THREAD_RETURN update_ignore_list( void *pArguments );
+THREAD_RETURN update_ignore_cid_list( void *pArguments );
+THREAD_RETURN update_forward_list( void *pArguments );
+THREAD_RETURN update_forward_cid_list( void *pArguments );
+THREAD_RETURN update_contact_list( void *pArguments );
+THREAD_RETURN update_call_log( void *pArguments );
+
+THREAD_RETURN read_call_log_history( void *pArguments );
+THREAD_RETURN save_call_log( void *file_path );
+
+THREAD_RETURN copy_items( void *pArguments );
 
 #endif

@@ -9,6 +9,8 @@ var l_lines = false;
 var cl_lines = false;
 var il_lines = false;
 var fl_lines = false;
+var icidl_lines = false;
+var fcidl_lines = false;
 var display_width = "";
 
 // Tabs
@@ -89,17 +91,17 @@ function toggle_header( obj, id )
 		last_div.style.display = "none";
 
 		e.style.display = "table";
-		
+
 		last_div = e;
 
 		last_header.style.backgroundColor = "";
 		last_header.style.backgroundImage = "";
-		
+
 		obj.style.backgroundColor = "#EEEEEE";
 		obj.style.backgroundImage = "linear-gradient(to bottom, #CCCCCC, #EEEEEE)";
 
 		last_header = obj;
-		
+
 		if ( id == "columns_l" ) { check_width( "lo", "call_log", "l_row" ); }
 		else if ( id == "columns_cl" ) { check_width( "clo", "contact_list", "cl_row" ); }
 		else if ( id == "columns_fl" ) { check_width( "flo", "forward_list", "fl_row" ); }
@@ -112,7 +114,7 @@ function initialize_page()
 	var url = location;
 	host = url.host;
 	protocol = url.protocol;
-	
+
 	if ( protocol == "https:" )
 	{
 		protocol = "wss";
@@ -129,7 +131,7 @@ function initialize_page()
 
 	last_header.style.backgroundColor = "#EEEEEE";
 	last_header.style.backgroundImage = "linear-gradient(to bottom, #CCCCCC, #EEEEEE)";
-	
+
 	var local_date = new Date();
 	minute_offset = local_date.getTimezoneOffset();
 
@@ -141,6 +143,8 @@ var got_il = false;
 var got_fl = false;
 var got_cl = false;
 var got_l = false;
+var got_fcidl = false;
+var got_icidl = false;
 
 function get_ignore_list()
 {
@@ -178,6 +182,24 @@ function get_call_log()
 	}
 }
 
+function get_forward_cid_list()
+{
+	if ( ws != null && got_fcidl == false )
+	{
+		got_fcidl = true;
+		ws.send("GET_FORWARD_CID_LIST");
+	}
+}
+
+function get_ignore_cid_list()
+{
+	if ( ws != null && got_icidl == false )
+	{
+		got_icidl = true;
+		ws.send("GET_IGNORE_CID_LIST");
+	}
+}
+
 function format_timestamp( ts )
 {
 	// Friday, October 11, 2013 5:35:27 PM
@@ -204,7 +226,7 @@ function format_phone_number( pn )
 			return pn[ 0 ] + "-" + pn.substring( 1, 4 ) + "-" + pn.substring( 4, 7 ) + "-" + pn.substring( 7 );
 		}
 	}
-	
+
 	return pn;
 }
 
@@ -257,7 +279,7 @@ function create_forward_window()
 			label_from.style.cssText = "color: #777777; font-weight: bold; text-shadow: 0px 1px 0px #FFFFFF;"
 			label_from.appendChild( document.createTextNode( "From:" ) );
 			label_from.appendChild( document.createElement( "br" ) );
-				
+
 				forward_from_input = document.createElement("input");
 				forward_from_input.style.cssText = "outline: 0; border: 1px solid #CCCCCC; background-color: #EEEEEE; text-align: center; width: 176px; border-radius: 12px; box-shadow: 0px 0px 4px 0px #AAAAAA;/* color: #777777; font-weight: bold; text-shadow: 0px 1px 0px #FFFFFF;*/";
 				forward_from_input.maxLength = "16";    // Allow the '+' digit.
@@ -267,9 +289,9 @@ function create_forward_window()
 
 			label_from.appendChild( forward_from_input );
 			dial_row_0.appendChild( label_from );
-			
+
 			dial_row_0.appendChild( document.createElement( "br" ) );
-			
+
 			var label_to = document.createElement( "label" );
 			label_to.style.cssText = "color: #777777; font-weight: bold; text-shadow: 0px 1px 0px #FFFFFF;"
 			label_to.appendChild( document.createTextNode( "To:" ) );
@@ -281,25 +303,25 @@ function create_forward_window()
 				forward_to_input.onkeypress = validate_input;
 				forward_to_input.onfocus = function() { forward_to_input.style.borderColor = "#AAAAAA"; };
 				forward_to_input.onblur = function() { forward_to_input.style.borderColor = "#CCCCCC"; };
-				
+
 			label_to.appendChild( forward_to_input );
 			dial_row_0.appendChild( label_to );
-			
+
 			forward_reference_hidden = document.createElement("input");
 			forward_reference_hidden.type = "hidden";
-			
+
 			dial_row_0.appendChild( forward_reference_hidden );
 
 		var dial_row_1 = document.createElement("div");
 		dial_row_1.style.cssText = "display: table; border-spacing: 10px 5px; width: 100%; text-align: center;";
-			
+
 			var dial_1 = document.createElement("a");
 			dial_1.className = "popup_button";
 			dial_1.style.cssText = "width: 40px; height: 40px;";
 			dial_1.appendChild( document.createTextNode( "1" ) );
 			dial_1.onclick = function(){ update_input( "1" ); return false; };
 			dial_1.href = "";
-			
+
 			var dial_2 = document.createElement("a");
 			dial_2.className = "popup_button";
 			dial_2.style.cssText = "width: 40px; height: 40px;";
@@ -308,7 +330,7 @@ function create_forward_window()
 			dial_2.appendChild( document.createTextNode( "ABC" ) );
 			dial_2.onclick = function(){ update_input( "2" ); return false; };
 			dial_2.href = "";
-			
+
 			var dial_3 = document.createElement("a");
 			dial_3.className = "popup_button";
 			dial_3.style.cssText = "width: 40px; height: 40px;";
@@ -317,14 +339,14 @@ function create_forward_window()
 			dial_3.appendChild( document.createTextNode( "DEF" ) );
 			dial_3.onclick = function(){ update_input( "3" ); return false; };
 			dial_3.href = "";
-			
+
 		dial_row_1.appendChild( dial_1 );
 		dial_row_1.appendChild( dial_2 );
 		dial_row_1.appendChild( dial_3 );
 
 		var dial_row_2 = document.createElement("div");
 		dial_row_2.style.cssText = "display: table; border-spacing: 10px 5px; width: 100%; text-align: center;";
-			
+
 			var dial_4 = document.createElement("a");
 			dial_4.className = "popup_button";
 			dial_4.style.cssText = "width: 40px; height: 40px;";
@@ -333,7 +355,7 @@ function create_forward_window()
 			dial_4.appendChild( document.createTextNode( "GHI" ) );
 			dial_4.onclick = function(){ update_input( "4" ); return false; };
 			dial_4.href = "";
-			
+
 			var dial_5 = document.createElement("a");
 			dial_5.className = "popup_button";
 			dial_5.style.cssText = "width: 40px; height: 40px;";
@@ -342,7 +364,7 @@ function create_forward_window()
 			dial_5.appendChild( document.createTextNode( "JKL" ) );
 			dial_5.onclick = function(){ update_input( "5" ); return false; };
 			dial_5.href = "";
-			
+
 			var dial_6 = document.createElement("a");
 			dial_6.className = "popup_button";
 			dial_6.style.cssText = "width: 40px; height: 40px;";
@@ -351,14 +373,14 @@ function create_forward_window()
 			dial_6.appendChild( document.createTextNode( "MNO" ) );
 			dial_6.onclick = function(){ update_input( "6" ); return false; };
 			dial_6.href = "";
-			
+
 		dial_row_2.appendChild( dial_4 );
 		dial_row_2.appendChild( dial_5 );
 		dial_row_2.appendChild( dial_6 );
 
 		var dial_row_3 = document.createElement("div");
 		dial_row_3.style.cssText = "display: table; border-spacing: 10px 5px; width: 100%; text-align: center;";
-			
+
 			var dial_7 = document.createElement("a");
 			dial_7.className = "popup_button";
 			dial_7.style.cssText = "width: 40px; height: 40px;";
@@ -367,7 +389,7 @@ function create_forward_window()
 			dial_7.appendChild( document.createTextNode( "PQRS" ) );
 			dial_7.onclick = function(){ update_input( "7" ); return false; };
 			dial_7.href = "";
-			
+
 			var dial_8 = document.createElement("a");
 			dial_8.className = "popup_button";
 			dial_8.style.cssText = "width: 40px; height: 40px;";
@@ -376,7 +398,7 @@ function create_forward_window()
 			dial_8.appendChild( document.createTextNode( "TUV" ) );
 			dial_8.onclick = function(){ update_input( "8" ); return false; };
 			dial_8.href = "";
-			
+
 			var dial_9 = document.createElement("a");
 			dial_9.className = "popup_button";
 			dial_9.style.cssText = "width: 40px; height: 40px;";
@@ -385,7 +407,7 @@ function create_forward_window()
 			dial_9.appendChild( document.createTextNode( "WXYZ" ) );
 			dial_9.onclick = function(){ update_input( "9" ); return false; };
 			dial_9.href = "";
-			
+
 		dial_row_3.appendChild( dial_7 );
 		dial_row_3.appendChild( dial_8 );
 		dial_row_3.appendChild( dial_9 );
@@ -397,41 +419,41 @@ function create_forward_window()
 			dial_0a.className = "popup_button";
 			dial_0a.style.cssText = "width: 40px; height: 40px;";
 			dial_0a.style.visibility = "hidden";
-			
+
 			var dial_0 = document.createElement("a");
 			dial_0.className = "popup_button";
 			dial_0.style.cssText = "width: 40px; height: 40px;";
 			dial_0.appendChild( document.createTextNode( "0" ) );
 			dial_0.onclick = function(){ update_input( "0" ); return false; };
 			dial_0.href = "";
-			
+
 			var dial_0b = document.createElement("div");
 			dial_0b.className = "popup_button";
 			dial_0b.style.cssText = "width: 40px; height: 40px;";
 			dial_0b.style.visibility = "hidden";
-			
+
 		dial_row_4.appendChild( dial_0a );
 		dial_row_4.appendChild( dial_0 );
 		dial_row_4.appendChild( dial_0b );
-		
+
 		var dial_row_5 = document.createElement("div");
 		dial_row_5.style.cssText = "display: table; border-top: 1px solid #AAAAAA; margin-top: 5px; border-spacing: 10px; width: 100%; text-align: center;";
-		
+
 			var dial_forward = document.createElement("a");
 			dial_forward.className = "popup_button";
 			dial_forward.appendChild( document.createTextNode( "Forward" ) );
 			dial_forward.onclick = function(){ forward_incoming_call( forward_to_input.value, forward_from_input.value, forward_reference_hidden.value, forward_call_log_id ); show_hide_forward_window( 0 ); return false; };
 			dial_forward.href = "";
-			
+
 			var dial_cancel = document.createElement("a");
 			dial_cancel.className = "popup_button";
 			dial_cancel.appendChild( document.createTextNode( "Cancel" ) );
 			dial_cancel.onclick = function(){ show_hide_forward_window( 0 ); return false; };
 			dial_cancel.href = "";
-		
+
 		dial_row_5.appendChild( dial_forward );
 		dial_row_5.appendChild( dial_cancel );
-		
+
 	forward_window.appendChild( dial_row_0 );
 	forward_window.appendChild( dial_row_1 );
 	forward_window.appendChild( dial_row_2 );
@@ -449,7 +471,7 @@ function forward_incoming_call( to, from, reference, id )
 	{
 		last_forward_number = to;
 		ws.send( "FORWARD_INCOMING:" + from + ":" + number + ":" + reference );
-		
+
 		document.getElementById( id ).style.color = "#FF8000";	// Orange
 	}
 }
@@ -459,7 +481,7 @@ function ignore_incoming_call( from, reference, id )
 	if ( ws != null )
 	{
 		ws.send( "IGNORE_INCOMING:" + from + ":" + reference );
-		
+
 		document.getElementById( id ).style.color = "#FF0000";	// Red
 	}
 }
@@ -543,7 +565,7 @@ function create_popup( caller_id, from, timestamp, reference )
 			forward_a.onclick = function(){ set_forward_info_values( last_forward_number, from, reference, timestamp ); show_hide_forward_window( 1 ); document.body.removeChild( popup ); return false; };
 			forward_a.href = "";
 			forward_a.appendChild( document.createTextNode( "Forward" ) );
-			
+
 			var close_a = document.createElement("a");
 			close_a.className = "popup_button";
 			close_a.onclick = function(){ document.body.removeChild( popup ); return false; };
@@ -588,7 +610,7 @@ function connect()
 			{
 				ws.close();
 			}
-			
+
 			return;
 		}
 
@@ -605,8 +627,10 @@ function connect()
 			get_contact_list();
 			get_forward_list();
 			get_ignore_list();
+			get_forward_cid_list();
+			get_ignore_cid_list();
 		};
-		
+
 		ws.onmessage = function (evt) 
 		{
 			var received_msg = evt.data;
@@ -635,10 +659,10 @@ function connect()
 
 				var caller_id = document.createElement("div");
 				caller_id.style.cssText = "display: table-cell; width: 150px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-				
+
 				var phone_number = document.createElement("div");
 				phone_number.style.cssText = "display: table-cell; width: 150px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-				
+
 				var time = document.createElement("div");
 				time.style.cssText = "display: table-cell; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 10px;";
 
@@ -662,7 +686,7 @@ function connect()
 				create_popup( jobj.CALL_LOG_UPDATE[ 0 ].C, jobj.CALL_LOG_UPDATE[ 0 ].N, jobj.CALL_LOG_UPDATE[ 0 ].T, jobj.CALL_LOG_UPDATE[ 0 ].R );
 
 				type = null;
-				
+
 				return;
 			}
 
@@ -688,16 +712,16 @@ function connect()
 
 					var caller_id = document.createElement("div");
 					caller_id.style.cssText = "display: table-cell; width: 150px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var phone_number = document.createElement("div");
 					phone_number.style.cssText = "display: table-cell; width: 150px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var time = document.createElement("div");
 					time.style.cssText = "display: table-cell; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 10px;";
 
 					var node = document.createTextNode( jobj.CALL_LOG[ i ].C );
 					caller_id.appendChild( node );
-					
+
 					node = document.createTextNode( format_phone_number( jobj.CALL_LOG[ i ].N ) );
 					phone_number.appendChild( node );
 
@@ -717,7 +741,7 @@ function connect()
 
 				return;
 			}
-			
+
 			type = jobj.CONTACT_LIST;
 			if ( type != null )
 			{
@@ -731,25 +755,25 @@ function connect()
 
 					var div_first_name = document.createElement("div");
 					div_first_name.style.cssText = "display: table-cell; width: 130px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var div_last_name = document.createElement("div");
 					div_last_name.style.cssText = "display: table-cell; width: 130px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var div_home_number = document.createElement("div");
 					div_home_number.style.cssText = "display: table-cell; width: 140px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var div_cell_number = document.createElement("div");
 					div_cell_number.style.cssText = "display: table-cell; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 10px;";
 
 					var node = document.createTextNode( jobj.CONTACT_LIST[ i ].F );
 					div_first_name.appendChild( node );
-					
+
 					node = document.createTextNode( jobj.CONTACT_LIST[ i ].L );
 					div_last_name.appendChild( node );
-					
+
 					node = document.createTextNode( format_phone_number( jobj.CONTACT_LIST[ i ].H ) );
 					div_home_number.appendChild( node );
-					
+
 					node = document.createTextNode( format_phone_number( jobj.CONTACT_LIST[ i ].C ) );
 					div_cell_number.appendChild( node );
 
@@ -762,12 +786,12 @@ function connect()
 
 					check_width( "clo", "contact_list", "cl_row" );
 				}
-				
+
 				type = null;
 
 				return;
 			}
-			
+
 			type = jobj.FORWARD_LIST;
 			if ( type != null )
 			{
@@ -781,19 +805,19 @@ function connect()
 
 					var div_from = document.createElement("div");
 					div_from.style.cssText = "display: table-cell; width: 220px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var div_to = document.createElement("div");
 					div_to.style.cssText = "display: table-cell; width: 220px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var div_count = document.createElement("div");
 					div_count.style.cssText = "display: table-cell; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 10px;";
 
 					var node = document.createTextNode( format_phone_number( jobj.FORWARD_LIST[ i ].F ) );
 					div_from.appendChild( node );
-					
+
 					node = document.createTextNode( format_phone_number( jobj.FORWARD_LIST[ i ].T ) );
 					div_to.appendChild( node );
-					
+
 					node = document.createTextNode( jobj.FORWARD_LIST[ i ].C );
 					div_count.appendChild( node );
 
@@ -805,9 +829,9 @@ function connect()
 
 					check_width( "flo", "forward_list", "fl_row" );
 				}
-				
+
 				type = null;
-				
+
 				return;
 			}
 
@@ -824,13 +848,13 @@ function connect()
 
 					var div_number = document.createElement("div");
 					div_number.style.cssText = "display: table-cell; width: 300px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
-					
+
 					var div_count = document.createElement("div");
 					div_count.style.cssText = "display: table-cell; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 10px;";
 
 					var node = document.createTextNode( format_phone_number( jobj.IGNORE_LIST[ i ].N ) );
 					div_number.appendChild( node );
-					
+
 					node = document.createTextNode( jobj.IGNORE_LIST[ i ].C );
 					div_count.appendChild( node );
 
@@ -841,15 +865,122 @@ function connect()
 
 					check_width( "ilo", "ignore_list", "il_row" );
 				}
-				
+
 				type = null;
-				
+
+				return;
+			}
+
+			type = jobj.FORWARD_CID_LIST;
+			if ( type != null )
+			{
+				var result = document.getElementById("forward_cid_list");
+
+				for ( var i = 0; i < jobj.FORWARD_CID_LIST.length; i++ )
+				{
+					var div = document.createElement("div");
+					div.className = ( fcidl_lines == false ) ? "list_item_even" : "list_item_odd";
+					fcidl_lines = !fcidl_lines;
+
+					var div_caller_id = document.createElement("div");
+					div_caller_id.style.cssText = "display: table-cell; width: 130px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
+
+					var div_forward_to = document.createElement("div");
+					div_forward_to.style.cssText = "display: table-cell; width: 130px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
+
+					var div_match_case = document.createElement("div");
+					div_match_case.style.cssText = "display: table-cell; width: 80px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
+
+					var div_match_whole_word = document.createElement("div");
+					div_match_whole_word.style.cssText = "display: table-cell; width: 140px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
+
+					var div_count = document.createElement("div");
+					div_count.style.cssText = "display: table-cell; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 10px;";
+
+					var node = document.createTextNode( jobj.FORWARD_CID_LIST[ i ].I );
+					div_caller_id.appendChild( node );
+
+					node = document.createTextNode( jobj.FORWARD_CID_LIST[ i ].F );
+					div_forward_to.appendChild( node );
+
+					node = document.createTextNode( ( jobj.FORWARD_CID_LIST[ i ].C == "1" ? "Yes" : "No" ) );
+					div_match_case.appendChild( node );
+
+					node = document.createTextNode( ( jobj.FORWARD_CID_LIST[ i ].W == "1" ? "Yes" : "No" ) );
+					div_match_whole_word.appendChild( node );
+
+					node = document.createTextNode( jobj.FORWARD_CID_LIST[ i ].T );
+					div_count.appendChild( node );
+
+					div.appendChild( div_caller_id );
+					div.appendChild( div_forward_to );
+					div.appendChild( div_match_case );
+					div.appendChild( div_match_whole_word );
+					div.appendChild( div_count );
+
+					result.appendChild( div );
+
+					check_width( "fcidlo", "forward_cid_list", "fcidl_row" );
+				}
+
+				type = null;
+
+				return;
+			}
+
+			type = jobj.IGNORE_CID_LIST;
+			if ( type != null )
+			{
+				var result = document.getElementById("ignore_cid_list");
+
+				for ( var i = 0; i < jobj.IGNORE_CID_LIST.length; i++ )
+				{
+					var div = document.createElement("div");
+					div.className = ( icidl_lines == false ) ? "list_item_even" : "list_item_odd";
+					icidl_lines = !icidl_lines;
+
+					var div_caller_id = document.createElement("div");
+					div_caller_id.style.cssText = "display: table-cell; width: 130px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
+
+					var div_match_case = document.createElement("div");
+					div_match_case.style.cssText = "display: table-cell; width: 130px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
+
+					var div_match_whole_word = document.createElement("div");
+					div_match_whole_word.style.cssText = "display: table-cell; width: 140px; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; border-right: 1px solid #DDDDDD;";
+
+					var div_count = document.createElement("div");
+					div_count.style.cssText = "display: table-cell; padding-top: 1px; padding-bottom: 1px; padding-left: 10px; padding-right: 10px;";
+
+					var node = document.createTextNode( jobj.IGNORE_CID_LIST[ i ].I );
+					div_caller_id.appendChild( node );
+
+					node = document.createTextNode( ( jobj.IGNORE_CID_LIST[ i ].C == "1" ? "Yes" : "No" ) );
+					div_match_case.appendChild( node );
+
+					node = document.createTextNode( ( jobj.IGNORE_CID_LIST[ i ].W == "1" ? "Yes" : "No" ) );
+					div_match_whole_word.appendChild( node );
+
+					node = document.createTextNode( jobj.IGNORE_CID_LIST[ i ].T );
+					div_count.appendChild( node );
+
+					div.appendChild( div_caller_id );
+					div.appendChild( div_match_case );
+					div.appendChild( div_match_whole_word );
+					div.appendChild( div_count );
+
+					result.appendChild( div );
+
+					check_width( "icidlo", "ignore_cid_list", "icidl_row" );
+				}
+
+				type = null;
+
 				show_hide_loading_window( 0 );
 
 				return;
 			}
 		};
-		
+
 		ws.onclose = function()
 		{
 			connected = false;
@@ -863,18 +994,26 @@ function connect()
 			check_width( "flo", "forward_list", "fl_row" );
 			document.getElementById( "ignore_list" ).innerHTML = "";
 			check_width( "ilo", "ignore_list", "il_row" );
+			document.getElementById( "forward_cid_list" ).innerHTML = "";
+			check_width( "fcidlo", "forward_cid_list", "fcidl_row" );
+			document.getElementById( "ignore_cid_list" ).innerHTML = "";
+			check_width( "icidlo", "ignore_cid_list", "icidl_row" );
 
 			show_hide_loading_window( 0 );
 
+			got_icidl = false;
+			got_fcidl = false;
 			got_il = false;
 			got_fl = false;
 			got_cl = false;
 			got_l = false;
-			
+
 			l_lines = false;
 			cl_lines = false;
 			il_lines = false;
 			fl_lines = false;
+			icidl_lines = false;
+			fcidl_lines = false;
 		};
 	}
 	else

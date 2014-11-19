@@ -42,15 +42,6 @@ void CreatePopup( displayinfo *fi );
 void Processing_Window( HWND hWnd, bool enable );
 
 THREAD_RETURN cleanup( void *pArguments );
-THREAD_RETURN remove_items( void *pArguments );
-THREAD_RETURN copy_items( void *pArguments );
-THREAD_RETURN update_ignore_list( void *pArguments );
-THREAD_RETURN update_forward_list( void *pArguments );
-THREAD_RETURN update_contact_list( void *pArguments );
-THREAD_RETURN update_call_log( void *pArguments );
-
-THREAD_RETURN save_call_log( void *file_path );
-THREAD_RETURN read_call_log_history( void *pArguments );
 
 void UpdateColumnOrders();
 void CheckColumnOrders( unsigned char list, char *column_arr[], unsigned char num_columns );
@@ -65,10 +56,18 @@ void free_displayinfo( displayinfo **di );
 void free_contactinfo( contactinfo **ci );
 void free_forwardinfo( forwardinfo **fi );
 void free_ignoreinfo( ignoreinfo **ii );
+void free_forwardcidinfo( forwardcidinfo **fcidi );
+void free_ignorecidinfo( ignorecidinfo **icidi );
 
 wchar_t *FormatPhoneNumber( char *phone_number );
 void FormatDisplayInfo( displayinfo *di );
 
+forwardcidinfo *find_forward_caller_id_name_match( displayinfo *di );
+ignorecidinfo *find_ignore_caller_id_name_match( displayinfo *di );
+
+void add_custom_caller_id( contactinfo *ci );
+void remove_custom_caller_id( contactinfo *ci );
+char *get_custom_caller_id( char *phone_number );
 void cleanup_custom_caller_id();
 
 wchar_t *GetMonth( unsigned short month );
@@ -77,6 +76,8 @@ char *url_encode( char *str, unsigned int str_len, unsigned int *enc_len = 0 );
 char is_num( const char *str );
 
 int dllrbt_compare( void *a, void *b );
+int dllrbt_icid_compare( void *a, void *b );
+int dllrbt_fcid_compare( void *a, void *b );
 
 void kill_worker_thread();
 void kill_connection_thread();
@@ -87,5 +88,12 @@ void kill_update_check_thread();
 char *GetFileExtension( char *path );
 char *GetFileName( char *path );
 char *GetMIMEByFileName( char *filename );
+
+HWND GetCurrentListView();
+char *GetSelectedColumnPhoneNumber( unsigned int column_id );
+
+char *escape_csv( const char *string );
+
+extern unsigned short bad_area_codes[];
 
 #endif

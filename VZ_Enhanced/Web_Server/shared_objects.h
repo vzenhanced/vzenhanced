@@ -38,25 +38,30 @@ struct displayinfo
 	{
 		struct	// Keep these in alphabetical order.
 		{
-			wchar_t *caller_id;		// Caller ID
-			wchar_t *w_forward;		// Forward
-			wchar_t *forward_to;	// Forward to
-			wchar_t *w_ignore;		// Ignore
-			wchar_t *phone_number;	// Phone Number
-			wchar_t *reference;		// Reference
-			wchar_t *sent_to;		// Sent to
-			wchar_t *w_time;		// Time
+			wchar_t *caller_id;					// Caller ID
+			wchar_t *w_time;					// Date and Time
+			wchar_t *w_forward_caller_id;		// Forward Caller ID
+			wchar_t *w_forward_phone_number;	// Forward Phone Number
+			wchar_t *forward_to;				// Forward to
+			wchar_t *w_ignore_caller_id;		// Ignore Caller ID
+			wchar_t *w_ignore_phone_number;		// Ignore Phone Number
+			wchar_t *phone_number;				// Phone Number
+			wchar_t *reference;					// Reference
+			wchar_t *sent_to;					// Sent to
 		};
 
-		wchar_t *display_values[ 8 ];
+		wchar_t *display_values[ 10 ];
 	};
 
 	callerinfo ci;
 
 	LARGE_INTEGER time;
 
-	bool ignore;			// Ignore	(phone number is in ignore_list)
-	bool forward;			// Forward	(phone number is in forward_list)
+	unsigned int forward_cid_match_count;	// Number of forward cid matches.
+	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.
+
+	bool ignore_phone_number;		// phone number is in ignore_list
+	bool forward_phone_number;		// phone number is in forward_list
 
 	bool process_incoming;	// false, true = ignore or forward
 };
@@ -194,6 +199,82 @@ struct forwardinfo
 
 	unsigned int count;		// Number of times the call has been forwarded.
 	unsigned char state;	// 0 = keep, 1 = remove.
+};
+
+struct ignorecidinfo
+{
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			char *c_caller_id;
+			char *c_match_case;
+			char *c_match_whole_word;
+			char *c_total_calls;
+		};
+
+		char *c_ignorecidinfo_values[ 4 ];
+	};
+
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			wchar_t *caller_id;
+			wchar_t *w_match_case;
+			wchar_t *w_match_whole_word;
+			wchar_t *total_calls;
+		};
+
+		wchar_t *ignorecidinfo_values[ 4 ];
+	};
+
+	unsigned int count;		// Number of times the call has been ignored.
+	unsigned char state;	// 0 = keep, 1 = remove.
+
+	bool match_case;
+	bool match_whole_word;
+
+	bool active;			// A caller ID value has been matched.
+};
+
+struct forwardcidinfo
+{
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			char *c_caller_id;
+			char *c_forward_to;
+			char *c_match_case;
+			char *c_match_whole_word;
+			char *c_total_calls;
+		};
+
+		char *c_fowardcidinfo_values[ 5 ];
+	};
+
+	union
+	{
+		struct	// Keep these in alphabetical order.
+		{
+			wchar_t *caller_id;
+			wchar_t *forward_to;
+			wchar_t *w_match_case;
+			wchar_t *w_match_whole_word;
+			wchar_t *total_calls;
+		};
+
+		wchar_t *forwardcidinfo_values[ 5 ];
+	};
+
+	unsigned int count;		// Number of times the call has been forwarded.
+	unsigned char state;	// 0 = keep, 1 = remove.
+
+	bool match_case;
+	bool match_whole_word;
+
+	bool active;			// A caller ID value has been matched.
 };
 
 #endif

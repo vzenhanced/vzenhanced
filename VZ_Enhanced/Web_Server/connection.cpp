@@ -1040,6 +1040,66 @@ int WriteIgnoreList( SOCKET_CONTEXT *socket_context )
 	return ConstructFrameHeader( socket_context->io_context->wsabuf.buf, MAX_BUFF_SIZE, WS_BINARY_FRAME, /*json_buf,*/ json_buf_length ) + json_buf_length;
 }
 
+int WriteIgnoreCIDList( SOCKET_CONTEXT *socket_context )
+{
+	char *json_buf = socket_context->io_context->wsabuf.buf + 10;	// 10 byte offset so that we can encode the websocket frame header.
+	int json_buf_length = 0;
+
+	_memcpy_s( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"IGNORE_CID_LIST\":[", 20 );
+	json_buf_length += 20;
+
+	node_type *node = NULL;
+
+	if ( socket_context->ignore_cid_node == NULL )
+	{
+		node = dllrbt_get_head( ignore_cid_list );
+	}
+	else
+	{
+		node = socket_context->ignore_cid_node;
+	}
+
+	while ( node != NULL )
+	{
+		ignorecidinfo *icidi = ( ignorecidinfo * )node->val;
+
+		int cfg_val_length = lstrlenA( SAFESTRA( icidi->c_caller_id ) );
+
+		if ( json_buf_length + cfg_val_length + 23 + 10 + 2 + 2 + 1 >= ( MAX_BUFF_SIZE - 10 ) )		// 23 for the json, 10 for the int count, 2 for chars, 2 for "]}".
+		{
+			--json_buf_length;
+
+			break;
+		}
+
+		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"I\":\"%s\",\"C\":%c,\"W\":%c,\"T\":%lu}", SAFESTRA( icidi->c_caller_id ), ( icidi->match_case == true ? '1' : '0' ), ( icidi->match_whole_word == true ? '1' : '0' ), icidi->count );
+		node = node->next;
+
+		if ( node != NULL )
+		{
+			json_buf[ json_buf_length++ ] = ',';
+		}
+	}
+
+	socket_context->ignore_cid_node = node;
+
+
+	_memcpy_s( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "]}", 2 );
+	json_buf_length += 2;
+
+	// Websocket payload size. Adjust the start of our buffer if the payload is less than the given amounts.
+	if ( json_buf_length <= 125 )
+	{
+		socket_context->io_context->wsabuf.buf += 8;
+	}
+	else if ( json_buf_length <= 65535 )
+	{
+		socket_context->io_context->wsabuf.buf += 6;
+	}
+
+	return ConstructFrameHeader( socket_context->io_context->wsabuf.buf, MAX_BUFF_SIZE, WS_BINARY_FRAME, /*json_buf,*/ json_buf_length ) + json_buf_length;
+}
+
 int WriteForwardList( SOCKET_CONTEXT *socket_context )
 {
 	char *json_buf = socket_context->io_context->wsabuf.buf + 10;	// 10 byte offset so that we can encode the websocket frame header.
@@ -1083,6 +1143,67 @@ int WriteForwardList( SOCKET_CONTEXT *socket_context )
 	}
 
 	socket_context->forward_node = node;
+
+
+	_memcpy_s( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "]}", 2 );
+	json_buf_length += 2;
+
+	// Websocket payload size. Adjust the start of our buffer if the payload is less than the given amounts.
+	if ( json_buf_length <= 125 )
+	{
+		socket_context->io_context->wsabuf.buf += 8;
+	}
+	else if ( json_buf_length <= 65535 )
+	{
+		socket_context->io_context->wsabuf.buf += 6;
+	}
+
+	return ConstructFrameHeader( socket_context->io_context->wsabuf.buf, MAX_BUFF_SIZE, WS_BINARY_FRAME, /*json_buf,*/ json_buf_length ) + json_buf_length;
+}
+
+int WriteForwardCIDList( SOCKET_CONTEXT *socket_context )
+{
+	char *json_buf = socket_context->io_context->wsabuf.buf + 10;	// 10 byte offset so that we can encode the websocket frame header.
+	int json_buf_length = 0;
+
+	_memcpy_s( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"FORWARD_CID_LIST\":[", 21 );
+	json_buf_length += 21;
+
+	node_type *node = NULL;
+
+	if ( socket_context->forward_cid_node == NULL )
+	{
+		node = dllrbt_get_head( forward_cid_list );
+	}
+	else
+	{
+		node = socket_context->forward_cid_node;
+	}
+
+	while ( node != NULL )
+	{
+		forwardcidinfo *fcidi = ( forwardcidinfo * )node->val;
+
+		int cfg_val_length = lstrlenA( SAFESTRA( fcidi->c_caller_id ) );
+		cfg_val_length += lstrlenA( SAFESTRA( fcidi->c_forward_to ) );
+
+		if ( json_buf_length + cfg_val_length + 30 + 10 + 2 + 2 + 1 >= ( MAX_BUFF_SIZE - 10 ) )	// 30 for the json, 10 for the int count, 2 for chars, 2 for "]}".
+		{
+			--json_buf_length;
+
+			break;
+		}
+
+		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"I\":\"%s\",\"F\":\"%s\",\"C\":%c,\"W\":%c,\"T\":%lu}", SAFESTRA( fcidi->c_caller_id ), SAFESTRA( fcidi->c_forward_to ), ( fcidi->match_case == true ? '1' : '0' ), ( fcidi->match_whole_word == true ? '1' : '0' ), fcidi->count );
+		node = node->next;
+
+		if ( node != NULL )
+		{
+			json_buf[ json_buf_length++ ] = ',';
+		}
+	}
+
+	socket_context->forward_cid_node = node;
 
 
 	_memcpy_s( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "]}", 2 );
@@ -1343,7 +1464,7 @@ THREAD_RETURN SendCallLogUpdate( LPVOID pArg )
 		//; Any remainder will be stored in edx. We're not interested in it though.
 	}
 
-	if ( json_buf_length + cfg_val_length + 20 + 27 + 2 + 1 >= ( MAX_BUFF_SIZE - 10 ) )	// 20 for timestamp, 27 for the json, 2 for "]}".
+	if ( json_buf_length + cfg_val_length + 20 + 2 + 37 + 2 + 1 >= ( MAX_BUFF_SIZE - 10 ) )	// 20 for timestamp, 2 for ignore/forward state, 37 for the json, 2 for "]}".
 	{
 		if ( escaped_caller_id != NULL )
 		{
@@ -1357,7 +1478,7 @@ THREAD_RETURN SendCallLogUpdate( LPVOID pArg )
 		return 0;
 	}
 
-	json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"R\":\"%s\"}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, SAFESTRA( di->ci.call_reference_id ) );
+	json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFF_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"R\":\"%s\",\"I\":%c,\"F\":%c}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, SAFESTRA( di->ci.call_reference_id ), ( di->ci.ignored == true ? '1' : '0' ), ( di->ci.forwarded == true ? '1' : '0' ) );
 
 	if ( escaped_caller_id != NULL )
 	{
@@ -1563,6 +1684,22 @@ bool WriteListData( SOCKET_CONTEXT *socket_context, bool do_read )
 			node = socket_context->ignore_node;
 		}
 		break;
+
+		case OVERLAP_FORWARD_CID_LIST:
+		{
+			reply_buf_length = WriteForwardCIDList( socket_context );
+
+			node = socket_context->forward_cid_node;
+		}
+		break;
+
+		case OVERLAP_IGNORE_CID_LIST:
+		{
+			reply_buf_length = WriteIgnoreCIDList( socket_context );
+
+			node = socket_context->ignore_cid_node;
+		}
+		break;
 	}
 
 	LeaveCriticalSection( list_cs );
@@ -1640,6 +1777,14 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 			else if ( call_log != NULL && payload_value_length >= 12 && _memcmp( payload_value, "GET_CALL_LOG", 12 ) == 0 )
 			{
 				ot = OVERLAP_CALL_LOG;
+			}
+			else if ( forward_cid_list != NULL && payload_value_length >= 20 && _memcmp( payload_value, "GET_FORWARD_CID_LIST", 20 ) == 0 )
+			{
+				ot = OVERLAP_FORWARD_CID_LIST;
+			}
+			else if ( ignore_cid_list != NULL && payload_value_length >= 19 && _memcmp( payload_value, "GET_IGNORE_CID_LIST", 19 ) == 0 )
+			{
+				ot = OVERLAP_IGNORE_CID_LIST;
 			}
 			else if ( payload_value_length >= 16 && _memcmp( payload_value, "IGNORE_INCOMING:", 16 ) == 0 )
 			{

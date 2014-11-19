@@ -29,8 +29,11 @@ HMENU g_hMenuSub_list_context = NULL;	// Handle to our context menu.
 HMENU g_hMenuSub_contact_list_context = NULL;
 HMENU g_hMenuSub_ignore_list_context = NULL;
 HMENU g_hMenuSub_forward_list_context = NULL;
+HMENU g_hMenuSub_ignore_cid_list_context = NULL;
+HMENU g_hMenuSub_forward_cid_list_context = NULL;
 HMENU g_hMenuSub_header_context;		// Handle to our header context menu.
 HMENU g_hMenuSub_tray = NULL;			// Handle to our tray menu.
+HMENU g_hMenuSub_lists = NULL;			// Handle to our lists menu.
 HMENU g_hMenuSub_search = NULL;			// Handle to our search sub menu.
 
 HMENU g_hMenuSub_tabs_context = NULL;
@@ -41,11 +44,14 @@ bool column_l_menu_showing = false;		// Set if we right clicked a subitem and ar
 bool column_cl_menu_showing = false;
 bool column_fl_menu_showing = false;
 bool column_il_menu_showing = false;
+bool column_fl_cid_menu_showing = false;
+bool column_il_cid_menu_showing = false;
 
 bool l_phone_menu_showing = false;
 bool cl_phone_menu_showing = false;
 bool fl_phone_menu_showing = false;
 bool il_phone_menu_showing = false;
+bool fl_cid_phone_menu_showing = false;
 
 bool l_incoming_menu_showing = false;
 bool cl_url_menu_showing = false;
@@ -55,6 +61,7 @@ void DestroyMenus()
 	_DestroyMenu( g_hMenuSub_tray );
 	_DestroyMenu( g_hMenuSub_header_context );
 	_DestroyMenu( g_hMenuSub_tabs_context );
+	_DestroyMenu( g_hMenuSub_lists );
 	_DestroyMenu( g_hMenuSub_search );
 
 	// The current edit menu will automatically be destroyed when its associated window is destroyed.
@@ -79,6 +86,16 @@ void DestroyMenus()
 	{
 		_DestroyMenu( g_hMenuSub_forward_list_context );
 	}
+
+	if ( hMenuSub_edit != g_hMenuSub_ignore_cid_list_context )
+	{
+		_DestroyMenu( g_hMenuSub_ignore_cid_list_context );
+	}
+
+	if ( hMenuSub_edit != g_hMenuSub_forward_cid_list_context )
+	{
+		_DestroyMenu( g_hMenuSub_forward_cid_list_context );
+	}
 }
 
 void CreateMenus()
@@ -91,6 +108,7 @@ void CreateMenus()
 	HMENU hMenuSub_tools = _CreatePopupMenu();
 	HMENU hMenuSub_help = _CreatePopupMenu();
 
+	g_hMenuSub_lists = _CreatePopupMenu();
 	HMENU g_hMenuSub_tabs = _CreatePopupMenu();
 	HMENU g_hMenuSub_contacts = _CreatePopupMenu();
 	g_hMenuSub_search = _CreatePopupMenu();
@@ -99,6 +117,8 @@ void CreateMenus()
 	g_hMenuSub_contact_list_context = _CreatePopupMenu();
 	g_hMenuSub_ignore_list_context = _CreatePopupMenu();
 	g_hMenuSub_forward_list_context = _CreatePopupMenu();
+	g_hMenuSub_ignore_cid_list_context = _CreatePopupMenu();
+	g_hMenuSub_forward_cid_list_context = _CreatePopupMenu();
 	g_hMenuSub_header_context = _CreatePopupMenu();
 	g_hMenuSub_tray = _CreatePopupMenu();
 	g_hMenuSub_tabs_context = _CreatePopupMenu();
@@ -191,19 +211,40 @@ void CreateMenus()
 
 
 	// EDIT MENUS
-	mii.dwTypeData = ST_Add_to_Forward_List___;
-	mii.cch = 22;
-	mii.wID = MENU_FORWARD_LIST;
+	mii.dwTypeData = ST_Add_to_Forward_Caller_ID_Name_List___;
+	mii.cch = 37;
+	mii.wID = MENU_FORWARD_CID_LIST;
 	mii.fState = MFS_DISABLED;
-	_InsertMenuItemW( g_hMenuSub_list_context, 0, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_lists, 0, TRUE, &mii );
 
-	mii.dwTypeData = ST_Add_to_Ignore_List;
-	mii.cch = 18;
-	mii.wID = MENU_IGNORE_LIST;
-	_InsertMenuItemW( g_hMenuSub_list_context, 1, TRUE, &mii );
+	mii.dwTypeData = ST_Add_to_Forward_Phone_Number_List___;
+	mii.cch = 35;
+	mii.wID = MENU_FORWARD_LIST;
+	_InsertMenuItemW( g_hMenuSub_lists, 1, TRUE, &mii );
 
 	mii.fType = MFT_SEPARATOR;
-	_InsertMenuItemW( g_hMenuSub_list_context, 2, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_lists, 2, TRUE, &mii );
+
+	mii.dwTypeData = ST_Add_to_Ignore_Caller_ID_Name_List___;
+	mii.cch = 36;
+	mii.wID = MENU_IGNORE_CID_LIST;
+	_InsertMenuItemW( g_hMenuSub_lists, 3, TRUE, &mii );
+
+	mii.dwTypeData = ST_Add_to_Ignore_Phone_Number_List;
+	mii.cch = 31;
+	mii.wID = MENU_IGNORE_LIST;
+	_InsertMenuItemW( g_hMenuSub_lists, 4, TRUE, &mii );
+
+	mii.fMask = MIIM_TYPE | MIIM_SUBMENU;
+	mii.fType = MFT_STRING;
+	mii.dwTypeData = ST_Forward_and_Ignore_Lists;
+	mii.cch = 24;
+	mii.hSubMenu = g_hMenuSub_lists;
+	_InsertMenuItemW( g_hMenuSub_list_context, 0, TRUE, &mii );
+
+	mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
+	mii.fType = MFT_SEPARATOR;
+	_InsertMenuItemW( g_hMenuSub_list_context, 1, TRUE, &mii );
 
 	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST_Add_Contact___;
@@ -211,16 +252,27 @@ void CreateMenus()
 	mii.wID = MENU_ADD_CONTACT;
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 0, TRUE, &mii );
 
-	mii.dwTypeData = ST_Add_to_Ignore_List___;
-	mii.cch = 21;
+	mii.dwTypeData = ST_Add_to_Ignore_Phone_Number_List___;
+	mii.cch = 34;
 	mii.wID = MENU_ADD_IGNORE_LIST;
 	mii.fState = MFS_ENABLED;
 	_InsertMenuItemW( g_hMenuSub_ignore_list_context, 0, TRUE, &mii );
 
-	mii.dwTypeData = ST_Add_to_Forward_List___;
-	mii.cch = 22;
+	mii.dwTypeData = ST_Add_to_Ignore_Caller_ID_Name_List___;
+	mii.cch = 36;
+	mii.wID = MENU_ADD_IGNORE_CID_LIST;
+	mii.fState = MFS_ENABLED;
+	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 0, TRUE, &mii );
+
+	mii.dwTypeData = ST_Add_to_Forward_Phone_Number_List___;
+	mii.cch = 35;
 	mii.wID = MENU_ADD_FORWARD_LIST;
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 0, TRUE, &mii );
+
+	mii.dwTypeData = ST_Add_to_Forward_Caller_ID_Name_List___;
+	mii.cch = 37;
+	mii.wID = MENU_ADD_FORWARD_CID_LIST;
+	_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 0, TRUE, &mii );
 
 	mii.dwTypeData = ST_Edit_Contact___;
 	mii.cch = 15;
@@ -228,57 +280,83 @@ void CreateMenus()
 	mii.fState = MFS_DISABLED;
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 1, TRUE, &mii );
 
-	mii.dwTypeData = ST_Edit_Forward_List_Entry___;
+	mii.dwTypeData = ST_Edit_Ignore_Caller_ID_Name_List_Entry___;
+	mii.wID = MENU_EDIT_IGNORE_CID_LIST;
+	mii.cch = 40;
+	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 1, TRUE, &mii );
+
+	mii.dwTypeData = ST_Edit_Forward_Phone_Number_List_Entry___;
 	mii.wID = MENU_EDIT_FORWARD_LIST;
-	mii.cch = 26;
+	mii.cch = 39;
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 1, TRUE, &mii );
+
+	mii.dwTypeData = ST_Edit_Forward_Caller_ID_Name_List_Entry___;
+	mii.wID = MENU_EDIT_FORWARD_CID_LIST;
+	mii.cch = 41;
+	_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 1, TRUE, &mii );
 
 	mii.dwTypeData = ST_Remove_Selected;
 	mii.cch = 15;
 	mii.wID = MENU_REMOVE_SEL;
-	_InsertMenuItemW( g_hMenuSub_list_context, 3, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_list_context, 2, TRUE, &mii );
 
 	mii.dwTypeData = ST_Delete_Contact;
 	mii.cch = 14;
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 2, TRUE, &mii );
 
-	mii.dwTypeData = ST_Remove_from_Ignore_List;
-	mii.cch = 23;
+	mii.dwTypeData = ST_Remove_from_Ignore_Phone_Number_List;
+	mii.cch = 36;
 	_InsertMenuItemW( g_hMenuSub_ignore_list_context, 1, TRUE, &mii );
 
-	mii.dwTypeData = ST_Remove_from_Forward_List;
-	mii.cch = 24;
+	mii.dwTypeData = ST_Remove_from_Ignore_Caller_ID_Name_List;
+	mii.cch = 38;
+	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 2, TRUE, &mii );
+
+	mii.dwTypeData = ST_Remove_from_Forward_Phone_Number_List;
+	mii.cch = 37;
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 2, TRUE, &mii );
 
+	mii.dwTypeData = ST_Remove_from_Forward_Caller_ID_Name_List;
+	mii.cch = 39;
+	_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 2, TRUE, &mii );
+
 	mii.fType = MFT_SEPARATOR;
-	_InsertMenuItemW( g_hMenuSub_list_context, 4, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_list_context, 3, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 3, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_ignore_list_context, 2, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 3, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 3, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 3, TRUE, &mii );
 
 	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST_Copy_Selected;
 	mii.cch = 13;
 	mii.wID = MENU_COPY_SEL;
-	_InsertMenuItemW( g_hMenuSub_list_context, 5, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_list_context, 4, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 4, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_ignore_list_context, 3, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 4, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 4, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 4, TRUE, &mii );
 
 	mii.fType = MFT_SEPARATOR;
-	_InsertMenuItemW( g_hMenuSub_list_context, 6, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_list_context, 5, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 5, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_ignore_list_context, 4, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 5, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 5, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 5, TRUE, &mii );
 
 	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST_Select_All;
 	mii.cch = 10;
 	mii.wID = MENU_SELECT_ALL;
-	_InsertMenuItemW( g_hMenuSub_list_context, 7, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_list_context, 6, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_contact_list_context, 6, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_ignore_list_context, 5, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 6, TRUE, &mii );
 	_InsertMenuItemW( g_hMenuSub_forward_list_context, 6, TRUE, &mii );
+	_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 6, TRUE, &mii );
 
 
 	// VIEW SUBMENU - TABS
@@ -295,15 +373,15 @@ void CreateMenus()
 	mii.fState = MFS_ENABLED | ( cfg_tab_order2 != -1 ? MFS_CHECKED : 0 );
 	_InsertMenuItemW( g_hMenuSub_tabs, 1, TRUE, &mii );
 
-	mii.dwTypeData = ST_Forward_List;
-	mii.cch = 12;
-	mii.wID = MENU_VIEW_FORWARD_LIST;
+	mii.dwTypeData = ST_Forward_Lists;
+	mii.cch = 13;
+	mii.wID = MENU_VIEW_FORWARD_LISTS;
 	mii.fState = MFS_ENABLED | ( cfg_tab_order3 != -1 ? MFS_CHECKED : 0 );
 	_InsertMenuItemW( g_hMenuSub_tabs, 2, TRUE, &mii );
 
-	mii.dwTypeData = ST_Ignore_List;
-	mii.cch = 11;
-	mii.wID = MENU_VIEW_IGNORE_LIST;
+	mii.dwTypeData = ST_Ignore_Lists;
+	mii.cch = 12;
+	mii.wID = MENU_VIEW_IGNORE_LISTS;
 	mii.fState = MFS_ENABLED | ( cfg_tab_order4 != -1 ? MFS_CHECKED : 0 );
 	_InsertMenuItemW( g_hMenuSub_tabs, 3, TRUE, &mii );
 
@@ -511,7 +589,7 @@ void ChangeMenuByHWND( HWND hWnd )
 
 	_RemoveMenu( g_hMenu, 1, MF_BYPOSITION );
 
-	if ( hWnd == g_hWnd_list )
+	if ( hWnd == g_hWnd_call_log )
 	{
 		mii.hSubMenu = g_hMenuSub_list_context;
 	}
@@ -526,6 +604,14 @@ void ChangeMenuByHWND( HWND hWnd )
 	else if ( hWnd == g_hWnd_forward_list )
 	{
 		mii.hSubMenu = g_hMenuSub_forward_list_context;
+	}
+	else if ( hWnd == g_hWnd_ignore_cid_list )
+	{
+		mii.hSubMenu = g_hMenuSub_ignore_cid_list_context;
+	}
+	else if ( hWnd == g_hWnd_forward_cid_list )
+	{
+		mii.hSubMenu = g_hMenuSub_forward_cid_list_context;
 	}
 
 	_InsertMenuItemW( g_hMenu, 1, TRUE, &mii );
@@ -542,7 +628,7 @@ void HandleRightClick( HWND hWnd )
 	bool show_url_menu = false;
 	unsigned char menu_offset = 0;
 
-	if ( hWnd == g_hWnd_list )	// List item was clicked on.
+	if ( hWnd == g_hWnd_call_log )	// List item was clicked on.
 	{
 		POINT cp;
 		cp.x = p.x;
@@ -561,7 +647,7 @@ void HandleRightClick( HWND hWnd )
 			if ( sel_count > 0 )
 			{
 				// Get the virtual index from the column index.
-				int vindex = GetVirtualIndexFromColumnIndex( hti.iSubItem, list_columns, NUM_COLUMNS );
+				int vindex = GetVirtualIndexFromColumnIndex( hti.iSubItem, call_log_columns, NUM_COLUMNS1 );
 
 				MENUITEMINFO mii;
 				_memzero( &mii, sizeof( MENUITEMINFO ) );
@@ -598,13 +684,13 @@ void HandleRightClick( HWND hWnd )
 
 						if ( sel_count > 1 )
 						{
-							mii.dwTypeData = ST_Copy_Caller_IDs;
-							mii.cch = 15;
+							mii.dwTypeData = ST_Copy_Caller_ID_Names;
+							mii.cch = 20;
 						}
 						else
 						{
-							mii.dwTypeData = ST_Copy_Caller_ID;
-							mii.cch = 14;
+							mii.dwTypeData = ST_Copy_Caller_ID_Name;
+							mii.cch = 19;
 						}
 					}
 					break;
@@ -632,26 +718,43 @@ void HandleRightClick( HWND hWnd )
 
 						if ( sel_count > 1 )
 						{
-							mii.dwTypeData = ST_Copy_Forward_States;
-							mii.cch = 19;
+							mii.dwTypeData = ST_Copy_Forward_Caller_ID_Name_States;
+							mii.cch = 34;
 						}
 						else
 						{
-							mii.dwTypeData = ST_Copy_Forward_State;
-							mii.cch = 18;
+							mii.dwTypeData = ST_Copy_Forward_Caller_ID_Name_State;
+							mii.cch = 33;
 						}
 					}
 					break;
 
 					case 4:
 					{
-						mii2.wID = MENU_CALL_PHONE_COL14;
+						mii.wID = MENU_COPY_SEL_COL4;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Forward_Phone_Number_States;
+							mii.cch = 32;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Forward_Phone_Number_State;
+							mii.cch = 31;
+						}
+					}
+					break;
+
+					case 5:
+					{
+						mii2.wID = MENU_CALL_PHONE_COL15;
 						mii2.dwTypeData = ST_Call_Forwarded_to_Phone_Number___;
 						mii2.cch = 33;
 
 						show_call_menu = true;
 
-						mii.wID = MENU_COPY_SEL_COL4;
+						mii.wID = MENU_COPY_SEL_COL5;
 
 						if ( sel_count > 1 )
 						{
@@ -666,32 +769,49 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 5:
+					case 6:
 					{
-						mii.wID = MENU_COPY_SEL_COL5;
+						mii.wID = MENU_COPY_SEL_COL6;
 
 						if ( sel_count > 1 )
 						{
-							mii.dwTypeData = ST_Copy_Ignore_States;
-							mii.cch = 18;
+							mii.dwTypeData = ST_Copy_Ignore_Caller_ID_Name_States;
+							mii.cch = 33;
 						}
 						else
 						{
-							mii.dwTypeData = ST_Copy_Ignore_State;
-							mii.cch = 17;
+							mii.dwTypeData = ST_Copy_Ignore_Caller_ID_Name_State;
+							mii.cch = 32;
 						}
 					}
 					break;
 
-					case 6:
+					case 7:
 					{
-						mii2.wID = MENU_CALL_PHONE_COL16;
+						mii.wID = MENU_COPY_SEL_COL7;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Ignore_Phone_Number_States;
+							mii.cch = 31;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Ignore_Phone_Number_State;
+							mii.cch = 30;
+						}
+					}
+					break;
+
+					case 8:
+					{
+						mii2.wID = MENU_CALL_PHONE_COL18;
 						mii2.dwTypeData = ST_Call_Phone_Number___;
 						mii2.cch = 20;
 
 						show_call_menu = true;
 
-						mii.wID = MENU_COPY_SEL_COL6;
+						mii.wID = MENU_COPY_SEL_COL8;
 
 						if ( sel_count > 1 )
 						{
@@ -706,9 +826,9 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 7:
+					case 9:
 					{
-						mii.wID = MENU_COPY_SEL_COL7;
+						mii.wID = MENU_COPY_SEL_COL9;
 
 						if ( sel_count > 1 )
 						{
@@ -723,15 +843,15 @@ void HandleRightClick( HWND hWnd )
 					}
 					break;
 
-					case 8:
+					case 10:
 					{
-						mii2.wID = MENU_CALL_PHONE_COL18;
+						mii2.wID = MENU_CALL_PHONE_COL110;
 						mii2.dwTypeData = ST_Call_Sent_to_Phone_Number___;
 						mii2.cch = 28;
 
 						show_call_menu = true;
 
-						mii.wID = MENU_COPY_SEL_COL8;
+						mii.wID = MENU_COPY_SEL_COL10;
 
 						if ( sel_count > 1 )
 						{
@@ -748,7 +868,7 @@ void HandleRightClick( HWND hWnd )
 				}
 
 				unsigned char incoming_menu_offset = ( l_incoming_menu_showing == true ? 3 : 0 );
-				menu_offset = 5 + incoming_menu_offset;
+				menu_offset = 4 + incoming_menu_offset;
 
 				if ( l_phone_menu_showing == true )
 				{
@@ -832,7 +952,7 @@ void HandleRightClick( HWND hWnd )
 
 			if ( column_l_menu_showing == true )
 			{
-				_DeleteMenu( g_hMenuSub_list_context, 5, MF_BYPOSITION );
+				_DeleteMenu( g_hMenuSub_list_context, 4, MF_BYPOSITION );
 
 				column_l_menu_showing = false;
 			}
@@ -1615,6 +1735,223 @@ void HandleRightClick( HWND hWnd )
 
 		_TrackPopupMenu( g_hMenuSub_forward_list_context, 0, p.x, p.y, 0, g_hWnd_main, NULL );
 	}
+	else if ( hWnd == g_hWnd_forward_cid_list )
+	{
+		POINT cp;
+		cp.x = p.x;
+		cp.y = p.y;
+
+		_ScreenToClient( hWnd, &cp );
+
+		LVHITTESTINFO hti;
+		hti.pt = cp;
+		_SendMessageW( hWnd, LVM_SUBITEMHITTEST, 0, ( LPARAM )&hti );
+
+		if ( hti.iSubItem > 0 )
+		{
+			int sel_count = _SendMessageW( hWnd, LVM_GETSELECTEDCOUNT, 0, 0 );
+
+			if ( sel_count > 0 )
+			{
+				// Get the virtual index from the column index.
+				int vindex = GetVirtualIndexFromColumnIndex( hti.iSubItem, forward_cid_list_columns, NUM_COLUMNS5 );
+
+				MENUITEMINFO mii;
+				_memzero( &mii, sizeof( MENUITEMINFO ) );
+				mii.cbSize = sizeof( MENUITEMINFO );
+				mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
+				mii.fType = MFT_STRING;
+
+				MENUITEMINFO mii2 = mii;
+
+				if ( hti.iItem != -1 )
+				{
+					mii.fState = MFS_ENABLED;
+
+					if ( main_con.state != LOGGED_IN )
+					{
+						mii2.fState = MFS_DISABLED;
+					}
+					else
+					{
+						mii2.fState = MFS_ENABLED;
+					}
+				}
+				else
+				{
+					mii.fState = MFS_DISABLED;
+					mii2.fState = MFS_DISABLED;
+				}
+
+				switch ( vindex )
+				{
+					case 1:
+					{
+						mii.wID = MENU_COPY_SEL_COL51;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Caller_ID_Names;
+							mii.cch = 20;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Caller_ID_Name;
+							mii.cch = 19;
+						}
+					}
+					break;
+
+					case 2:
+					{
+						mii2.wID = MENU_CALL_PHONE_COL52;
+						mii2.dwTypeData = ST_Call_Forward_to_Phone_Number___;
+						mii2.cch = 31;
+
+						show_call_menu = true;
+
+						mii.wID = MENU_COPY_SEL_COL52;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Forward_to_Phone_Numbers;
+							mii.cch = 29;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Forward_to_Phone_Number;
+							mii.cch = 28;
+						}
+					}
+					break;
+
+					case 3:
+					{
+						mii.wID = MENU_COPY_SEL_COL53;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Match_Case_States;
+							mii.cch = 22;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Match_Case_State;
+							mii.cch = 21;
+						}
+					}
+					break;
+
+					case 4:
+					{
+						mii.wID = MENU_COPY_SEL_COL54;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Match_Whole_Word_States;
+							mii.cch = 28;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Match_Whole_Word_State;
+							mii.cch = 27;
+						}
+					}
+					break;
+
+					case 5:
+					{
+						mii.wID = MENU_COPY_SEL_COL55;
+
+						mii.dwTypeData = ST_Copy_Total_Calls;
+						mii.cch = 16;
+					}
+					break;
+				}
+
+				menu_offset = 4;
+
+				if ( fl_cid_phone_menu_showing == true )
+				{
+					if ( show_call_menu == false )
+					{
+						_DeleteMenu( g_hMenuSub_forward_cid_list_context, 3, MF_BYPOSITION );	// Separator
+						_RemoveMenu( g_hMenuSub_forward_cid_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
+						_DeleteMenu( g_hMenuSub_forward_cid_list_context, 1, MF_BYPOSITION );	// Separator
+						_DeleteMenu( g_hMenuSub_forward_cid_list_context, 0, MF_BYPOSITION );
+
+						fl_cid_phone_menu_showing = false;
+					}
+					else
+					{
+						menu_offset = 8;
+					}
+				}
+
+				if ( column_fl_cid_menu_showing == true )
+				{
+					_SetMenuItemInfoW( g_hMenuSub_forward_cid_list_context, menu_offset, TRUE, &mii );
+				}
+				else
+				{
+					_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, menu_offset, TRUE, &mii );
+
+					column_fl_cid_menu_showing = true;
+				}
+
+				if ( show_call_menu == true )
+				{
+					if ( fl_cid_phone_menu_showing == true )
+					{
+						_SetMenuItemInfoW( g_hMenuSub_forward_cid_list_context, 0, TRUE, &mii2 );
+					}
+					else
+					{
+						_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 0, TRUE, &mii2 );
+
+						mii2.fType = MFT_SEPARATOR;
+						_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 1, TRUE, &mii2 );
+
+						mii2.fMask = MIIM_TYPE | MIIM_ID | MIIM_DATA | MIIM_SUBMENU;
+						mii2.fType = MFT_STRING;
+						mii2.dwTypeData = ST_Search_with;
+						mii2.cch = 11;
+						mii2.dwItemData = mii2.wID;
+						mii2.wID = MENU_SEARCH_WITH;
+						mii2.hSubMenu = g_hMenuSub_search;
+						_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 2, TRUE, &mii2 );
+
+						mii2.fMask = MIIM_TYPE;
+						mii2.fType = MFT_SEPARATOR;
+						_InsertMenuItemW( g_hMenuSub_forward_cid_list_context, 3, TRUE, &mii2 );
+
+						fl_cid_phone_menu_showing = true;
+					}
+				}
+			}
+		}
+		else
+		{
+			if ( fl_cid_phone_menu_showing == true )
+			{
+				_DeleteMenu( g_hMenuSub_forward_cid_list_context, 3, MF_BYPOSITION );	// Separator
+				_RemoveMenu( g_hMenuSub_forward_cid_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
+				_DeleteMenu( g_hMenuSub_forward_cid_list_context, 1, MF_BYPOSITION );	// Separator
+				_DeleteMenu( g_hMenuSub_forward_cid_list_context, 0, MF_BYPOSITION );
+
+				fl_cid_phone_menu_showing = false;
+			}
+
+			if ( column_fl_cid_menu_showing == true )
+			{
+				_DeleteMenu( g_hMenuSub_forward_cid_list_context, 4, MF_BYPOSITION );
+
+				column_fl_cid_menu_showing = false;
+			}
+		}
+
+		_TrackPopupMenu( g_hMenuSub_forward_cid_list_context, 0, p.x, p.y, 0, g_hWnd_main, NULL );
+	}
 	else if ( hWnd == g_hWnd_ignore_list )
 	{
 		POINT cp;
@@ -1781,6 +2118,121 @@ void HandleRightClick( HWND hWnd )
 
 		_TrackPopupMenu( g_hMenuSub_ignore_list_context, 0, p.x, p.y, 0, g_hWnd_main, NULL );
 	}
+	else if ( hWnd == g_hWnd_ignore_cid_list )
+	{
+		POINT cp;
+		cp.x = p.x;
+		cp.y = p.y;
+
+		_ScreenToClient( hWnd, &cp );
+
+		LVHITTESTINFO hti;
+		hti.pt = cp;
+		_SendMessageW( hWnd, LVM_SUBITEMHITTEST, 0, ( LPARAM )&hti );
+
+		if ( hti.iSubItem > 0 )
+		{
+			int sel_count = _SendMessageW( hWnd, LVM_GETSELECTEDCOUNT, 0, 0 );
+
+			if ( sel_count > 0 )
+			{
+				// Get the virtual index from the column index.
+				int vindex = GetVirtualIndexFromColumnIndex( hti.iSubItem, ignore_cid_list_columns, NUM_COLUMNS6 );
+
+				MENUITEMINFO mii;
+				_memzero( &mii, sizeof( MENUITEMINFO ) );
+				mii.cbSize = sizeof( MENUITEMINFO );
+				mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
+				mii.fType = MFT_STRING;
+				mii.fState = ( hti.iItem != -1 ? MFS_ENABLED : MFS_DISABLED );
+
+				switch ( vindex )
+				{
+					case 1:
+					{
+						mii.wID = MENU_COPY_SEL_COL61;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Caller_ID_Names;
+							mii.cch = 20;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Caller_ID_Name;
+							mii.cch = 19;
+						}
+					}
+					break;
+
+					case 2:
+					{
+						mii.wID = MENU_COPY_SEL_COL62;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Match_Case_States;
+							mii.cch = 22;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Match_Case_State;
+							mii.cch = 21;
+						}
+					}
+					break;
+
+					case 3:
+					{
+						mii.wID = MENU_COPY_SEL_COL63;
+
+						if ( sel_count > 1 )
+						{
+							mii.dwTypeData = ST_Copy_Match_Whole_Word_States;
+							mii.cch = 28;
+						}
+						else
+						{
+							mii.dwTypeData = ST_Copy_Match_Whole_Word_State;
+							mii.cch = 27;
+						}
+					}
+					break;
+
+					case 4:
+					{
+						mii.wID = MENU_COPY_SEL_COL64;
+
+						mii.dwTypeData = ST_Copy_Total_Calls;
+						mii.cch = 16;
+					}
+					break;
+				}
+
+				if ( column_il_cid_menu_showing == true )
+				{
+					_SetMenuItemInfoW( g_hMenuSub_ignore_cid_list_context, 4, TRUE, &mii );
+				}
+				else
+				{
+					_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 4, TRUE, &mii );
+
+					column_il_cid_menu_showing = true;
+				}
+			}
+		}
+		else
+		{
+			if ( column_il_cid_menu_showing == true )
+			{
+				_DeleteMenu( g_hMenuSub_ignore_cid_list_context, 4, MF_BYPOSITION );
+
+				column_il_cid_menu_showing = false;
+			}
+		}
+
+		_TrackPopupMenu( g_hMenuSub_ignore_cid_list_context, 0, p.x, p.y, 0, g_hWnd_main, NULL );
+	}
 	else if ( hWnd == g_hWnd_tab )
 	{
 		TCHITTESTINFO tcht;
@@ -1798,19 +2250,19 @@ void HandleRightClick( HWND hWnd )
 			ti.mask = TCIF_PARAM;
 			_SendMessageW( hWnd, TCM_GETITEM, index, ( LPARAM )&ti );	// Insert a new tab at the end.
 
-			if ( ( HWND )ti.lParam == g_hWnd_ignore_list )
+			if ( ( HWND )ti.lParam == g_hWnd_call_log )
 			{
 				context_tab_index = 0;
 			}
-			else if ( ( HWND )ti.lParam == g_hWnd_list )
+			else if ( ( HWND )ti.lParam == g_hWnd_contact_list )
 			{
 				context_tab_index = 1;
 			}
-			else if ( ( HWND )ti.lParam == g_hWnd_contact_list )
+			else if ( ( HWND )ti.lParam == g_hWnd_forward_tab )
 			{
 				context_tab_index = 2;
 			}
-			else if ( ( HWND )ti.lParam == g_hWnd_forward_list )
+			else if ( ( HWND )ti.lParam == g_hWnd_ignore_tab )
 			{
 				context_tab_index = 3;
 			}
@@ -1826,10 +2278,12 @@ void HandleRightClick( HWND hWnd )
 	{
 		HWND hWnd_parent = _GetParent( hWnd );
 
-		if ( hWnd_parent == g_hWnd_list ||
+		if ( hWnd_parent == g_hWnd_call_log ||
 			 hWnd_parent == g_hWnd_contact_list ||
 			 hWnd_parent == g_hWnd_ignore_list ||
-			 hWnd_parent == g_hWnd_forward_list )
+			 hWnd_parent == g_hWnd_forward_list ||
+			 hWnd_parent == g_hWnd_ignore_cid_list ||
+			 hWnd_parent == g_hWnd_forward_cid_list )
 		{
 			// Show our columns context menu as a popup.
 			_TrackPopupMenu( g_hMenuSub_header_context, 0, p.x, p.y, 0, g_hWnd_main, NULL );
@@ -1889,272 +2343,381 @@ void UpdateMenus( unsigned char action )
 	}
 
 	// Enable Menus based on which tab is selected.
-	int index = _SendMessageW( g_hWnd_tab, TCM_GETCURSEL, 0, 0 );		// Get the selected tab
-	if ( index != -1 )
+	HWND hWnd = GetCurrentListView();
+
+	int item_count = _SendMessageW( hWnd, LVM_GETITEMCOUNT, 0, 0 );
+	int sel_count = _SendMessageW( hWnd, LVM_GETSELECTEDCOUNT, 0, 0 );
+
+	if ( hWnd == g_hWnd_call_log )
 	{
-		TCITEM tie;
-		_memzero( &tie, sizeof( TCITEM ) );
-		tie.mask = TCIF_PARAM; // Get the lparam value
-		_SendMessageW( g_hWnd_tab, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-
-		int item_count = _SendMessageW( ( HWND )tie.lParam, LVM_GETITEMCOUNT, 0, 0 );
-		int sel_count = _SendMessageW( ( HWND )tie.lParam, LVM_GETSELECTEDCOUNT, 0, 0 );
-
-		if ( ( HWND )tie.lParam == g_hWnd_list )
+		if ( l_incoming_menu_showing == true )
 		{
-			if ( l_incoming_menu_showing == true )
+			_DeleteMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Separator
+			_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );
+			_DeleteMenu( g_hMenuSub_list_context, 0, MF_BYPOSITION );
+
+			l_incoming_menu_showing = false;
+		}
+
+		if ( l_phone_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_list_context, 3, MF_BYPOSITION );	// Separator
+			_RemoveMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
+			_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );	// Separator
+			_DeleteMenu( g_hMenuSub_list_context, 0, MF_BYPOSITION );
+
+			l_phone_menu_showing = false;
+		}
+
+		if ( column_l_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_list_context, 4, MF_BYPOSITION );
+
+			column_l_menu_showing = false;
+		}
+
+		// Get the first selected item if it exists.
+		LVITEM lvi;
+		_memzero( &lvi, sizeof( LVITEM ) );
+		lvi.mask = LVIF_PARAM;
+
+		MENUITEMINFO mii3;
+		_memzero( &mii3, sizeof( MENUITEMINFO ) );
+		mii3.cbSize = sizeof( MENUITEMINFO );
+		mii3.fMask = MIIM_TYPE;
+		mii3.fType = MFT_STRING;
+
+		lvi.iItem = _SendMessageW( g_hWnd_call_log, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
+
+		if ( lvi.iItem != -1 )
+		{
+			_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
+
+			if ( ( ( displayinfo * )lvi.lParam )->forward_cid_match_count > 0 )
 			{
-				_DeleteMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Separator
-				_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );
-				_DeleteMenu( g_hMenuSub_list_context, 0, MF_BYPOSITION );
-
-				l_incoming_menu_showing = false;
-			}
-
-			if ( l_phone_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_list_context, 3, MF_BYPOSITION );	// Separator
-				_RemoveMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
-				_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );	// Separator
-				_DeleteMenu( g_hMenuSub_list_context, 0, MF_BYPOSITION );
-
-				l_phone_menu_showing = false;
-			}
-
-			if ( column_l_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_list_context, 5, MF_BYPOSITION );
-
-				column_l_menu_showing = false;
-			}
-
-			// Get the first selected item if it exists.
-			LVITEM lvi;
-			_memzero( &lvi, sizeof( LVITEM ) );
-			lvi.mask = LVIF_PARAM;
-
-			MENUITEMINFO mii3;
-			_memzero( &mii3, sizeof( MENUITEMINFO ) );
-			mii3.cbSize = sizeof( MENUITEMINFO );
-			mii3.fMask = MIIM_TYPE;
-			mii3.fType = MFT_STRING;
-
-			lvi.iItem = _SendMessageW( g_hWnd_list, LVM_GETNEXTITEM, -1, LVNI_FOCUSED | LVNI_SELECTED );
-
-			if ( lvi.iItem != -1 )
-			{
-				_SendMessageW( g_hWnd_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
-
-				if ( ( ( displayinfo * )lvi.lParam )->forward == true )
-				{
-					mii3.dwTypeData = ST_Remove_from_Forward_List;
-					mii3.cch = 24;
-					_SetMenuItemInfoW( g_hMenuSub_list_context, 0, TRUE, &mii3 );
-				}
-				else
-				{
-					mii3.dwTypeData = ST_Add_to_Forward_List___;
-					mii3.cch = 22;
-					_SetMenuItemInfoW( g_hMenuSub_list_context, 0, TRUE, &mii3 );
-				}
-
-				if ( ( ( displayinfo * )lvi.lParam )->ignore == true )
-				{
-					mii3.dwTypeData = ST_Remove_from_Ignore_List;
-					mii3.cch = 23;
-					_SetMenuItemInfoW( g_hMenuSub_list_context, 1, TRUE, &mii3 );
-				}
-				else
-				{
-					mii3.dwTypeData = ST_Add_to_Ignore_List;
-					mii3.cch = 18;
-					_SetMenuItemInfoW( g_hMenuSub_list_context, 1, TRUE, &mii3 );
-				}
+				mii3.dwTypeData = ST_Remove_from_Forward_Caller_ID_Name_List;
+				mii3.cch = 39;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 0, TRUE, &mii3 );
 			}
 			else
 			{
-				mii3.dwTypeData = ST_Add_to_Forward_List___;
-				mii3.cch = 22;
-				_SetMenuItemInfoW( g_hMenuSub_list_context, 0, TRUE, &mii3 );
-
-				mii3.dwTypeData = ST_Add_to_Ignore_List;
-				mii3.cch = 18;
-				_SetMenuItemInfoW( g_hMenuSub_list_context, 1, TRUE, &mii3 );
+				mii3.dwTypeData = ST_Add_to_Forward_Caller_ID_Name_List___;
+				mii3.cch = 37;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 0, TRUE, &mii3 );
 			}
 
-			if ( action == UM_ENABLE )
+			if ( ( ( displayinfo * )lvi.lParam )->forward_phone_number == true )
 			{
-				if ( sel_count > 0 )
-				{
-					_EnableMenuItem( g_hMenuSub_list_context, MENU_FORWARD_LIST, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_list_context, MENU_IGNORE_LIST, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_list_context, MENU_COPY_SEL, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_list_context, MENU_REMOVE_SEL, MF_ENABLED );
-				}
-			}
-			else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
-			{
-				_EnableMenuItem( g_hMenuSub_list_context, MENU_FORWARD_LIST, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_list_context, MENU_IGNORE_LIST, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_list_context, MENU_COPY_SEL, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_list_context, MENU_REMOVE_SEL, MF_DISABLED );
-			}
-
-			if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
-			{
-				_EnableMenuItem( g_hMenuSub_list_context, MENU_SELECT_ALL, MF_DISABLED );
+				mii3.dwTypeData = ST_Remove_from_Forward_Phone_Number_List;
+				mii3.cch = 37;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 1, TRUE, &mii3 );
 			}
 			else
 			{
-				_EnableMenuItem( g_hMenuSub_list_context, MENU_SELECT_ALL, MF_ENABLED );
+				mii3.dwTypeData = ST_Add_to_Forward_Phone_Number_List___;
+				mii3.cch = 35;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 1, TRUE, &mii3 );
+			}
+
+			if ( ( ( displayinfo * )lvi.lParam )->ignore_cid_match_count > 0 )
+			{
+				mii3.dwTypeData = ST_Remove_from_Ignore_Caller_ID_Name_List;
+				mii3.cch = 38;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 3, TRUE, &mii3 );
+			}
+			else
+			{
+				mii3.dwTypeData = ST_Add_to_Ignore_Caller_ID_Name_List___;
+				mii3.cch = 36;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 3, TRUE, &mii3 );
+			}
+
+			if ( ( ( displayinfo * )lvi.lParam )->ignore_phone_number == true )
+			{
+				mii3.dwTypeData = ST_Remove_from_Ignore_Phone_Number_List;
+				mii3.cch = 36;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 4, TRUE, &mii3 );
+			}
+			else
+			{
+				mii3.dwTypeData = ST_Add_to_Ignore_Phone_Number_List;
+				mii3.cch = 31;
+				_SetMenuItemInfoW( g_hMenuSub_lists, 4, TRUE, &mii3 );
 			}
 		}
-		else if ( ( HWND )tie.lParam == g_hWnd_contact_list )
+		else
 		{
-			if ( cl_phone_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_contact_list_context, 3, MF_BYPOSITION );	// Separator
-				_RemoveMenu( g_hMenuSub_contact_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
-				_DeleteMenu( g_hMenuSub_contact_list_context, 1, MF_BYPOSITION );	// Separator
-				_DeleteMenu( g_hMenuSub_contact_list_context, 0, MF_BYPOSITION );
+			mii3.dwTypeData = ST_Add_to_Forward_Caller_ID_Name_List___;
+			mii3.cch = 37;
+			_SetMenuItemInfoW( g_hMenuSub_lists, 0, TRUE, &mii3 );
 
-				cl_phone_menu_showing = false;
-			}
+			mii3.dwTypeData = ST_Add_to_Forward_Phone_Number_List___;
+			mii3.cch = 35;
+			_SetMenuItemInfoW( g_hMenuSub_lists, 1, TRUE, &mii3 );
 
-			if ( cl_url_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_contact_list_context, 1, MF_BYPOSITION );	// Separator
-				_DeleteMenu( g_hMenuSub_contact_list_context, 0, MF_BYPOSITION );
+			mii3.dwTypeData = ST_Add_to_Ignore_Caller_ID_Name_List___;
+			mii3.cch = 36;
+			_SetMenuItemInfoW( g_hMenuSub_lists, 3, TRUE, &mii3 );
 
-				cl_url_menu_showing = false;
-			}
+			mii3.dwTypeData = ST_Add_to_Ignore_Phone_Number_List;
+			mii3.cch = 31;
+			_SetMenuItemInfoW( g_hMenuSub_lists, 4, TRUE, &mii3 );
+		}
 
-			if ( column_cl_menu_showing == true )
+		if ( action == UM_ENABLE )
+		{
+			if ( sel_count > 0 )
 			{
-				_DeleteMenu( g_hMenuSub_contact_list_context, 4, MF_BYPOSITION );
-
-				column_cl_menu_showing = false;
-			}
-
-			if ( action == UM_ENABLE )
-			{
-				if ( sel_count > 0 )
-				{
-					_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_EDIT_CONTACT, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_REMOVE_SEL, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_COPY_SEL, MF_ENABLED );
-				}
-			}
-			else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
-			{
-				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_EDIT_CONTACT, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_REMOVE_SEL, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_COPY_SEL, MF_DISABLED );
-			}
-
-			if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
-			{
-				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_SELECT_ALL, MF_DISABLED );
-			}
-			else
-			{
-				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_SELECT_ALL, MF_ENABLED );
-			}
-
-			if ( main_con.state == LOGGED_IN )
-			{
-				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_ADD_CONTACT, MF_ENABLED );
-			}
-			else
-			{
-				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_ADD_CONTACT, MF_DISABLED );
+				_EnableMenuItem( g_hMenuSub_lists, MENU_FORWARD_CID_LIST, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_lists, MENU_FORWARD_LIST, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_lists, MENU_IGNORE_CID_LIST, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_lists, MENU_IGNORE_LIST, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_list_context, MENU_COPY_SEL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_list_context, MENU_REMOVE_SEL, MF_ENABLED );
 			}
 		}
-		else if ( ( HWND )tie.lParam == g_hWnd_ignore_list )
+		else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
 		{
-			if ( il_phone_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );	// Separator
-				_RemoveMenu( g_hMenuSub_ignore_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
-				_DeleteMenu( g_hMenuSub_ignore_list_context, 1, MF_BYPOSITION );	// Separator
-				_DeleteMenu( g_hMenuSub_ignore_list_context, 0, MF_BYPOSITION );
+			_EnableMenuItem( g_hMenuSub_lists, MENU_FORWARD_CID_LIST, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_lists, MENU_FORWARD_LIST, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_lists, MENU_IGNORE_CID_LIST, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_lists, MENU_IGNORE_LIST, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_list_context, MENU_COPY_SEL, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_list_context, MENU_REMOVE_SEL, MF_DISABLED );
+		}
 
-				il_phone_menu_showing = false;
-			}
+		if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_list_context, MENU_SELECT_ALL, MF_DISABLED );
+		}
+		else
+		{
+			_EnableMenuItem( g_hMenuSub_list_context, MENU_SELECT_ALL, MF_ENABLED );
+		}
+	}
+	else if ( hWnd == g_hWnd_contact_list )
+	{
+		if ( cl_phone_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_contact_list_context, 3, MF_BYPOSITION );	// Separator
+			_RemoveMenu( g_hMenuSub_contact_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
+			_DeleteMenu( g_hMenuSub_contact_list_context, 1, MF_BYPOSITION );	// Separator
+			_DeleteMenu( g_hMenuSub_contact_list_context, 0, MF_BYPOSITION );
 
-			if ( column_il_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );
+			cl_phone_menu_showing = false;
+		}
 
-				column_il_menu_showing = false;
-			}
+		if ( cl_url_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_contact_list_context, 1, MF_BYPOSITION );	// Separator
+			_DeleteMenu( g_hMenuSub_contact_list_context, 0, MF_BYPOSITION );
 
-			if ( action == UM_ENABLE )
-			{
-				if ( sel_count > 0 )
-				{
-					_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_REMOVE_SEL, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_COPY_SEL, MF_ENABLED );
-				}
-			}
-			else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
-			{
-				_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_REMOVE_SEL, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_COPY_SEL, MF_DISABLED );
-			}
+			cl_url_menu_showing = false;
+		}
 
-			if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+		if ( column_cl_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_contact_list_context, 4, MF_BYPOSITION );
+
+			column_cl_menu_showing = false;
+		}
+
+		if ( action == UM_ENABLE )
+		{
+			if ( sel_count > 0 )
 			{
-				_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_SELECT_ALL, MF_DISABLED );
-			}
-			else
-			{
-				_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_SELECT_ALL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_EDIT_CONTACT, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_REMOVE_SEL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_COPY_SEL, MF_ENABLED );
 			}
 		}
-		else if ( ( HWND )tie.lParam == g_hWnd_forward_list )
+		else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
 		{
-			if ( fl_phone_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_forward_list_context, 3, MF_BYPOSITION );	// Separator
-				_RemoveMenu( g_hMenuSub_forward_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
-				_DeleteMenu( g_hMenuSub_forward_list_context, 1, MF_BYPOSITION );	// Separator
-				_DeleteMenu( g_hMenuSub_forward_list_context, 0, MF_BYPOSITION );
+			_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_EDIT_CONTACT, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_REMOVE_SEL, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_COPY_SEL, MF_DISABLED );
+		}
 
-				fl_phone_menu_showing = false;
-			}
+		if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_SELECT_ALL, MF_DISABLED );
+		}
+		else
+		{
+			_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_SELECT_ALL, MF_ENABLED );
+		}
 
-			if ( column_fl_menu_showing == true )
-			{
-				_DeleteMenu( g_hMenuSub_forward_list_context, 4, MF_BYPOSITION );
+		if ( main_con.state == LOGGED_IN )
+		{
+			_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_ADD_CONTACT, MF_ENABLED );
+		}
+		else
+		{
+			_EnableMenuItem( g_hMenuSub_contact_list_context, MENU_ADD_CONTACT, MF_DISABLED );
+		}
+	}
+	else if ( hWnd == g_hWnd_ignore_list )
+	{
+		if ( il_phone_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );	// Separator
+			_RemoveMenu( g_hMenuSub_ignore_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
+			_DeleteMenu( g_hMenuSub_ignore_list_context, 1, MF_BYPOSITION );	// Separator
+			_DeleteMenu( g_hMenuSub_ignore_list_context, 0, MF_BYPOSITION );
 
-				column_fl_menu_showing = false;
-			}
+			il_phone_menu_showing = false;
+		}
 
-			if ( action == UM_ENABLE )
-			{
-				if ( sel_count > 0 )
-				{
-					_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_EDIT_FORWARD_LIST, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_REMOVE_SEL, MF_ENABLED );
-					_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_COPY_SEL, MF_ENABLED );
-				}
-			}
-			else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
-			{
-				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_EDIT_FORWARD_LIST, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_REMOVE_SEL, MF_DISABLED );
-				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_COPY_SEL, MF_DISABLED );
-			}
+		if ( column_il_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );
 
-			if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+			column_il_menu_showing = false;
+		}
+
+		if ( action == UM_ENABLE )
+		{
+			if ( sel_count > 0 )
 			{
-				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_SELECT_ALL, MF_DISABLED );
+				_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_REMOVE_SEL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_COPY_SEL, MF_ENABLED );
 			}
-			else
+		}
+		else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_REMOVE_SEL, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_COPY_SEL, MF_DISABLED );
+		}
+
+		if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_SELECT_ALL, MF_DISABLED );
+		}
+		else
+		{
+			_EnableMenuItem( g_hMenuSub_ignore_list_context, MENU_SELECT_ALL, MF_ENABLED );
+		}
+	}
+	else if ( hWnd == g_hWnd_forward_list )
+	{
+		if ( fl_phone_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_forward_list_context, 3, MF_BYPOSITION );	// Separator
+			_RemoveMenu( g_hMenuSub_forward_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
+			_DeleteMenu( g_hMenuSub_forward_list_context, 1, MF_BYPOSITION );	// Separator
+			_DeleteMenu( g_hMenuSub_forward_list_context, 0, MF_BYPOSITION );
+
+			fl_phone_menu_showing = false;
+		}
+
+		if ( column_fl_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_forward_list_context, 4, MF_BYPOSITION );
+
+			column_fl_menu_showing = false;
+		}
+
+		if ( action == UM_ENABLE )
+		{
+			if ( sel_count > 0 )
 			{
-				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_SELECT_ALL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_EDIT_FORWARD_LIST, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_REMOVE_SEL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_COPY_SEL, MF_ENABLED );
 			}
+		}
+		else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_EDIT_FORWARD_LIST, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_REMOVE_SEL, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_COPY_SEL, MF_DISABLED );
+		}
+
+		if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_SELECT_ALL, MF_DISABLED );
+		}
+		else
+		{
+			_EnableMenuItem( g_hMenuSub_forward_list_context, MENU_SELECT_ALL, MF_ENABLED );
+		}
+	}
+	else if ( hWnd == g_hWnd_ignore_cid_list )
+	{
+		if ( column_il_cid_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_ignore_cid_list_context, 4, MF_BYPOSITION );
+
+			column_il_cid_menu_showing = false;
+		}
+
+		if ( action == UM_ENABLE )
+		{
+			if ( sel_count > 0 )
+			{
+				_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_EDIT_IGNORE_CID_LIST, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_REMOVE_SEL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_COPY_SEL, MF_ENABLED );
+			}
+		}
+		else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_EDIT_IGNORE_CID_LIST, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_REMOVE_SEL, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_COPY_SEL, MF_DISABLED );
+		}
+
+		if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_SELECT_ALL, MF_DISABLED );
+		}
+		else
+		{
+			_EnableMenuItem( g_hMenuSub_ignore_cid_list_context, MENU_SELECT_ALL, MF_ENABLED );
+		}
+	}
+	else if ( hWnd == g_hWnd_forward_cid_list )
+	{
+		if ( fl_cid_phone_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_forward_cid_list_context, 3, MF_BYPOSITION );	// Separator
+			_RemoveMenu( g_hMenuSub_forward_cid_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
+			_DeleteMenu( g_hMenuSub_forward_cid_list_context, 1, MF_BYPOSITION );	// Separator
+			_DeleteMenu( g_hMenuSub_forward_cid_list_context, 0, MF_BYPOSITION );
+
+			fl_cid_phone_menu_showing = false;
+		}
+
+		if ( column_fl_cid_menu_showing == true )
+		{
+			_DeleteMenu( g_hMenuSub_forward_cid_list_context, 4, MF_BYPOSITION );
+
+			column_fl_cid_menu_showing = false;
+		}
+
+		if ( action == UM_ENABLE )
+		{
+			if ( sel_count > 0 )
+			{
+				_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_EDIT_FORWARD_CID_LIST, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_REMOVE_SEL, MF_ENABLED );
+				_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_COPY_SEL, MF_ENABLED );
+			}
+		}
+		else if ( action == UM_DISABLE || sel_count <= 0 || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_EDIT_FORWARD_CID_LIST, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_REMOVE_SEL, MF_DISABLED );
+			_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_COPY_SEL, MF_DISABLED );
+		}
+
+		if ( sel_count == item_count || action == UM_DISABLE_OVERRIDE )
+		{
+			_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_SELECT_ALL, MF_DISABLED );
+		}
+		else
+		{
+			_EnableMenuItem( g_hMenuSub_forward_cid_list_context, MENU_SELECT_ALL, MF_ENABLED );
 		}
 	}
 }

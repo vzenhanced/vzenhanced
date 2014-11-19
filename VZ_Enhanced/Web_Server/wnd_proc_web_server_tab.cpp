@@ -475,8 +475,8 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 			g_hWnd_chk_auto_start = _CreateWindowW( WC_BUTTON, ST_Start_web_server_upon_startup, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 210, 200, 20, hWnd, ( HMENU )BTN_AUTO_START, NULL, NULL );
 
 
-			g_hWnd_static_thread_count = _CreateWindowW( WC_STATIC, ST_Thread_count_, WS_CHILD | WS_VISIBLE, 0, 240, 70, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_thread_count = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 237, 75, 20, hWnd, ( HMENU )EDIT_THREAD_COUNT, NULL, NULL );
+			g_hWnd_static_thread_count = _CreateWindowW( WC_STATIC, ST_Thread_count_, WS_CHILD | WS_VISIBLE, 0, 240, 90, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_thread_count = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 90, 237, 60, 20, hWnd, ( HMENU )EDIT_THREAD_COUNT, NULL, NULL );
 
 
 

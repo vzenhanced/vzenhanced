@@ -90,6 +90,10 @@ extern "C" __declspec( dllexport )
 dllrbt_tree *contact_list = NULL;
 extern "C" __declspec( dllexport )
 dllrbt_tree *call_log = NULL;
+extern "C" __declspec( dllexport )
+dllrbt_tree *ignore_cid_list = NULL;
+extern "C" __declspec( dllexport )
+dllrbt_tree *forward_cid_list = NULL;
 //
 
 extern "C" __declspec( dllexport )

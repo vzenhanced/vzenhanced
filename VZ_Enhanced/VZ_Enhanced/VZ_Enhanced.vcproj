@@ -203,6 +203,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\list_operations.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\lite_advapi32.cpp"
 				>
 			</File>
@@ -291,6 +295,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wnd_proc_cid.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\wnd_proc_columns.cpp"
 				>
 			</File>
@@ -350,6 +358,10 @@
 			</File>
 			<File
 				RelativePath=".\globals.h"
+				>
+			</File>
+			<File
+				RelativePath=".\list_operations.h"
 				>
 			</File>
 			<File

@@ -16,12 +16,14 @@
 					<a id="header1" class="header" onclick="toggle_header( this, 'columns_l' ); return false;" href="">Call Log</a>
 					<a class="header" onclick="toggle_header( this, 'columns_cl' ); return false;" href="">Contact List</a>
 					<a class="header" onclick="toggle_header( this, 'columns_fl' ); return false;" href="">Forward List</a>
-					<a class="r_header" onclick="toggle_header( this, 'columns_il' ); return false;" href="">Ignore List</a>
+					<a class="header" onclick="toggle_header( this, 'columns_il' ); return false;" href="">Ignore List</a>
+					<a class="header" onclick="toggle_header( this, 'columns_fcidl' ); return false;" href="">Forward Caller ID Name List</a>
+					<a class="r_header" onclick="toggle_header( this, 'columns_icidl' ); return false;" href="">Ignore Caller ID Name List</a>
 				</div>
 			</div>
 			<div id="columns_l" class="columns_container">
 				<div id="l_row" class="columns_row">
-					<div class="column column_left" style="width: 150px;">Caller ID</div>
+					<div class="column column_left" style="width: 150px;">Caller ID Name</div>
 					<div class="column column_left" style="width: 150px;">Phone Number</div>
 					<div class="column column_right">Date and Time</div>
 				</div>
@@ -57,6 +59,29 @@
 				</div>
 				<div id="ilo" class="list_container">
 					<div id="ignore_list" class="list"></div>
+				</div>
+			</div>
+			<div id="columns_fcidl" class="columns_container" style="display: none;">
+				<div id="fcidl_row" class="columns_row">
+					<div class="column column_left" style="width: 130px;">Caller ID Name</div>
+					<div class="column column_left" style="width: 130px;">Forward To</div>
+					<div class="column column_left" style="width: 80px;">Match Case</div>
+					<div class="column column_left" style="width: 140px;">Match Whole Word</div>
+					<div class="column column_right">Total Calls</div>
+				</div>
+				<div id="fcidlo" class="list_container">
+					<div id="forward_cid_list" class="list"></div>
+				</div>
+			</div>
+			<div id="columns_icidl" class="columns_container" style="display: none;">
+				<div id="icidl_row" class="columns_row">
+					<div class="column column_left" style="width: 130px;">Caller ID Name</div>
+					<div class="column column_left" style="width: 130px;">Match Case</div>
+					<div class="column column_left" style="width: 140px;">Match Whole Word</div>
+					<div class="column column_right">Total Calls</div>
+				</div>
+				<div id="icidlo" class="list_container">
+					<div id="ignore_cid_list" class="list"></div>
 				</div>
 			</div>
 		</div>

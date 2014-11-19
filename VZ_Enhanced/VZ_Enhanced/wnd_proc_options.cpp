@@ -725,7 +725,7 @@ void Set_Window_Settings()
 		switch ( order )
 		{
 			case LINE_TIME: { tvis.item.pszText = ST_Time; } break;
-			case LINE_CALLER_ID: { tvis.item.pszText = ST_Caller_ID; } break;
+			case LINE_CALLER_ID: { tvis.item.pszText = ST_Caller_ID_Name; } break;
 			case LINE_PHONE: { tvis.item.pszText = ST_Phone_Number; } break;
 		}
 
@@ -1127,8 +1127,8 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 			g_hWnd_static_hoz = CreateWindowW( WC_STATIC, NULL, SS_ETCHEDHORZ | WS_CHILD | WS_VISIBLE, 0, 25, rc.right, 5, hWnd, NULL, NULL, NULL );
 
-			g_hWnd_static_width = _CreateWindowW( WC_STATIC, ST_Width_, WS_CHILD | WS_VISIBLE, 0, 30, 50, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_width = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_RIGHT | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 45, 50, 20, hWnd, ( HMENU )EDIT_WIDTH, NULL, NULL );
+			g_hWnd_static_width = _CreateWindowW( WC_STATIC, ST_Width_, WS_CHILD | WS_VISIBLE, 0, 30, 65, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_width = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 45, 50, 20, hWnd, ( HMENU )EDIT_WIDTH, NULL, NULL );
 
 			// Keep this unattached. Looks ugly inside the text box.
 			g_hWnd_ud_width = _CreateWindowW( UPDOWN_CLASS, NULL, /*UDS_ALIGNRIGHT |*/ UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_SETBUDDYINT | WS_CHILD | WS_VISIBLE, 50, 44, 50, 22, hWnd, NULL, NULL, NULL );
@@ -1139,8 +1139,8 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			_SendMessageW( g_hWnd_ud_width, UDM_SETRANGE32, 20, wa.right );
 
 
-			g_hWnd_static_height = _CreateWindowW( WC_STATIC, ST_Height_, WS_CHILD | WS_VISIBLE, 75, 30, 50, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_height = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_RIGHT | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 45, 50, 20, hWnd, ( HMENU )EDIT_HEIGHT, NULL, NULL );
+			g_hWnd_static_height = _CreateWindowW( WC_STATIC, ST_Height_, WS_CHILD | WS_VISIBLE, 75, 30, 65, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_height = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 45, 50, 20, hWnd, ( HMENU )EDIT_HEIGHT, NULL, NULL );
 
 			// Keep this unattached. Looks ugly inside the text box.
 			g_hWnd_ud_height = _CreateWindowW( UPDOWN_CLASS, NULL, /*UDS_ALIGNRIGHT |*/ UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_SETBUDDYINT | WS_CHILD | WS_VISIBLE, 125, 44, 50, 22, hWnd, NULL, NULL, NULL );
@@ -1161,7 +1161,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 
 
-			g_hWnd_static_delay = _CreateWindowW( WC_STATIC, ST_Delay_Time_, WS_CHILD | WS_VISIBLE, 0, 120, 70, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_static_delay = _CreateWindowW( WC_STATIC, ST_Delay_Time_, WS_CHILD | WS_VISIBLE, 0, 120, 140, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_time = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 135, 50, 20, hWnd, ( HMENU )EDIT_TIME, NULL, NULL );
 
 			// Keep this unattached. Looks ugly inside the text box.
@@ -1172,11 +1172,11 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
             _SendMessageW( g_hWnd_ud_time, UDM_SETBASE, 10, 0 );
 			_SendMessageW( g_hWnd_ud_time, UDM_SETRANGE32, 0, MAX_POPUP_TIME );
 
-			g_hWnd_static_transparency = _CreateWindowW( WC_STATIC, ST_Transparency_, WS_CHILD | WS_VISIBLE, 75, 120, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_transparency = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_RIGHT | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 75, 135, 50, 20, hWnd, ( HMENU )EDIT_TRANSPARENCY, NULL, NULL );
+			g_hWnd_static_transparency = _CreateWindowW( WC_STATIC, ST_Transparency_, WS_CHILD | WS_VISIBLE, 0, 160, 140, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_transparency = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 175, 50, 20, hWnd, ( HMENU )EDIT_TRANSPARENCY, NULL, NULL );
 
 			// Keep this unattached. Looks ugly inside the text box.
-			g_hWnd_ud_transparency = _CreateWindowW( UPDOWN_CLASS, NULL, /*UDS_ALIGNRIGHT |*/ UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_SETBUDDYINT | WS_CHILD | WS_VISIBLE, 125, 134, 50, 22, hWnd, NULL, NULL, NULL );
+			g_hWnd_ud_transparency = _CreateWindowW( UPDOWN_CLASS, NULL, /*UDS_ALIGNRIGHT |*/ UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_SETBUDDYINT | WS_CHILD | WS_VISIBLE, 50, 174, 50, 22, hWnd, NULL, NULL, NULL );
 
 			_SendMessageW( g_hWnd_transparency, EM_LIMITTEXT, 3, 0 );
 			_SendMessageW( g_hWnd_ud_transparency, UDM_SETBUDDY, ( WPARAM )g_hWnd_transparency, 0 );
@@ -1184,59 +1184,59 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			_SendMessageW( g_hWnd_ud_transparency, UDM_SETRANGE32, 0, 255 );
 
 
-			g_hWnd_chk_border = _CreateWindowW( WC_BUTTON, ST_Hide_window_border, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 165, 140, 20, hWnd, ( HMENU )BTN_BORDER, NULL, NULL );
+			g_hWnd_chk_border = _CreateWindowW( WC_BUTTON, ST_Hide_window_border, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 205, 140, 20, hWnd, ( HMENU )BTN_BORDER, NULL, NULL );
 
 
-			g_hWnd_chk_play_sound = _CreateWindowW( WC_BUTTON, ST_Play_sound_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 195, 80, 20, hWnd, ( HMENU )BTN_PLAY_SOUND, NULL, NULL );
-			g_hWnd_sound_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 215, 97, 20, hWnd, ( HMENU )EDIT_SOUND, NULL, NULL );
-			g_hWnd_sound = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 102, 215, 40, 20, hWnd, ( HMENU )BTN_SOUND, NULL, NULL );
+			g_hWnd_chk_play_sound = _CreateWindowW( WC_BUTTON, ST_Play_sound_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 225, 140, 20, hWnd, ( HMENU )BTN_PLAY_SOUND, NULL, NULL );
+			g_hWnd_sound_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 245, 97, 20, hWnd, ( HMENU )EDIT_SOUND, NULL, NULL );
+			g_hWnd_sound = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 102, 245, 40, 20, hWnd, ( HMENU )BTN_SOUND, NULL, NULL );
 
 
 
 
-			g_hWnd_font_settings = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_TREEVIEW, NULL, TVS_DISABLEDRAGDROP | TVS_FULLROWSELECT | TVS_SHOWSELALWAYS | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 155, 35, 100, 55, hWnd, ( HMENU )LIST_SETTINGS, NULL, NULL );
+			g_hWnd_font_settings = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_TREEVIEW, NULL, TVS_DISABLEDRAGDROP | TVS_FULLROWSELECT | TVS_SHOWSELALWAYS | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 155, 35, 110, 60, hWnd, ( HMENU )LIST_SETTINGS, NULL, NULL );
 			DWORD style = _GetWindowLongW( g_hWnd_font_settings, GWL_STYLE );
 			_SetWindowLongW( g_hWnd_font_settings, GWL_STYLE, style | TVS_CHECKBOXES );
 
-			g_hWnd_move_up = _CreateWindowW( WC_BUTTON, ST_Up, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 260, 35, 50, 20, hWnd, ( HMENU )BTN_MOVE_UP, NULL, NULL );
-			g_hWnd_move_down = _CreateWindowW( WC_BUTTON, ST_Down, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 260, 70, 50, 20, hWnd, ( HMENU )BTN_MOVE_DOWN, NULL, NULL );
+			g_hWnd_move_up = _CreateWindowW( WC_BUTTON, ST_Up, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 270, 35, 50, 20, hWnd, ( HMENU )BTN_MOVE_UP, NULL, NULL );
+			g_hWnd_move_down = _CreateWindowW( WC_BUTTON, ST_Down, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 270, 75, 50, 20, hWnd, ( HMENU )BTN_MOVE_DOWN, NULL, NULL );
 
 
-			g_hWnd_font = _CreateWindowW( WC_STATIC, ST_Font_, WS_CHILD | WS_VISIBLE, 155, 105, 50, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_btn_font = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 275, 102, 35, 20, hWnd, ( HMENU )BTN_CHOOSE_FONT, NULL, NULL );
+			g_hWnd_font = _CreateWindowW( WC_STATIC, ST_Font_, WS_CHILD | WS_VISIBLE, 155, 110, 130, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_btn_font = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 285, 107, 35, 20, hWnd, ( HMENU )BTN_CHOOSE_FONT, NULL, NULL );
 
-			g_hWnd_font_color = _CreateWindowW( WC_STATIC, ST_Font_color_, WS_CHILD | WS_VISIBLE, 155, 130, 90, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_btn_font_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 275, 127, 35, 20, hWnd, ( HMENU )BTN_FONT_COLOR, NULL, NULL );
+			g_hWnd_font_color = _CreateWindowW( WC_STATIC, ST_Font_color_, WS_CHILD | WS_VISIBLE, 155, 135, 130, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_btn_font_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 285, 132, 35, 20, hWnd, ( HMENU )BTN_FONT_COLOR, NULL, NULL );
 
-			g_hWnd_chk_shadow = _CreateWindowW( WC_BUTTON, ST_Font_shadow_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 155, 155, 120, 15, hWnd, ( HMENU )BTN_SHADOW, NULL, NULL );
-			g_hWnd_btn_font_shadow_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 275, 152, 35, 20, hWnd, ( HMENU )BTN_FONT_SHADOW_COLOR, NULL, NULL );
-
-
-			g_hWnd_group_justify = _CreateWindowW( WC_STATIC, ST_Justify_text_, WS_CHILD | WS_VISIBLE, 155, 180, 80, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_rad_left_justify = _CreateWindowW( WC_BUTTON, ST_Left, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 155, 195, 40, 20, hWnd, ( HMENU )RADIO_LEFT, NULL, NULL );
-			g_hWnd_rad_center_justify = _CreateWindowW( WC_BUTTON, ST_Center, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 200, 195, 55, 20, hWnd, ( HMENU )RADIO_CENTER, NULL, NULL );
-			g_hWnd_rad_right_justify = _CreateWindowW( WC_BUTTON, ST_Right, BS_AUTORADIOBUTTON  | WS_CHILD | WS_VISIBLE, 260, 195, 60, 20, hWnd, ( HMENU )RADIO_RIGHT, NULL, NULL );
-
-			g_hWnd_group_time_format = _CreateWindowW( WC_STATIC, ST_Time_format_, WS_CHILD | WS_VISIBLE, 155, 225, 80, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_rad_12_hour = _CreateWindowW( WC_BUTTON, ST_12_hour, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 155, 240, 60, 20, hWnd, ( HMENU )RADIO_12_HOUR, NULL, NULL );
-			g_hWnd_rad_24_hour = _CreateWindowW( WC_BUTTON, ST_24_hour, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 220, 240, 70, 20, hWnd, ( HMENU )RADIO_24_HOUR, NULL, NULL );
+			g_hWnd_chk_shadow = _CreateWindowW( WC_BUTTON, ST_Font_shadow_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 155, 160, 130, 15, hWnd, ( HMENU )BTN_SHADOW, NULL, NULL );
+			g_hWnd_btn_font_shadow_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 285, 157, 35, 20, hWnd, ( HMENU )BTN_FONT_SHADOW_COLOR, NULL, NULL );
 
 
+			g_hWnd_group_justify = _CreateWindowW( WC_STATIC, ST_Justify_text_, WS_CHILD | WS_VISIBLE, 155, 185, 130, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_rad_left_justify = _CreateWindowW( WC_BUTTON, ST_Left, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 155, 200, 50, 20, hWnd, ( HMENU )RADIO_LEFT, NULL, NULL );
+			g_hWnd_rad_center_justify = _CreateWindowW( WC_BUTTON, ST_Center, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 205, 200, 60, 20, hWnd, ( HMENU )RADIO_CENTER, NULL, NULL );
+			g_hWnd_rad_right_justify = _CreateWindowW( WC_BUTTON, ST_Right, BS_AUTORADIOBUTTON  | WS_CHILD | WS_VISIBLE, 265, 200, 55, 20, hWnd, ( HMENU )RADIO_RIGHT, NULL, NULL );
+
+			g_hWnd_group_time_format = _CreateWindowW( WC_STATIC, ST_Time_format_, WS_CHILD | WS_VISIBLE, 155, 230, 130, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_rad_12_hour = _CreateWindowW( WC_BUTTON, ST_12_hour, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 155, 245, 65, 20, hWnd, ( HMENU )RADIO_12_HOUR, NULL, NULL );
+			g_hWnd_rad_24_hour = _CreateWindowW( WC_BUTTON, ST_24_hour, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 220, 245, 65, 20, hWnd, ( HMENU )RADIO_24_HOUR, NULL, NULL );
 
 
-			g_hWnd_static_sample = _CreateWindowW( WC_STATIC, ST_Sample_, WS_CHILD | WS_VISIBLE, 325, 30, 100, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_static_example = _CreateWindowW( WC_STATIC, NULL, SS_OWNERDRAW | WS_BORDER | WS_CHILD | WS_VISIBLE, 325, 45, 195, 45, hWnd, NULL, NULL, NULL );
-
-			g_hWnd_static_background_color = _CreateWindowW( WC_STATIC, ST_Background_color_, WS_CHILD | WS_VISIBLE, 325, 105, 120, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_background_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 485, 102, 35, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR, NULL, NULL );
-
-			g_hWnd_chk_gradient = _CreateWindowW( WC_BUTTON, ST_Gradient_background_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 325, 130, 160, 15, hWnd, ( HMENU )BTN_GRADIENT, NULL, NULL );
-			g_hWnd_btn_background_color2 = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 485, 127, 35, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR2, NULL, NULL );
 
 
-			g_hWnd_group_gradient_direction = _CreateWindowW( WC_STATIC, ST_Gradient_direction_, WS_CHILD | WS_VISIBLE, 325, 155, 120, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_rad_gradient_vert = _CreateWindowW( WC_BUTTON, ST_Vertical, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 325, 170, 60, 20, hWnd, ( HMENU )RADIO_GRADIENT_VERT, NULL, NULL );
-			g_hWnd_rad_gradient_horz = _CreateWindowW( WC_BUTTON, ST_Horizontal, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 405, 170, 70, 20, hWnd, ( HMENU )RADIO_GRADIENT_HORZ, NULL, NULL );
+			g_hWnd_static_sample = _CreateWindowW( WC_STATIC, ST_Sample_, WS_CHILD | WS_VISIBLE, 335, 30, 175, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_static_example = _CreateWindowW( WC_STATIC, NULL, SS_OWNERDRAW | WS_BORDER | WS_CHILD | WS_VISIBLE, 335, 45, 206, 50, hWnd, NULL, NULL, NULL );
+
+			g_hWnd_static_background_color = _CreateWindowW( WC_STATIC, ST_Background_color_, WS_CHILD | WS_VISIBLE, 335, 110, 173, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_background_color = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 508, 107, 35, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR, NULL, NULL );
+
+			g_hWnd_chk_gradient = _CreateWindowW( WC_BUTTON, ST_Gradient_background_color_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 335, 135, 173, 15, hWnd, ( HMENU )BTN_GRADIENT, NULL, NULL );
+			g_hWnd_btn_background_color2 = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 508, 132, 35, 20, hWnd, ( HMENU )BTN_BACKGROUND_COLOR2, NULL, NULL );
+
+
+			g_hWnd_group_gradient_direction = _CreateWindowW( WC_STATIC, ST_Gradient_direction_, WS_CHILD | WS_VISIBLE, 335, 160, 175, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_rad_gradient_vert = _CreateWindowW( WC_BUTTON, ST_Vertical, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 335, 175, 80, 20, hWnd, ( HMENU )RADIO_GRADIENT_VERT, NULL, NULL );
+			g_hWnd_rad_gradient_horz = _CreateWindowW( WC_BUTTON, ST_Horizontal, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 415, 175, 80, 20, hWnd, ( HMENU )RADIO_GRADIENT_HORZ, NULL, NULL );
 
 
 			g_hWnd_preview = _CreateWindowW( WC_BUTTON, ST_Preview_Popup, WS_CHILD | WS_TABSTOP | WS_VISIBLE, rc.right - 100, rc.bottom - 20, 100, 20, hWnd, ( HMENU )BTN_PREVIEW, NULL, NULL );
@@ -2895,6 +2895,8 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							if ( g_hWnd_dial != NULL ){ _SetWindowPos( g_hWnd_dial, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_forward != NULL ){ _SetWindowPos( g_hWnd_forward, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_ignore_phone_number != NULL ){ _SetWindowPos( g_hWnd_ignore_phone_number, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_forward_cid != NULL ){ _SetWindowPos( g_hWnd_forward_cid, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_ignore_cid != NULL ){ _SetWindowPos( g_hWnd_ignore_cid, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL ){ _SetWindowPos( g_hWnd_connection_manager, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 						}
 

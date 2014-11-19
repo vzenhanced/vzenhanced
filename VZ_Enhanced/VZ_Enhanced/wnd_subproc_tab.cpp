@@ -38,7 +38,7 @@ HBITMAP hbm_tab = NULL;
 
 wchar_t *GetTabTextByHandle( HWND hWnd )
 {
-	if ( hWnd == g_hWnd_list )
+	if ( hWnd == g_hWnd_call_log )
 	{
 		return ST_Call_Log;
 	}
@@ -46,13 +46,13 @@ wchar_t *GetTabTextByHandle( HWND hWnd )
 	{
 		return ST_Contact_List;
 	}
-	else if ( hWnd == g_hWnd_forward_list )
+	else if ( hWnd == g_hWnd_forward_tab )
 	{
-		return ST_Forward_List;
+		return ST_Forward_Lists;
 	}
-	else if ( hWnd == g_hWnd_ignore_list )
+	else if ( hWnd == g_hWnd_ignore_tab )
 	{
-		return ST_Ignore_List;
+		return ST_Ignore_Lists;
 	}
 	else
 	{

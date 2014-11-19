@@ -21,6 +21,7 @@
 #include "parsing.h"
 #include "menus.h"
 #include "utilities.h"
+#include "list_operations.h"
 
 #include "lite_advapi32.h"
 #include "lite_comdlg32.h"
@@ -28,12 +29,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.4"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.5"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.1.4"
+#define USER_AGENT			"VZ-Enhanced/1.0.1.5"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -43,7 +44,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1014
+#define CURRENT_VERSION		1015
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -4242,14 +4243,18 @@ THREAD_RETURN Connection( void *pArguments )
 				di->reference = NULL;
 				di->forward_to = NULL;
 				di->sent_to = NULL;
-				di->w_forward = NULL;
-				di->w_ignore = NULL;
+				di->w_forward_caller_id = NULL;
+				di->w_forward_phone_number = NULL;
+				di->w_ignore_caller_id = NULL;
+				di->w_ignore_phone_number = NULL;
 				di->w_time = NULL;
 				di->time.LowPart = FileTime.dwLowDateTime;
 				di->time.HighPart = FileTime.dwHighDateTime;
 				di->process_incoming = true;
-				di->ignore = false;
-				di->forward = false;
+				di->ignore_phone_number = false;
+				di->forward_phone_number = false;
+				di->ignore_cid_match_count = 0;
+				di->forward_cid_match_count = 0;
 
 				// This will also ignore or forward the call if it's in our lists.
 				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_call_log, ( void * )di, 0, NULL ) );

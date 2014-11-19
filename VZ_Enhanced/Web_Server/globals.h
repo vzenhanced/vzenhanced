@@ -76,6 +76,10 @@ extern "C" __declspec( dllexport )
 extern dllrbt_tree *forward_list;
 extern "C" __declspec( dllexport )
 extern dllrbt_tree *call_log;
+extern "C" __declspec( dllexport )
+extern dllrbt_tree *ignore_cid_list;
+extern "C" __declspec( dllexport )
+extern dllrbt_tree *forward_cid_list;
 
 extern "C" __declspec( dllexport )
 extern pWebIgnoreIncomingCall *WebIgnoreIncomingCall;
