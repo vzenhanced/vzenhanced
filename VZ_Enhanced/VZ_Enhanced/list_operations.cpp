@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@
 
 #include "globals.h"
 #include "list_operations.h"
+#include "file_operations.h"
 #include "utilities.h"
+#include "message_log_utilities.h"
 #include "menus.h"
 #include "string_tables.h"
 
@@ -31,6 +33,133 @@ bool skip_ignore_draw = false;
 bool skip_forward_draw = false;
 bool skip_ignore_cid_draw = false;
 bool skip_forward_cid_draw = false;
+
+void update_phone_number_matches( char *phone_number, unsigned char info_type, bool in_range, RANGE **range, bool add_value )
+{
+	if ( phone_number == NULL || ( info_type != 0 && info_type != 1 ) )
+	{
+		return;
+	}
+
+	if ( in_range == false )	// Non-range phone number.
+	{
+		// Update each displayinfo item.
+		DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )phone_number, true );
+		if ( dll != NULL )
+		{
+			DoublyLinkedList *di_node = dll;
+			while ( di_node != NULL )
+			{
+				displayinfo *mdi = ( displayinfo * )di_node->data;
+
+				if ( info_type == 0 )	// Handle ignore phone number info.
+				{
+					if ( mdi->ignore_phone_number != add_value )
+					{
+						mdi->ignore_phone_number = add_value;
+						GlobalFree( mdi->w_ignore_phone_number );
+						mdi->w_ignore_phone_number = GlobalStrDupW( ( add_value == true ? ST_Yes : ST_No ) );
+					}
+				}
+				else if ( info_type == 1 )	// Handle forward phone number info.
+				{
+					if ( mdi->forward_phone_number != add_value )
+					{
+						mdi->forward_phone_number = add_value;
+						GlobalFree( mdi->w_forward_phone_number );
+						mdi->w_forward_phone_number = GlobalStrDupW( ( add_value == true ? ST_Yes : ST_No ) );
+					}
+				}
+
+				di_node = di_node->next;
+			}
+		}
+	}
+	else	// See if the value we're adding is a range (has wildcard values in it).
+	{
+		char range_number[ 32 ];	// Dummy value.
+
+		// Update each displayinfo item.
+		node_type *node = dllrbt_get_head( call_log );
+		while ( node != NULL )
+		{
+			DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
+			while ( di_node != NULL )
+			{
+				displayinfo *mdi = ( displayinfo * )di_node->data;
+
+				if ( info_type == 0 )	// Handle ignore phone number info.
+				{
+					// Process display values that will be ignored/no longer ignored.
+					if ( mdi->ignore_phone_number != add_value )
+					{
+						// Handle values that are no longer ignored.
+						if ( add_value == false )
+						{
+							// First, see if the display value falls within another range.
+							if ( range != NULL && RangeSearch( range, mdi->ci.call_from, range_number ) == true )
+							{
+								// If it does, then we'll skip the display value.
+								break;
+							}
+
+							// Next, see if the display value exists as a non-range value.
+							if ( dllrbt_find( ignore_list, ( void * )mdi->ci.call_from, false ) != NULL )
+							{
+								// If it does, then we'll skip the display value.
+								break;
+							}
+						}
+
+						// Finally, see if the display item falls within the range.
+						if ( RangeCompare( phone_number, mdi->ci.call_from ) == true )
+						{
+							mdi->ignore_phone_number = add_value;
+							GlobalFree( mdi->w_ignore_phone_number );
+							mdi->w_ignore_phone_number = GlobalStrDupW( ( add_value == true ? ST_Yes : ST_No ) );
+						}
+					}
+				}
+				else if ( info_type == 1 )	// Handle forward phone number info.
+				{
+					// Process display values that are set to be forwarded/no longer forwarded.
+					if ( mdi->forward_phone_number != add_value )
+					{
+						// Handle values that are no longer forwarded.
+						if ( add_value == false )
+						{
+							// First, see if the display value falls within another range.
+							if ( RangeSearch( range, mdi->ci.call_from, range_number ) == true )
+							{
+								// If it does, then we'll skip the display value.
+								break;
+							}
+
+							// Next, see if the display value exists as a non-range value.
+							if ( dllrbt_find( forward_list, ( void * )mdi->ci.call_from, false ) != NULL )
+							{
+								// If it does, then we'll skip the display value.
+								break;
+							}
+						}
+
+						// Finally, see if the display item falls within the range.
+						if ( RangeCompare( phone_number, mdi->ci.call_from ) == true )
+						{
+							mdi->forward_phone_number = add_value;
+							GlobalFree( mdi->w_forward_phone_number );
+							mdi->w_forward_phone_number = GlobalStrDupW( ( add_value == true ? ST_Yes : ST_No ) );
+						}
+					}
+				}
+
+				di_node = di_node->next;
+			}
+
+			node = node->next;
+		}
+	}
+}
 
 // If the caller ID name matches a value in our info structure, then set the state if we're adding or removing it.
 void update_caller_id_name_matches( void *cidi, unsigned char info_type, bool add_value )
@@ -161,6 +290,326 @@ void update_caller_id_name_matches( void *cidi, unsigned char info_type, bool ad
 	}
 }
 
+THREAD_RETURN export_list( void *pArguments )
+{
+	// This will block every other thread from entering until the first thread is complete.
+	EnterCriticalSection( &pe_cs );
+
+	in_worker_thread = true;
+
+	HWND hWnd = NULL;
+	importexportinfo *iei = ( importexportinfo * )pArguments;
+	if ( iei != NULL )
+	{
+		hWnd = ( iei->file_type == IE_CALL_LOG_HISTORY ? g_hWnd_call_log :
+			   ( iei->file_type == IE_FORWARD_CID_LIST ? g_hWnd_forward_cid_list :
+			   ( iei->file_type == IE_FORWARD_PN_LIST ? g_hWnd_forward_list :
+			   ( iei->file_type == IE_IGNORE_CID_LIST ? g_hWnd_ignore_cid_list : g_hWnd_ignore_list ) ) ) );
+	}
+
+	Processing_Window( hWnd, false );
+
+	if ( iei != NULL )
+	{
+		if ( iei->file_path != NULL )
+		{
+			switch ( iei->file_type )
+			{
+				case IE_IGNORE_PN_LIST:
+				{
+					save_ignore_list( iei->file_path );
+				}
+				break;
+
+				case IE_IGNORE_CID_LIST:
+				{
+					save_ignore_cid_list( iei->file_path );
+				}
+				break;
+
+				case IE_FORWARD_PN_LIST:
+				{
+					save_forward_list( iei->file_path );
+				}
+				break;
+
+				case IE_FORWARD_CID_LIST:
+				{
+					save_forward_cid_list( iei->file_path );
+				}
+				break;
+
+				case IE_CALL_LOG_HISTORY:
+				{
+					save_call_log_history( iei->file_path );
+				}
+				break;
+			}
+
+			GlobalFree( iei->file_path );
+
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ( iei->file_type == IE_CALL_LOG_HISTORY ? ST_Exported_call_log_history :
+										   ( iei->file_type == IE_FORWARD_CID_LIST ? ST_Exported_forward_caller_ID_name_list :
+										   ( iei->file_type == IE_FORWARD_PN_LIST ? ST_Exported_forward_phone_number_list :
+										   ( iei->file_type == IE_IGNORE_CID_LIST ? ST_Exported_ignore_caller_ID_name_list : ST_Exported_ignore_phone_number_list ) ) ) ) )
+		}
+
+		GlobalFree( iei );
+	}
+
+	Processing_Window( hWnd, true );
+
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
+	{
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
+	}
+
+	in_worker_thread = false;
+
+	// We're done. Let other threads continue.
+	LeaveCriticalSection( &pe_cs );
+
+	_ExitThread( 0 );
+	return 0;
+}
+
+THREAD_RETURN import_list( void *pArguments )
+{
+	// This will block every other thread from entering until the first thread is complete.
+	EnterCriticalSection( &pe_cs );
+
+	in_worker_thread = true;
+
+	HWND hWnd = NULL;
+	importexportinfo *iei = ( importexportinfo * )pArguments;
+	if ( iei != NULL )
+	{
+		hWnd = ( iei->file_type == IE_CALL_LOG_HISTORY || iei->file_type == LOAD_CALL_LOG_HISTORY ? g_hWnd_call_log :
+			   ( iei->file_type == IE_FORWARD_CID_LIST ? g_hWnd_forward_cid_list :
+			   ( iei->file_type == IE_FORWARD_PN_LIST ? g_hWnd_forward_list :
+			   ( iei->file_type == IE_IGNORE_CID_LIST ? g_hWnd_ignore_cid_list : g_hWnd_ignore_list ) ) ) );
+	}
+
+	Processing_Window( hWnd, false );
+
+	char status = 0;
+
+	LVITEM lvi;
+	_memzero( &lvi, sizeof( LVITEM ) );
+	lvi.mask = LVIF_PARAM;
+
+	if ( iei != NULL )
+	{
+		if ( iei->file_path != NULL )
+		{
+			if ( iei->file_type == IE_CALL_LOG_HISTORY || iei->file_type == LOAD_CALL_LOG_HISTORY )
+			{
+				status = read_call_log_history( iei->file_path );
+
+				// Only save if we've imported - not loaded during startup.
+				if ( iei->file_type == IE_CALL_LOG_HISTORY )
+				{
+					call_log_changed = true;	// Assume that entries were added so that we can save the new log during shutdown.
+				}
+			}
+			else
+			{
+				// Go through our new list and add its items into our global list. Free any duplicates.
+				// Items will be added to their appropriate range lists when read.
+				switch ( iei->file_type )
+				{
+					case IE_IGNORE_PN_LIST:
+					{
+						dllrbt_tree *new_list = dllrbt_create( dllrbt_compare );
+
+						status = read_ignore_list( iei->file_path, new_list );
+
+						node_type *node = dllrbt_get_head( new_list );
+						while ( node != NULL )
+						{
+							ignoreinfo *ii = ( ignoreinfo * )node->val;
+							if ( ii != NULL )
+							{
+								// Attempt to insert the new item into the global list.
+								if ( dllrbt_insert( ignore_list, ( void * )ii->c_phone_number, ( void * )ii ) == DLLRBT_STATUS_OK )
+								{
+									update_phone_number_matches( ii->c_phone_number, 0, ( ( ii->c_phone_number != NULL && is_num( ii->c_phone_number ) == 1 ) ? true : false ), NULL, true );
+
+									ignore_list_changed = true;
+
+									lvi.iItem = _SendMessageW( hWnd, LVM_GETITEMCOUNT, 0, 0 );
+									lvi.lParam = ( LPARAM )ii;
+									_SendMessageW( hWnd, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+								}
+								else	// Problem/duplicate
+								{
+									free_ignoreinfo( &ii );
+								}
+							}
+
+							node = node->next;
+						}
+
+						// All values stored in the tree will either have been added to a global list, or freed.
+						dllrbt_delete_recursively( new_list );
+					}
+					break;
+
+					case IE_IGNORE_CID_LIST:
+					{
+						dllrbt_tree *new_list = dllrbt_create( dllrbt_icid_compare );
+
+						status = read_ignore_cid_list( iei->file_path, new_list );
+
+						node_type *node = dllrbt_get_head( new_list );
+						while ( node != NULL )
+						{
+							ignorecidinfo *icidi = ( ignorecidinfo * )node->val;
+							if ( icidi != NULL )
+							{
+								// Attempt to insert the new item into the global list.
+								if ( dllrbt_insert( ignore_cid_list, ( void * )icidi, ( void * )icidi ) == DLLRBT_STATUS_OK )
+								{
+									update_caller_id_name_matches( ( void * )icidi, 0, true );
+
+									ignore_cid_list_changed = true;
+
+									lvi.iItem = _SendMessageW( hWnd, LVM_GETITEMCOUNT, 0, 0 );
+									lvi.lParam = ( LPARAM )icidi;
+									_SendMessageW( hWnd, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+								}
+								else	// Problem/duplicate
+								{
+									free_ignorecidinfo( &icidi );
+								}
+							}
+
+							node = node->next;
+						}
+
+						// All values stored in the tree will either have been added to a global list, or freed.
+						dllrbt_delete_recursively( new_list );
+					}
+					break;
+
+					case IE_FORWARD_PN_LIST:
+					{
+						dllrbt_tree *new_list = dllrbt_create( dllrbt_compare );
+
+						status = read_forward_list( iei->file_path, new_list );
+
+						node_type *node = dllrbt_get_head( new_list );
+						while ( node != NULL )
+						{
+							forwardinfo *fi = ( forwardinfo * )node->val;
+							if ( fi != NULL )
+							{
+								// Attempt to insert the new item into the global list.
+								if ( dllrbt_insert( forward_list, ( void * )fi->c_call_from, ( void * )fi ) == DLLRBT_STATUS_OK )
+								{
+									update_phone_number_matches( fi->c_call_from, 1, ( ( fi->c_call_from != NULL && is_num( fi->c_call_from ) == 1 ) ? true : false ), NULL, true );
+
+									forward_list_changed = true;
+
+									lvi.iItem = _SendMessageW( hWnd, LVM_GETITEMCOUNT, 0, 0 );
+									lvi.lParam = ( LPARAM )fi;
+									_SendMessageW( hWnd, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+								}
+								else	// Problem/duplicate
+								{
+									free_forwardinfo( &fi );
+								}
+							}
+
+							node = node->next;
+						}
+
+						// All values stored in the tree will either have been added to a global list, or freed.
+						dllrbt_delete_recursively( new_list );
+					}
+					break;
+
+					case IE_FORWARD_CID_LIST:
+					{
+						dllrbt_tree *new_list = dllrbt_create( dllrbt_fcid_compare );
+
+						status = read_forward_cid_list( iei->file_path, new_list );
+
+						node_type *node = dllrbt_get_head( new_list );
+						while ( node != NULL )
+						{
+							forwardcidinfo *fcidi = ( forwardcidinfo * )node->val;
+							if ( fcidi != NULL )
+							{
+								// Attempt to insert the new item into the global list.
+								if ( dllrbt_insert( forward_cid_list, ( void * )fcidi, ( void * )fcidi ) == DLLRBT_STATUS_OK )
+								{
+									update_caller_id_name_matches( ( void * )fcidi, 1, true );
+
+									forward_cid_list_changed = true;
+
+									lvi.iItem = _SendMessageW( hWnd, LVM_GETITEMCOUNT, 0, 0 );
+									lvi.lParam = ( LPARAM )fcidi;
+									_SendMessageW( hWnd, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+								}
+								else	// Problem/duplicate
+								{
+									free_forwardcidinfo( &fcidi );
+								}
+							}
+
+							node = node->next;
+						}
+
+						// All values stored in the tree will either have been added to a global list, or freed.
+						dllrbt_delete_recursively( new_list );
+					}
+					break;
+				}
+			}
+
+			_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
+
+			GlobalFree( iei->file_path );
+
+			if ( status == 0 )
+			{
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ( iei->file_type == LOAD_CALL_LOG_HISTORY ? ST_Loaded_call_log_history :
+											   ( iei->file_type == IE_CALL_LOG_HISTORY ? ST_Imported_call_log_history :
+											   ( iei->file_type == IE_FORWARD_CID_LIST ? ST_Imported_forward_caller_ID_name_list :
+											   ( iei->file_type == IE_FORWARD_PN_LIST ? ST_Imported_forward_phone_number_list :
+											   ( iei->file_type == IE_IGNORE_CID_LIST ? ST_Imported_ignore_caller_ID_name_list : ST_Imported_ignore_phone_number_list ) ) ) ) ) )
+			}
+			else if ( status == -2 )	// Bad format.
+			{
+				if ( iei->file_type != LOAD_CALL_LOG_HISTORY )
+				{
+					MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_File_format_is_incorrect )
+				}
+			}
+		}
+
+		GlobalFree( iei );
+	}
+
+	Processing_Window( hWnd, true );
+
+	// Release the semaphore if we're killing the thread.
+	if ( worker_semaphore != NULL )
+	{
+		ReleaseSemaphore( worker_semaphore, 1, NULL );
+	}
+
+	in_worker_thread = false;
+
+	// We're done. Let other threads continue.
+	LeaveCriticalSection( &pe_cs );
+
+	_ExitThread( 0 );
+	return 0;
+}
+
 THREAD_RETURN remove_items( void *pArguments )
 {
 	removeinfo *ri = ( removeinfo * )pArguments;
@@ -222,6 +671,8 @@ THREAD_RETURN remove_items( void *pArguments )
 		Processing_Window( hWnd, false );
 	}
 
+	char range_number[ 32 ];	// Dummy value.
+
 	LVITEM lvi;
 	_memzero( &lvi, sizeof( LVITEM ) );
 	lvi.mask = LVIF_PARAM;
@@ -263,7 +714,7 @@ THREAD_RETURN remove_items( void *pArguments )
 	for ( int i = 0; i < item_count; ++i )
 	{
 		// Stop processing and exit the thread.
-		if ( kill_worker_thead == true )
+		if ( kill_worker_thread_flag == true )
 		{
 			break;
 		}
@@ -328,6 +779,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 				free_displayinfo( &di );
 			}
+
+			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_call_log_entry_entries ) }
 		}
 		else if ( hWnd == g_hWnd_contact_list )
 		{
@@ -345,6 +798,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 				free_contactinfo( &ci );
 			}
+
+			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Deleted_contact ) }
 		}
 		else if ( hWnd == g_hWnd_ignore_list )
 		{
@@ -352,9 +807,6 @@ THREAD_RETURN remove_items( void *pArguments )
 
 			if ( ii != NULL )
 			{
-				char range_number[ 32 ];
-				_memzero( range_number, 32 );
-
 				int range_index = lstrlenA( ii->c_phone_number );
 				range_index = ( range_index > 0 ? range_index - 1 : 0 );
 
@@ -364,45 +816,7 @@ THREAD_RETURN remove_items( void *pArguments )
 					RangeRemove( &ignore_range_list[ range_index ], ii->c_phone_number );
 
 					// Update each displayinfo item to indicate that it is no longer ignored.
-					node_type *node = dllrbt_get_head( call_log );
-					while ( node != NULL )
-					{
-						DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
-						while ( di_node != NULL )
-						{
-							displayinfo *mdi = ( displayinfo * )di_node->data;
-
-							// Process display values that are set to be ignored.
-							if ( mdi->ignore_phone_number == true )
-							{
-								// First, see if the display value falls within another range.
-								if ( RangeSearch( &ignore_range_list[ range_index ], mdi->ci.call_from, range_number ) == true )
-								{
-									// If it does, then we'll skip the display value.
-									break;
-								}
-
-								// Next, see if the display value exists as a non-range value.
-								if ( dllrbt_find( ignore_list, ( void * )mdi->ci.call_from, false ) != NULL )
-								{
-									// If it does, then we'll skip the display value.
-									break;
-								}
-
-								// Finally, see if the display item falls within the range we've removed.
-								if ( RangeCompare( ii->c_phone_number, mdi->ci.call_from ) == true )
-								{
-									mdi->ignore_phone_number = false;
-									GlobalFree( mdi->w_ignore_phone_number );
-									mdi->w_ignore_phone_number = GlobalStrDupW( ST_No );
-								}
-							}
-
-							di_node = di_node->next;
-						}
-
-						node = node->next;
-					}
+					update_phone_number_matches( ii->c_phone_number, 0, true, &ignore_range_list[ range_index ], false );
 				}
 				else
 				{
@@ -410,24 +824,7 @@ THREAD_RETURN remove_items( void *pArguments )
 					if ( RangeSearch( &ignore_range_list[ range_index ], ii->c_phone_number, range_number ) == false )
 					{
 						// Update each displayinfo item to indicate that it is no longer ignored.
-						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )ii->c_phone_number, true );
-						if ( ll != NULL )
-						{
-							DoublyLinkedList *di_node = ll;
-							while ( di_node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-
-								if ( mdi->ignore_phone_number == true )
-								{
-									mdi->ignore_phone_number = false;
-									GlobalFree( mdi->w_ignore_phone_number );
-									mdi->w_ignore_phone_number = GlobalStrDupW( ST_No );
-								}
-
-								di_node = di_node->next;
-							}
-						}
+						update_phone_number_matches( ii->c_phone_number, 0, false, NULL, false );
 					}
 				}
 
@@ -442,6 +839,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 				free_ignoreinfo( &ii );
 			}
+
+			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_phone_number_s__from_ignore_phone_number_list ) }
 		}
 		else if ( hWnd == g_hWnd_forward_list )
 		{
@@ -449,9 +848,6 @@ THREAD_RETURN remove_items( void *pArguments )
 
 			if ( fi != NULL )
 			{
-				char range_number[ 32 ];
-				_memzero( range_number, 32 );
-
 				int range_index = lstrlenA( fi->c_call_from );
 				range_index = ( range_index > 0 ? range_index - 1 : 0 );
 
@@ -461,45 +857,7 @@ THREAD_RETURN remove_items( void *pArguments )
 					RangeRemove( &forward_range_list[ range_index ], fi->c_call_from );
 
 					// Update each displayinfo item to indicate that it is no longer forwarded.
-					node_type *node = dllrbt_get_head( call_log );
-					while ( node != NULL )
-					{
-						DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
-						while ( di_node != NULL )
-						{
-							displayinfo *mdi = ( displayinfo * )di_node->data;
-
-							// Process display values that are set to be forwarded.
-							if ( mdi->forward_phone_number == true )
-							{
-								// First, see if the display value falls within another range.
-								if ( RangeSearch( &forward_range_list[ range_index ], mdi->ci.call_from, range_number ) == true )
-								{
-									// If it does, then we'll skip the display value.
-									break;
-								}
-
-								// Next, see if the display value exists as a non-range value.
-								if ( dllrbt_find( forward_list, ( void * )mdi->ci.call_from, false ) != NULL )
-								{
-									// If it does, then we'll skip the display value.
-									break;
-								}
-
-								// Finally, see if the display item falls within the range we've removed.
-								if ( RangeCompare( fi->c_call_from, mdi->ci.call_from ) == true )
-								{
-									mdi->forward_phone_number = false;
-									GlobalFree( mdi->w_forward_phone_number );
-									mdi->w_forward_phone_number = GlobalStrDupW( ST_No );
-								}
-							}
-
-							di_node = di_node->next;
-						}
-
-						node = node->next;
-					}
+					update_phone_number_matches( fi->c_call_from, 1, true, &forward_range_list[ range_index ], false );
 				}
 				else
 				{
@@ -507,24 +865,7 @@ THREAD_RETURN remove_items( void *pArguments )
 					if ( RangeSearch( &forward_range_list[ range_index ], fi->c_call_from, range_number ) == false )
 					{
 						// Update each displayinfo item to indicate that it is no longer forwarded.
-						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )fi->c_call_from, true );
-						if ( ll != NULL )
-						{
-							DoublyLinkedList *di_node = ll;
-							while ( di_node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-
-								if ( mdi->forward_phone_number == true )
-								{
-									mdi->forward_phone_number = false;
-									GlobalFree( mdi->w_forward_phone_number );
-									mdi->w_forward_phone_number = GlobalStrDupW( ST_No );
-								}
-
-								di_node = di_node->next;
-							}
-						}
+						update_phone_number_matches( fi->c_call_from, 1, false, NULL, false );
 					}
 				}
 
@@ -539,6 +880,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 				free_forwardinfo( &fi );
 			}
+
+			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_phone_number_s__from_forward_phone_number_list ) }
 		}
 		else if ( hWnd == g_hWnd_ignore_cid_list )
 		{
@@ -559,6 +902,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 				free_ignorecidinfo( &icidi );
 			}
+
+			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_caller_ID_name_s__from_ignore_caller_ID_name_list ) }
 		}
 		else if ( hWnd == g_hWnd_forward_cid_list )
 		{
@@ -579,6 +924,8 @@ THREAD_RETURN remove_items( void *pArguments )
 
 				free_forwardcidinfo( &fcidi );
 			}
+
+			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_caller_ID_name_s__from_forward_caller_ID_name_list ) }
 		}
 
 		if ( handle_all == false )
@@ -662,7 +1009,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 				{
 					free_ignoreinfo( &ii );
 
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_already_in_ignore_list );
+					MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_already_in_ignore_list )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the ignore list listview.
 				{
@@ -689,49 +1036,12 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 						RangeAdd( &ignore_range_list[ ( phone_number_length > 0 ? phone_number_length - 1 : 0 ) ], ii->c_phone_number, phone_number_length );
 
 						// Update each displayinfo item to indicate that it is now ignored.
-						node_type *node = dllrbt_get_head( call_log );
-						while ( node != NULL )
-						{
-							DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
-							while ( di_node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-
-								// Process values that are not set to be ignored. See if the value falls within our range.
-								if ( mdi->ignore_phone_number == false && RangeCompare( ii->c_phone_number, mdi->ci.call_from ) == true )
-								{
-									mdi->ignore_phone_number = true;
-									GlobalFree( mdi->w_ignore_phone_number );
-									mdi->w_ignore_phone_number = GlobalStrDupW( ST_Yes );
-								}
-
-								di_node = di_node->next;
-							}
-
-							node = node->next;
-						}
+						update_phone_number_matches( ii->c_phone_number, 0, true, NULL, true );
 					}
 					else
 					{
 						// Update each displayinfo item to indicate that it is now ignored.
-						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )ii->c_phone_number, true );
-						if ( ll != NULL )
-						{
-							DoublyLinkedList *di_node = ll;
-							while ( di_node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-
-								if ( mdi->ignore_phone_number == false )
-								{
-									mdi->ignore_phone_number = true;
-									GlobalFree( mdi->w_ignore_phone_number );
-									mdi->w_ignore_phone_number = GlobalStrDupW( ST_Yes );
-								}
-
-								di_node = di_node->next;
-							}
-						}
+						update_phone_number_matches( ii->c_phone_number, 0, false, NULL, true );
 					}
 
 					ignore_list_changed = true;
@@ -739,6 +1049,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					lvi.iItem = _SendMessageW( g_hWnd_ignore_list, LVM_GETITEMCOUNT, 0, 0 );
 					lvi.lParam = ( LPARAM )ii;	// lParam = our contactinfo structure from the connection thread.
 					_SendMessageW( g_hWnd_ignore_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+					MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_phone_number_to_ignore_phone_number_list )
 				}
 			}
 			else if ( iui->action == 1 )	// Remove from ignore_list and ignore list listview.
@@ -752,7 +1064,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 				if ( hThread != NULL )
 				{
-					WaitForSingleObject( hThread, INFINITE );	// Wait at most 10 seconds for the remove_items thread to finish.
+					WaitForSingleObject( hThread, INFINITE );	// Wait for the remove_items thread to finish.
 					CloseHandle( hThread );
 				}
 			}
@@ -773,6 +1085,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 					node = node->next;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Loaded_ignore_phone_number_list )
 			}
 			else if ( iui->action == 3 )	// Update the recently called number's call count.
 			{
@@ -795,6 +1109,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 					ignore_list_changed = true;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_ignored_phone_number_s_call_count )
 			}
 
 			_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
@@ -823,7 +1139,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 			for ( int i = 0; i < item_count; ++i )
 			{
 				// Stop processing and exit the thread.
-				if ( kill_worker_thead == true )
+				if ( kill_worker_thread_flag == true )
 				{
 					break;
 				}
@@ -843,8 +1159,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 				if ( di->ignore_phone_number == true && iui->action == 1 )		// Remove from ignore_list.
 				{
-					char range_number[ 32 ];
-					_memzero( range_number, 32 );
+					char range_number[ 32 ];	// Dummy value.
 
 					int range_index = lstrlenA( di->ci.call_from );
 					range_index = ( range_index > 0 ? range_index - 1 : 0 );
@@ -857,24 +1172,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 						if ( itr != NULL )
 						{
 							// Update each displayinfo item to indicate that it is no longer ignored.
-							DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-							if ( ll != NULL )
-							{
-								DoublyLinkedList *di_node = ll;
-								while ( di_node != NULL )
-								{
-									displayinfo *mdi = ( displayinfo * )di_node->data;
-
-									if ( mdi->ignore_phone_number == true )
-									{
-										mdi->ignore_phone_number = false;
-										GlobalFree( mdi->w_ignore_phone_number );
-										mdi->w_ignore_phone_number = GlobalStrDupW( ST_No );
-									}
-
-									di_node = di_node->next;
-								}
-							}
+							update_phone_number_matches( di->ci.call_from, 0, false, NULL, false );
 
 							// If an ignore list listview item also shows up in the call log listview, then we'll remove it after this loop.
 							ignoreinfo *ii = ( ignoreinfo * )( ( node_type * )itr )->val;
@@ -894,7 +1192,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					{
 						if ( skip_range_warning == false )
 						{
-							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_ignore_phone_number_list );
+							MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_remove_from_ignore_phone_number_list )
 							skip_range_warning = true;
 						}
 					}
@@ -910,7 +1208,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					{
 						free_ignoreinfo( &ii );
 
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_already_in_ignore_list );
+						MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_already_in_ignore_list )
 					}
 					else	// Add to ignore list listview as well.
 					{
@@ -931,24 +1229,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 						ii->state = 0;
 
 						// Update all nodes if it already exits.
-						DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-						if ( dll != NULL )
-						{
-							DoublyLinkedList *node = dll;
-							while ( node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )node->data;
-
-								if ( mdi->ignore_phone_number == false )
-								{
-									mdi->ignore_phone_number = true;
-									GlobalFree( mdi->w_ignore_phone_number );
-									mdi->w_ignore_phone_number = GlobalStrDupW( ST_Yes );
-								}
-
-								node = node->next;
-							}
-						}
+						update_phone_number_matches( di->ci.call_from, 0, false, NULL, true );
 
 						di->ignore_phone_number = true;
 						GlobalFree( di->w_ignore_phone_number );
@@ -966,6 +1247,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 						lvi.iItem = _SendMessageW( g_hWnd_ignore_list, LVM_GETITEMCOUNT, 0, 0 );
 						lvi.lParam = ( LPARAM )ii;
 						_SendMessageW( g_hWnd_ignore_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+						if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_phone_number_s__to_ignore_phone_number_list ) }
 					}
 				}
 			}
@@ -996,6 +1279,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 
 				skip_ignore_draw = false;
 				_EnableWindow( g_hWnd_ignore_list, TRUE );
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_phone_number_s__from_ignore_phone_number_list )
 			}
 		}
 
@@ -1060,7 +1345,7 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 				{
 					free_ignorecidinfo( &icidi );
 
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_cid_already_in_ignore_cid_list );
+					MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_cid_already_in_ignore_cid_list )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the ignore cid list listview.
 				{
@@ -1113,6 +1398,8 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 					lvi.iItem = _SendMessageW( g_hWnd_ignore_cid_list, LVM_GETITEMCOUNT, 0, 0 );
 					lvi.lParam = ( LPARAM )icidi;
 					_SendMessageW( g_hWnd_ignore_cid_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+					MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_caller_ID_name_to_ignore_caller_ID_name_list )
 				}
 			}
 			else if ( icidui->action == 1 )	// Remove from ignore_cid_list and ignore cid list listview.
@@ -1126,7 +1413,7 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 
 				if ( hThread != NULL )
 				{
-					WaitForSingleObject( hThread, INFINITE );	// Wait at most 10 seconds for the remove_items thread to finish.
+					WaitForSingleObject( hThread, INFINITE );	// Wait for the remove_items thread to finish.
 					CloseHandle( hThread );
 				}
 			}
@@ -1147,6 +1434,8 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 
 					node = node->next;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Loaded_ignore_caller_ID_name_list )
 			}
 			else if ( icidui->action == 3 )	// Update entry
 			{
@@ -1316,13 +1605,15 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 						}
 
 						ignore_cid_list_changed = true;	// Makes us save the new ignore_cid_list.
+
+						MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_ignored_caller_ID_name )
 					}
 					else
 					{
 						// See if the value we're updating is different from the match above.
 						if ( old_icidi != ( ignorecidinfo * )( ( node_type * )itr )->val )
 						{
-							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_cid_already_in_ignore_cid_list );
+							MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_cid_already_in_ignore_cid_list )
 						}
 					}
 
@@ -1350,6 +1641,8 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 
 					ignore_cid_list_changed = true;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_ignored_caller_ID_name_s_call_count )
 			}
 
 			_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
@@ -1378,7 +1671,7 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 			for ( int i = 0; i < item_count; ++i )
 			{
 				// Stop processing and exit the thread.
-				if ( kill_worker_thead == true )
+				if ( kill_worker_thread_flag == true )
 				{
 					break;
 				}
@@ -1464,7 +1757,7 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 					{
 						if ( skip_multi_cid_warning == false )
 						{
-							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_ignore_caller_id_list );
+							MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_remove_from_ignore_caller_id_list )
 							skip_multi_cid_warning = true;
 						}
 					}
@@ -1484,7 +1777,7 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 					{
 						free_ignorecidinfo( &icidi );
 
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_cid_already_in_ignore_cid_list );
+						MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_cid_already_in_ignore_cid_list )
 					}
 					else	// If it was able to be inserted into the tree, then update our displayinfo items and the ignore cid list listview.
 					{
@@ -1537,6 +1830,8 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 						lvi.iItem = _SendMessageW( g_hWnd_ignore_cid_list, LVM_GETITEMCOUNT, 0, 0 );
 						lvi.lParam = ( LPARAM )icidi;
 						_SendMessageW( g_hWnd_ignore_cid_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+						if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_caller_ID_name_s__to_ignore_caller_ID_name_list ) }
 					}
 				}
 			}
@@ -1567,6 +1862,8 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 
 				skip_ignore_cid_draw = false;
 				_EnableWindow( g_hWnd_ignore_cid_list, TRUE );
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_caller_ID_name_s__from_ignore_caller_ID_name_list )
 			}
 		}
 
@@ -1629,7 +1926,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 				{
 					free_forwardinfo( &fi );
 
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_already_in_forward_list );
+					MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_already_in_forward_list )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the forward list listview.
 				{
@@ -1657,56 +1954,12 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						RangeAdd( &forward_range_list[ ( phone_number_length > 0 ? phone_number_length - 1 : 0 ) ], fi->c_call_from, phone_number_length );
 
 						// Update each displayinfo item to indicate that it is now forwarded.
-						node_type *node = dllrbt_get_head( call_log );
-						while ( node != NULL )
-						{
-							DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
-							while ( di_node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-
-								// Process values that are not set to be forwarded. See if the value falls within our range.
-								if ( mdi->forward_phone_number == false && RangeCompare( fi->c_call_from, mdi->ci.call_from ) == true )
-								{
-									mdi->forward_phone_number = true;
-									GlobalFree( mdi->w_forward_phone_number );
-									mdi->w_forward_phone_number = GlobalStrDupW( ST_Yes );
-								}
-
-								di_node = di_node->next;
-							}
-
-							node = node->next;
-						}
+						update_phone_number_matches( fi->c_call_from, 1, true, NULL, true );
 					}
 					else
 					{
 						// Update each displayinfo item to indicate that it is now forwarded.
-						DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )fi->c_call_from, true );
-						if ( ll != NULL )
-						{
-							DoublyLinkedList *di_node = ll;
-							while ( di_node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )di_node->data;
-
-								if ( mdi->forward_phone_number == false )
-								{
-									mdi->forward_phone_number = true;
-									GlobalFree( mdi->w_forward_phone_number );
-									mdi->w_forward_phone_number = GlobalStrDupW( ST_Yes );
-
-									// This doesn't need to be updated.
-									/*if ( mdi->ci.forward_to != NULL )
-									{
-										GlobalFree( mdi->ci.forward_to );
-										mdi->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
-									}*/
-								}
-
-								di_node = di_node->next;
-							}
-						}
+						update_phone_number_matches( fi->c_call_from, 1, false, NULL, true );
 					}
 
 					forward_list_changed = true;
@@ -1714,6 +1967,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					lvi.iItem = _SendMessageW( g_hWnd_forward_list, LVM_GETITEMCOUNT, 0, 0 );
 					lvi.lParam = ( LPARAM )fi;	// lParam = our contactinfo structure from the connection thread.
 					_SendMessageW( g_hWnd_forward_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+					MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_phone_number_to_forward_phone_number_list )
 				}
 			}
 			else if ( fui->action == 1 )	// Remove from forward_list and forward list listview.
@@ -1727,11 +1982,11 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 				if ( hThread != NULL )
 				{
-					WaitForSingleObject( hThread, INFINITE );	// Wait at most 10 seconds for the remove_items thread to finish.
+					WaitForSingleObject( hThread, INFINITE );	// Wait for the remove_items thread to finish.
 					CloseHandle( hThread );
 				}
 			}
-			else if ( fui->action == 2 )	// Add all items in the foward_list to the forward list listview.
+			else if ( fui->action == 2 )	// Add all items in the forward_list to the forward list listview.
 			{
 				// Insert a row into our listview.
 				node_type *node = dllrbt_get_head( forward_list );
@@ -1748,6 +2003,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 					node = node->next;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Loaded_forward_phone_number_list )
 			}
 			else if ( fui->action == 3 )	// Update entry.
 			{
@@ -1765,6 +2022,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 				{
 					GlobalFree( fui->forward_to );
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_forwarded_phone_number )
 			}
 			else if ( fui->action == 4 )	// Update the recently called number's call count.
 			{
@@ -1787,6 +2046,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 					forward_list_changed = true;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_forwarded_phone_number_s_call_count )
 			}
 
 			_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
@@ -1815,7 +2076,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 			for ( int i = 0; i < item_count; ++i )
 			{
 				// Stop processing and exit the thread.
-				if ( kill_worker_thead == true )
+				if ( kill_worker_thread_flag == true )
 				{
 					break;
 				}
@@ -1835,8 +2096,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 				if ( di->forward_phone_number == true && fui->action == 1 )		// Remove from forward_list.
 				{
-					char range_number[ 32 ];
-					_memzero( range_number, 32 );
+					char range_number[ 32 ];	// Dummy value.
 
 					int range_index = lstrlenA( di->ci.call_from );
 					range_index = ( range_index > 0 ? range_index - 1 : 0 );
@@ -1849,31 +2109,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						if ( itr != NULL )
 						{
 							// Update each displayinfo item to indicate that it is no longer forwarded.
-							DoublyLinkedList *ll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-							if ( ll != NULL )
-							{
-								DoublyLinkedList *di_node = ll;
-								while ( di_node != NULL )
-								{
-									displayinfo *mdi = ( displayinfo * )di_node->data;
-
-									if ( mdi->forward_phone_number == true )
-									{
-										mdi->forward_phone_number = false;
-										GlobalFree( mdi->w_forward_phone_number );
-										mdi->w_forward_phone_number = GlobalStrDupW( ST_No );
-
-										// This doesn't need to be updated.
-										/*if ( mdi->ci.forward_to != NULL )
-										{
-											GlobalFree( mdi->ci.forward_to );
-											mdi->ci.forward_to = NULL;
-										}*/
-									}
-
-									di_node = di_node->next;
-								}
-							}
+							update_phone_number_matches( di->ci.call_from, 1, false, NULL, false );
 
 							// If a forward list listview item also shows up in the call log listview, then we'll remove it after this loop.
 							forwardinfo *fi = ( forwardinfo * )( ( node_type * )itr )->val;
@@ -1893,7 +2129,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					{
 						if ( skip_range_warning == false )
 						{
-							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_forward_phone_number_list );
+							MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_remove_from_forward_phone_number_list )
 							skip_range_warning = true;
 						}
 					}
@@ -1910,7 +2146,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					{
 						free_forwardinfo( &fi );
 
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_already_in_forward_list );
+						MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_already_in_forward_list )
 					}
 					else	// Add to forward list listview as well.
 					{
@@ -1932,31 +2168,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						fi->state = 0;
 
 						// Update all nodes if it already exits.
-						DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-						if ( dll != NULL )
-						{
-							DoublyLinkedList *node = dll;
-							while ( node != NULL )
-							{
-								displayinfo *mdi = ( displayinfo * )node->data;
-
-								if ( mdi->forward_phone_number == false )
-								{
-									mdi->forward_phone_number = true;
-									GlobalFree( mdi->w_forward_phone_number );
-									mdi->w_forward_phone_number = GlobalStrDupW( ST_Yes );
-
-									// This doesn't need to be updated.
-									/*if ( mdi->ci.forward_to != NULL )
-									{
-										GlobalFree( mdi->ci.forward_to );
-										mdi->ci.forward_to = GlobalStrDupA( fi->c_forward_to );
-									}*/
-								}
-
-								node = node->next;
-							}
-						}
+						update_phone_number_matches( di->ci.call_from, 1, false, NULL, true );
 
 						di->forward_phone_number = true;
 						GlobalFree( di->w_forward_phone_number );
@@ -1974,6 +2186,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 						lvi.iItem = _SendMessageW( g_hWnd_forward_list, LVM_GETITEMCOUNT, 0, 0 );
 						lvi.lParam = ( LPARAM )fi;
 						_SendMessageW( g_hWnd_forward_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+						if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_phone_number_s__to_forward_phone_number_list ) }
 					}
 				}
 			}
@@ -2004,6 +2218,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 
 				skip_forward_draw = false;
 				_EnableWindow( g_hWnd_forward_list, TRUE );
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_phone_number_s__from_forward_phone_number_list )
 			}
 
 			GlobalFree( fui->forward_to );	// If this was used, then it was copied.
@@ -2071,7 +2287,7 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 				{
 					free_forwardcidinfo( &fcidi );
 
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_cid_already_in_forward_cid_list );
+					MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_cid_already_in_forward_cid_list )
 				}
 				else	// If it was able to be inserted into the tree, then update our displayinfo items and the forward cid list listview.
 				{
@@ -2125,6 +2341,8 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 					lvi.iItem = _SendMessageW( g_hWnd_forward_cid_list, LVM_GETITEMCOUNT, 0, 0 );
 					lvi.lParam = ( LPARAM )fcidi;
 					_SendMessageW( g_hWnd_forward_cid_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+					MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_caller_ID_name_to_forward_caller_ID_name_list )
 				}
 			}
 			else if ( fcidui->action == 1 )	// Remove from forward_list and forward list listview.
@@ -2138,11 +2356,11 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 
 				if ( hThread != NULL )
 				{
-					WaitForSingleObject( hThread, INFINITE );	// Wait at most 10 seconds for the remove_items thread to finish.
+					WaitForSingleObject( hThread, INFINITE );	// Wait for the remove_items thread to finish.
 					CloseHandle( hThread );
 				}
 			}
-			else if ( fcidui->action == 2 )	// Add all items in the foward_list to the forward list listview.
+			else if ( fcidui->action == 2 )	// Add all items in the forward_list to the forward list listview.
 			{
 				// Insert a row into our listview.
 				node_type *node = dllrbt_get_head( forward_cid_list );
@@ -2159,6 +2377,8 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 
 					node = node->next;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Loaded_forward_caller_ID_name_list )
 			}
 			else if ( fcidui->action == 3 )	// Update entry.
 			{
@@ -2348,6 +2568,8 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 						}
 
 						forward_cid_list_changed = true;	// Makes us save the new forward_cid_list.
+
+						MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_forwarded_caller_ID_name )
 					}
 					else
 					{
@@ -2356,7 +2578,7 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 						// See if the value we're updating is different from the match above.
 						if ( old_fcidi != ( forwardcidinfo * )( ( node_type * )itr )->val )
 						{
-							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_cid_already_in_forward_cid_list );
+							MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_cid_already_in_forward_cid_list )
 						}
 					}
 
@@ -2388,6 +2610,8 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 
 					forward_cid_list_changed = true;
 				}
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_forwarded_caller_ID_name_s_call_count )
 			}
 
 			_InvalidateRect( g_hWnd_call_log, NULL, TRUE );
@@ -2416,7 +2640,7 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 			for ( int i = 0; i < item_count; ++i )
 			{
 				// Stop processing and exit the thread.
-				if ( kill_worker_thead == true )
+				if ( kill_worker_thread_flag == true )
 				{
 					break;
 				}
@@ -2502,7 +2726,7 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 					{
 						if ( skip_multi_cid_warning == false )
 						{
-							_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_remove_from_forward_caller_id_list );
+							MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_remove_from_forward_caller_id_list )
 							skip_multi_cid_warning = true;
 						}
 					}
@@ -2523,7 +2747,7 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 					{
 						free_forwardcidinfo( &fcidi );
 
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )ST_cid_already_in_forward_cid_list );
+						MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_cid_already_in_forward_cid_list )
 					}
 					else	// If it was able to be inserted into the tree, then update our displayinfo items and the forward cid list listview.
 					{
@@ -2577,6 +2801,8 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 						lvi.iItem = _SendMessageW( g_hWnd_forward_cid_list, LVM_GETITEMCOUNT, 0, 0 );
 						lvi.lParam = ( LPARAM )fcidi;
 						_SendMessageW( g_hWnd_forward_cid_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+						if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_caller_ID_name_s__to_forward_caller_ID_name_list ) }
 					}
 				}
 			}
@@ -2607,6 +2833,8 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 
 				skip_forward_cid_draw = false;
 				_EnableWindow( g_hWnd_forward_cid_list, TRUE );
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_caller_ID_name_s__from_forward_caller_ID_name_list )
 			}
 
 			GlobalFree( fcidui->forward_to );	// If this was used, then it was copied.
@@ -2962,6 +3190,8 @@ THREAD_RETURN update_contact_list( void *pArguments )
 		}
 
 		GlobalFree( uci );
+
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_contact_information )
 	}
 	else if ( ci != NULL && uci == NULL )	// Add a single contact to the contact list listview.
 	{
@@ -2980,6 +3210,8 @@ THREAD_RETURN update_contact_list( void *pArguments )
 		lvi.iItem = _SendMessageW( g_hWnd_contact_list, LVM_GETITEMCOUNT, 0, 0 );
 		lvi.lParam = ( LPARAM )ci;	// lParam = our contactinfo structure from the connection thread.
 		_SendMessageW( g_hWnd_contact_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Added_contact )
 	}
 	else if ( ui != NULL && ci == NULL && uci == NULL )	// Add all contacts in the contact_list to the contact list listview.
 	{
@@ -3120,6 +3352,8 @@ THREAD_RETURN update_contact_list( void *pArguments )
 			
 			node = node->next;
 		}
+
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Loaded_contact_list )
 	}
 	else	// Remove all contacts from the contact_list.
 	{
@@ -3184,6 +3418,8 @@ THREAD_RETURN update_call_log( void *pArguments )
 	char range_number[ 32 ];
 
 	displayinfo *di = ( displayinfo * )pArguments;
+
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Received_incoming_caller_ID_information )
 
 	if ( di != NULL )
 	{
@@ -3370,7 +3606,7 @@ THREAD_RETURN update_call_log( void *pArguments )
 	return 0;
 }
 
-THREAD_RETURN read_call_log_history( void *pArguments )
+THREAD_RETURN create_call_log_csv_file( void *file_path )
 {
 	// This will block every other thread from entering until the first thread is complete.
 	EnterCriticalSection( &pe_cs );
@@ -3379,487 +3615,12 @@ THREAD_RETURN read_call_log_history( void *pArguments )
 
 	Processing_Window( g_hWnd_call_log, false );
 
-	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history.bin\0", 22 );
-	base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
-
-	// Open our config file if it exists.
-	HANDLE hFile_read = CreateFile( base_directory, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	if ( hFile_read != INVALID_HANDLE_VALUE )
+	if ( file_path != NULL )
 	{
-		DWORD read = 0, total_read = 0, offset = 0, last_entry = 0, last_total = 0;
+		save_call_log_csv_file( ( wchar_t * )file_path );
 
-		char *p = NULL;
-
-		bool ignored = false;
-		bool forwarded = false;
-		LONGLONG time = 0;
-		char *caller_id = NULL;
-		char *call_from = NULL;
-		char *call_to = NULL;
-		char *forward_to = NULL;
-		char *call_reference_id = NULL;
-
-		char range_number[ 32 ];
-
-		DWORD fz = GetFileSize( hFile_read, NULL );
-
-		char *history_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( 524288 + 1 ) );	// 512 KB buffer.
-
-		while ( total_read < fz )
-		{
-			// Stop processing and exit the thread.
-			if ( kill_worker_thead == true )
-			{
-				break;
-			}
-
-			ReadFile( hFile_read, history_buf, sizeof( char ) * 524288, &read, NULL );
-
-			history_buf[ read ] = 0;	// Guarantee a NULL terminated buffer.
-
-			// Make sure that we have at least part of the entry. 5 = 5 NULL strings. This is the minimum size an entry could be.
-			if ( read < ( ( sizeof( bool ) * 2 ) + sizeof( LONGLONG ) + 5 ) )
-			{
-				break;
-			}
-
-			total_read += read;
-
-			// Prevent an infinite loop if a really really long entry causes us to jump back to the same point in the file.
-			// If it's larger than our buffer, then the file is probably invalid/corrupt.
-			if ( total_read == last_total )
-			{
-				break;
-			}
-
-			last_total = total_read;
-
-			p = history_buf;
-			offset = last_entry = 0;
-
-			while ( offset < read )
-			{
-				// Stop processing and exit the thread.
-				if ( kill_worker_thead == true )
-				{
-					break;
-				}
-
-				caller_id = NULL;
-				call_from = NULL;
-				call_to = NULL;
-				forward_to = NULL;
-				call_reference_id = NULL;
-
-				// Ignored state
-				offset += sizeof( bool );
-				if ( offset >= read ) { goto CLEANUP; }
-				_memcpy_s( &ignored, sizeof( bool ), p, sizeof( bool ) );
-				p += sizeof( bool );
-
-				// Forwarded state
-				offset += sizeof( bool );
-				if ( offset >= read ) { goto CLEANUP; }
-				_memcpy_s( &forwarded, sizeof( bool ), p, sizeof( bool ) );
-				p += sizeof( bool );
-
-				// Call time
-				offset += sizeof( LONGLONG );
-				if ( offset >= read ) { goto CLEANUP; }
-				_memcpy_s( &time, sizeof( LONGLONG ), p, sizeof( LONGLONG ) );
-				p += sizeof( LONGLONG );
-
-				// Caller ID
-				int string_length = lstrlenA( p ) + 1;
-
-				offset += string_length;
-				if ( offset >= read ) { goto CLEANUP; }
-
-				caller_id = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * string_length );
-				_memcpy_s( caller_id, string_length, p, string_length );
-				*( caller_id + ( string_length - 1 ) ) = 0;	// Sanity
-
-				p += string_length;
-
-				// Incoming number
-				string_length = lstrlenA( p );
-
-				offset += ( string_length + 1 );
-				if ( offset >= read ) { goto CLEANUP; }
-
-				int call_from_length = min( string_length, 16 );
-				int adjusted_size = call_from_length + 1;
-
-				call_from = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
-				_memcpy_s( call_from, adjusted_size, p, adjusted_size );
-				*( call_from + ( adjusted_size - 1 ) ) = 0;	// Sanity
-
-				p += ( string_length + 1 );
-
-				// The number that was called (our number)
-				string_length = lstrlenA( p );
-
-				offset += ( string_length + 1 );
-				if ( offset >= read ) { goto CLEANUP; }
-
-				adjusted_size = min( string_length, 16 ) + 1;
-
-				call_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
-				_memcpy_s( call_to, adjusted_size, p, adjusted_size );
-				*( call_to + ( adjusted_size - 1 ) ) = 0;	// Sanity
-
-				p += ( string_length + 1 );
-
-				// The number that the incoming call was forwarded to
-				string_length = lstrlenA( p );
-
-				offset += ( string_length + 1 );
-				if ( offset >= read ) { goto CLEANUP; }
-
-				adjusted_size = min( string_length, 16 ) + 1;
-
-				forward_to = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * adjusted_size );
-				_memcpy_s( forward_to, adjusted_size, p, adjusted_size );
-				*( forward_to + ( adjusted_size - 1 ) ) = 0;	// Sanity
-
-				p += ( string_length + 1 );
-
-				// Server reference ID
-				string_length = lstrlenA( p ) + 1;
-
-				offset += string_length;
-				if ( offset > read ) { goto CLEANUP; }	// Offset must equal read for the last string in the file. It's truncated/corrupt if it doesn't.
-
-				call_reference_id = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * string_length );
-				_memcpy_s( call_reference_id, string_length, p, string_length );
-				*( call_reference_id + ( string_length - 1 ) ) = 0;	// Sanity
-
-				p += string_length;
-
-				last_entry = offset;	// This value is the ending offset of the last valid entry.
-
-				displayinfo *di = ( displayinfo * )GlobalAlloc( GMEM_FIXED, sizeof( displayinfo ) );
-
-				di->ci.call_to = call_to;
-				di->ci.call_from = call_from;
-				di->ci.call_reference_id = call_reference_id;
-				di->ci.caller_id = caller_id;
-				di->ci.forward_to = forward_to;
-				di->ci.ignored = ignored;
-				di->ci.forwarded = forwarded;
-				di->caller_id = NULL;
-				di->phone_number = NULL;
-				di->reference = NULL;
-				di->forward_to = NULL;
-				di->sent_to = NULL;
-				di->w_forward_caller_id = NULL;
-				di->w_forward_phone_number = NULL;
-				di->w_ignore_caller_id = NULL;
-				di->w_ignore_phone_number = NULL;
-				di->w_time = NULL;
-				di->time.QuadPart = time;
-				di->process_incoming = false;
-				di->ignore_phone_number = false;
-				di->forward_phone_number = false;
-				di->ignore_cid_match_count = 0;
-				di->forward_cid_match_count = 0;
-
-				// Create the node to insert into a linked list.
-				DoublyLinkedList *di_node = DLL_CreateNode( ( void * )di );
-
-				// See if our tree has the phone number to add the node to.
-				DoublyLinkedList *dll = ( DoublyLinkedList * )dllrbt_find( call_log, ( void * )di->ci.call_from, true );
-				if ( dll == NULL )
-				{
-					// If no phone number exits, insert the node into the tree.
-					if ( dllrbt_insert( call_log, ( void * )di->ci.call_from, ( void * )di_node ) != DLLRBT_STATUS_OK )
-					{
-						GlobalFree( di_node );	// This shouldn't happen.
-					}
-				}
-				else	// If a phone number exits, insert the node into the linked list.
-				{
-					DLL_AddNode( &dll, di_node, -1 );	// Insert at the end of the doubly linked list.
-				}
-
-				// Search the ignore_list for a match.
-				ignoreinfo *ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )di->ci.call_from, true );
-
-				// Try searching the range list.
-				if ( ii == NULL )
-				{
-					_memzero( range_number, 32 );
-
-					int range_index = call_from_length;
-					range_index = ( range_index > 0 ? range_index - 1 : 0 );
-
-					if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) == true )
-					{
-						ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )range_number, true );
-					}
-				}
-
-				if ( ii != NULL )
-				{
-					di->ignore_phone_number = true;
-				}
-
-				// Search for the first ignore caller ID list match. di->ignore_cid_match_count will be updated here for all keyword matches.
-				find_ignore_caller_id_name_match( di );
-
-				// Search the forward list for a match.
-				forwardinfo *fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )di->ci.call_from, true );
-
-				// Try searching the range list.
-				if ( fi == NULL )
-				{
-					_memzero( range_number, 32 );
-
-					int range_index = call_from_length;
-					range_index = ( range_index > 0 ? range_index - 1 : 0 );
-
-					if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) == true )
-					{
-						fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )range_number, true );
-					}
-				}
-
-				if ( fi != NULL )
-				{
-					di->forward_phone_number = true;
-				}
-
-				// Search for the first forward caller ID list match. di->forward_cid_match_count will be updated here for all keyword matches.
-				find_forward_caller_id_name_match( di );
-
-				_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_MODIFY, 1 ), ( LPARAM )di );	// Add entry to listview and don't show popup.
-
-				continue;
-
-CLEANUP:
-				GlobalFree( caller_id );
-				GlobalFree( call_from );
-				GlobalFree( call_to );
-				GlobalFree( forward_to );
-				GlobalFree( call_reference_id );
-
-				// Go back to the last valid entry.
-				if ( total_read < fz )
-				{
-					total_read -= ( read - last_entry );
-					SetFilePointer( hFile_read, total_read, NULL, FILE_BEGIN );
-				}
-
-				break;
-			}
-		}
-
-		GlobalFree( history_buf );
-
-		CloseHandle( hFile_read );
+		GlobalFree( file_path );
 	}
-
-	Processing_Window( g_hWnd_call_log, true );
-
-	// Release the semaphore if we're killing the thread.
-	if ( worker_semaphore != NULL )
-	{
-		ReleaseSemaphore( worker_semaphore, 1, NULL );
-	}
-
-	in_worker_thread = false;
-
-	// We're done. Let other threads continue.
-	LeaveCriticalSection( &pe_cs );
-
-	_ExitThread( 0 );
-	return 0;
-}
-
-THREAD_RETURN save_call_log( void *file_path )
-{
-	// This will block every other thread from entering until the first thread is complete.
-	EnterCriticalSection( &pe_cs );
-
-	in_worker_thread = true;
-
-	Processing_Window( g_hWnd_call_log, false );
-
-	// Open our config file if it exists.
-	HANDLE hFile_call_log = CreateFile( ( wchar_t * )file_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
-	if ( hFile_call_log != INVALID_HANDLE_VALUE )
-	{
-		int size = ( 32768 + 1 );
-		int pos = 0;
-		DWORD write = 0;
-		char unix_timestamp[ 21 ];
-		_memzero( unix_timestamp, 21 );
-
-		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
-
-		// Write the UTF-8 BOM and CSV column titles.
-		WriteFile( hFile_call_log, "\xEF\xBB\xBF\"Caller ID Name\",\"Phone Number\",\"Date and Time\",\"Unix Timestamp\",\"Ignore Phone Number\",\"Forward Phone Number\",\"Ignore Caller ID Name\",\"Forward Caller ID Name\",\"Forwarded to\",\"Sent to\"", 186, &write, NULL );
-
-		node_type *node = dllrbt_get_head( call_log );
-		while ( node != NULL )
-		{
-			// Stop processing and exit the thread.
-			if ( kill_worker_thead == true )
-			{
-				break;
-			}
-
-			DoublyLinkedList *di_node = ( DoublyLinkedList * )node->val;
-			while ( di_node != NULL )
-			{
-				// Stop processing and exit the thread.
-				if ( kill_worker_thead == true )
-				{
-					break;
-				}
-
-				displayinfo *di = ( displayinfo * )di_node->data;
-
-				if ( di != NULL )
-				{
-					// lstrlen is safe for NULL values.
-					int phone_number_length1 = lstrlenA( di->ci.call_from );
-					int phone_number_length2 = lstrlenA( di->ci.forward_to );
-					int phone_number_length3 = lstrlenA( di->ci.call_to );
-
-					wchar_t *w_ignore = ( di->ignore_phone_number == true ? ST_Yes : ST_No );
-					wchar_t *w_forward = ( di->forward_phone_number == true ? ST_Yes : ST_No );
-					wchar_t *w_ignore_cid = ( di->ignore_cid_match_count > 0 ? ST_Yes : ST_No );
-					wchar_t *w_forward_cid = ( di->forward_cid_match_count > 0 ? ST_Yes : ST_No );
-
-					int ignore_length = WideCharToMultiByte( CP_UTF8, 0, w_ignore, -1, NULL, 0, NULL, NULL );
-					char *utf8_ignore = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ignore_length ); // Size includes the null character.
-					ignore_length = WideCharToMultiByte( CP_UTF8, 0, w_ignore, -1, utf8_ignore, ignore_length, NULL, NULL ) - 1;
-
-					int forward_length = WideCharToMultiByte( CP_UTF8, 0, w_forward, -1, NULL, 0, NULL, NULL );
-					char *utf8_forward = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * forward_length ); // Size includes the null character.
-					forward_length = WideCharToMultiByte( CP_UTF8, 0, w_forward, -1, utf8_forward, forward_length, NULL, NULL ) - 1;
-
-					int ignore_cid_length = WideCharToMultiByte( CP_UTF8, 0, w_ignore_cid, -1, NULL, 0, NULL, NULL );
-					char *utf8_ignore_cid = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ignore_cid_length ); // Size includes the null character.
-					ignore_cid_length = WideCharToMultiByte( CP_UTF8, 0, w_ignore_cid, -1, utf8_ignore_cid, ignore_cid_length, NULL, NULL ) - 1;
-
-					int forward_cid_length = WideCharToMultiByte( CP_UTF8, 0, w_forward_cid, -1, NULL, 0, NULL, NULL );
-					char *utf8_forward_cid = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * forward_cid_length ); // Size includes the null character.
-					forward_cid_length = WideCharToMultiByte( CP_UTF8, 0, w_forward_cid, -1, utf8_forward_cid, forward_cid_length, NULL, NULL ) - 1;
-
-					char *escaped_caller_id = escape_csv( di->ci.caller_id );
-
-					int caller_id_length = lstrlenA( ( escaped_caller_id != NULL ? escaped_caller_id : di->ci.caller_id ) );
-
-					int time_length = WideCharToMultiByte( CP_UTF8, 0, di->w_time, -1, NULL, 0, NULL, NULL );
-					char *utf8_time = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * time_length ); // Size includes the null character.
-					time_length = WideCharToMultiByte( CP_UTF8, 0, di->w_time, -1, utf8_time, time_length, NULL, NULL ) - 1;
-
-					// Convert the time into a 32bit Unix timestamp.
-					LARGE_INTEGER date;
-					date.HighPart = di->time.HighPart;
-					date.LowPart = di->time.LowPart;
-
-					date.QuadPart -= ( 11644473600000 * 10000 );
-
-					// Divide the 64bit value.
-					__asm
-					{
-						xor edx, edx;				//; Zero out the register so we don't divide a full 64bit value.
-						mov eax, date.HighPart;		//; We'll divide the high order bits first.
-						mov ecx, FILETIME_TICKS_PER_SECOND;
-						div ecx;
-						mov date.HighPart, eax;		//; Store the high order quotient.
-						mov eax, date.LowPart;		//; Now we'll divide the low order bits.
-						div ecx;
-						mov date.LowPart, eax;		//; Store the low order quotient.
-						//; Any remainder will be stored in edx. We're not interested in it though.
-					}
-
-					int timestamp_length = __snprintf( unix_timestamp, 21, "%llu", date.QuadPart );
-
-					// See if the next entry can fit in the buffer. If it can't, then we dump the buffer.
-					if ( pos + phone_number_length1 + phone_number_length2 + phone_number_length3 + caller_id_length + time_length + timestamp_length + ignore_length + forward_length + ignore_cid_length + forward_cid_length + 15 > size )
-					{
-						// Dump the buffer.
-						WriteFile( hFile_call_log, write_buf, pos, &write, NULL );
-						pos = 0;
-					}
-
-					// Add to the buffer.
-					write_buf[ pos++ ] = '\r';
-					write_buf[ pos++ ] = '\n';
-
-					write_buf[ pos++ ] = '\"';
-					_memcpy_s( write_buf + pos, size - pos, ( escaped_caller_id != NULL ? escaped_caller_id : di->ci.caller_id ), caller_id_length );
-					pos += caller_id_length;
-					write_buf[ pos++ ] = '\"';
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, di->ci.call_from, phone_number_length1 );
-					pos += phone_number_length1;
-					write_buf[ pos++ ] = ',';
-
-					write_buf[ pos++ ] = '\"';
-					_memcpy_s( write_buf + pos, size - pos, utf8_time, time_length );
-					pos += time_length;
-					write_buf[ pos++ ] = '\"';
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, unix_timestamp, timestamp_length );
-					pos += timestamp_length;
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, utf8_ignore, ignore_length );
-					pos += ignore_length;
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, utf8_forward, forward_length );
-					pos += forward_length;
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, utf8_ignore_cid, ignore_cid_length );
-					pos += ignore_cid_length;
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, utf8_forward_cid, forward_cid_length );
-					pos += forward_cid_length;
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, di->ci.forward_to, phone_number_length2 );
-					pos += phone_number_length2;
-					write_buf[ pos++ ] = ',';
-
-					_memcpy_s( write_buf + pos, size - pos, di->ci.call_to, phone_number_length3 );
-					pos += phone_number_length3;
-
-					GlobalFree( utf8_forward );
-					GlobalFree( utf8_ignore );
-					GlobalFree( utf8_forward_cid );
-					GlobalFree( utf8_ignore_cid );
-					GlobalFree( utf8_time );
-					GlobalFree( escaped_caller_id );
-				}
-
-				di_node = di_node->next;
-			}
-
-			node = node->next;
-		}
-
-		// If there's anything remaining in the buffer, then write it to the file.
-		if ( pos > 0 )
-		{
-			WriteFile( hFile_call_log, write_buf, pos, &write, NULL );
-		}
-
-		GlobalFree( write_buf );
-
-		CloseHandle( hFile_call_log );
-	}
-
-	GlobalFree( file_path );
 
 	Processing_Window( g_hWnd_call_log, true );
 
@@ -4046,7 +3807,6 @@ THREAD_RETURN copy_items( void *pArguments )
 	}
 
 	wchar_t *copy_string = NULL;
-	bool is_string = false;
 	bool add_newline = false;
 	bool add_tab = false;
 
@@ -4054,7 +3814,7 @@ THREAD_RETURN copy_items( void *pArguments )
 	for ( int i = 0; i < item_count; ++i )
 	{
 		// Stop processing and exit the thread.
-		if ( kill_worker_thead == true )
+		if ( kill_worker_thread_flag == true )
 		{
 			break;
 		}
@@ -4102,7 +3862,7 @@ THREAD_RETURN copy_items( void *pArguments )
 			icidi = ( ignorecidinfo * )lvi.lParam;
 		}
 
-		is_string = add_newline = add_tab = false;
+		add_newline = add_tab = false;
 
 		for ( int j = column_start; j < column_end; ++j )
 		{
@@ -4111,8 +3871,6 @@ THREAD_RETURN copy_items( void *pArguments )
 				case 1:
 				case 2:
 				{
-					is_string = true;
-
 					copy_string = ( column_type == 0 ? di->display_values[ arr[ j ] - 1 ] :
 								  ( column_type == 1 ? ci->contactinfo_values[ arr[ j ] - 1 ] :
 								  ( column_type == 2 ? fi->forwardinfo_values[ arr[ j ] - 1 ] :
@@ -4123,8 +3881,6 @@ THREAD_RETURN copy_items( void *pArguments )
 
 				case 3:
 				{
-					is_string = true;
-
 					copy_string = ( column_type == 0 ? di->display_values[ arr[ j ] - 1 ] :
 								  ( column_type == 1 ? ci->contactinfo_values[ arr[ j ] - 1 ] :
 								  ( column_type == 2 ? fi->forwardinfo_values[ arr[ j ] - 1 ] :
@@ -4134,8 +3890,6 @@ THREAD_RETURN copy_items( void *pArguments )
 
 				case 4:
 				{
-					is_string = true;
-
 					copy_string = ( column_type == 0 ? di->display_values[ arr[ j ] - 1 ] :
 								  ( column_type == 1 ? ci->contactinfo_values[ arr[ j ] - 1 ] :
 								  ( column_type == 4 ? fcidi->forwardcidinfo_values[ arr[ j ] - 1 ] : icidi->ignorecidinfo_values[ arr[ j ] - 1 ] ) ) );
@@ -4144,8 +3898,6 @@ THREAD_RETURN copy_items( void *pArguments )
 
 				case 5:
 				{
-					is_string = true;
-
 					copy_string = ( column_type == 0 ? di->display_values[ arr[ j ] - 1 ] :
 								  ( column_type == 1 ? ci->contactinfo_values[ arr[ j ] - 1 ] : fcidi->forwardcidinfo_values[ arr[ j ] - 1 ] ) );
 				}
@@ -4157,8 +3909,6 @@ THREAD_RETURN copy_items( void *pArguments )
 				case 9:
 				case 10:
 				{
-					is_string = true;
-
 					copy_string = ( column_type == 0 ? di->display_values[ arr[ j ] - 1 ] : ci->contactinfo_values[ arr[ j ] - 1 ] );
 				}
 				break;
@@ -4170,51 +3920,45 @@ THREAD_RETURN copy_items( void *pArguments )
 				case 15:
 				case 16:
 				{
-					is_string = true;
-
 					copy_string = ci->contactinfo_values[ arr[ j ] - 1 ];
 				}
 				break;
 			}
 
-			if ( is_string == true )
+			if ( copy_string == NULL || ( copy_string != NULL && copy_string[ 0 ] == NULL ) )
 			{
-				is_string = false;
-
-				if ( copy_string == NULL )
+				if ( j == 0 )
 				{
-					if ( j == 0 )
-					{
-						add_tab = false;
-					}
-
-					continue;
+					add_tab = false;
 				}
 
-				if ( j > 0 && add_tab == true )
-				{
-					*( copy_buffer + buffer_offset ) = L'\t';
-					++buffer_offset;
-				}
-
-				add_tab = true;
-
-				value_length = lstrlenW( copy_string );
-				while ( buffer_offset + value_length + 3 >= buffer_size )	// Add +3 for \t and \r\n
-				{
-					buffer_size += 8192;
-					wchar_t *realloc_buffer = ( wchar_t * )GlobalReAlloc( copy_buffer, sizeof( wchar_t ) * buffer_size, GMEM_MOVEABLE );
-					if ( realloc_buffer == NULL )
-					{
-						goto CLEANUP;
-					}
-
-					copy_buffer = realloc_buffer;
-				}
-				_wmemcpy_s( copy_buffer + buffer_offset, buffer_size - buffer_offset, copy_string, value_length );
-				buffer_offset += value_length;
+				continue;
 			}
 
+			if ( j > 0 && add_tab == true )
+			{
+				*( copy_buffer + buffer_offset ) = L'\t';
+				++buffer_offset;
+			}
+
+			add_tab = true;
+
+			value_length = lstrlenW( copy_string );
+			while ( buffer_offset + value_length + 3 >= buffer_size )	// Add +3 for \t and \r\n
+			{
+				buffer_size += 8192;
+				wchar_t *realloc_buffer = ( wchar_t * )GlobalReAlloc( copy_buffer, sizeof( wchar_t ) * buffer_size, GMEM_MOVEABLE );
+				if ( realloc_buffer == NULL )
+				{
+					goto CLEANUP;
+				}
+
+				copy_buffer = realloc_buffer;
+			}
+			_wmemcpy_s( copy_buffer + buffer_offset, buffer_size - buffer_offset, copy_string, value_length );
+			buffer_offset += value_length;
+
+			copy_string = NULL;
 			add_newline = true;
 		}
 

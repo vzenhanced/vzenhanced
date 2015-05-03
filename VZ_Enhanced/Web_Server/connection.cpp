@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -75,7 +75,6 @@ void AddConnectionInfo( SOCKET_CONTEXT *socket_context )
 	CONNECTION_INFO *ci = ( CONNECTION_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( CONNECTION_INFO ) );
 	ci->rx_bytes = 0;
 	ci->tx_bytes = 0;
-
 	ci->psc = socket_context;
 
 	// Remote
@@ -121,7 +120,7 @@ void AddConnectionInfo( SOCKET_CONTEXT *socket_context )
 	lvi.iSubItem = 0;
 	lvi.iItem = _SendMessageW( g_hWnd_connections, LVM_GETITEMCOUNT, 0, 0 );
 	lvi.lParam = ( LPARAM )ci;	// lParam = our contactinfo structure from the connection thread.
-	_SendNotifyMessageW( g_hWnd_connections, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+	_SendMessageW( g_hWnd_connections, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
 }
 
 void RemoveConnectionInfo( SOCKET_CONTEXT *socket_context )
@@ -2014,17 +2013,13 @@ void ParseWebsocketInfo( SOCKET_CONTEXT *socket_context )
 // WebSocket connections will be closed if a ping request fails.
 DWORD WINAPI Poll( LPVOID WorkThreadContext )
 {
-	while ( true )
+	while ( g_bEndServer == false )
 	{
 		WaitForSingleObject( ping_semaphore, 30000 );
 
 		if ( g_bEndServer == true )
 		{
-			CloseHandle( ping_semaphore );
-			ping_semaphore = NULL;
-
-			ExitThread( 0 );
-			return 0;
+			break;
 		}
 
 		EnterCriticalSection( &g_CriticalSection );
@@ -2069,10 +2064,11 @@ DWORD WINAPI Poll( LPVOID WorkThreadContext )
 		LeaveCriticalSection( &g_CriticalSection );
 	}
 
-	// We should not get here.
+	CloseHandle( ping_semaphore );
+	ping_semaphore = NULL;
+
 	ExitThread( 0 );
 	return 0;
-
 }
 
 bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize, HANDLE hIOCP, DoublyLinkedList *dll )
@@ -3127,58 +3123,10 @@ DoublyLinkedList *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool b
 			}
 			else
 			{
-				// All all socket contexts (except the listening one) to our linked list.
+				// Add all socket contexts (except the listening one) to our linked list.
 				if ( bIsListen == false )
 				{
-					CONNECTION_INFO *ci = ( CONNECTION_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( CONNECTION_INFO ) );
-					ci->rx_bytes = 0;
-					ci->tx_bytes = 0;
-					ci->psc = socket_context;
-
-					// Remote
-					struct sockaddr_in addr;
-					_memzero( &addr, sizeof( sockaddr_in ) );
-
-					socklen_t len = sizeof( sockaddr_in );
-					_getpeername( socket_context->Socket, ( struct sockaddr * )&addr, &len );
-
-					addr.sin_family = AF_INET;
-
-					USHORT port = _ntohs( addr.sin_port );
-					addr.sin_port = 0;
-
-					DWORD ip_length = sizeof( ci->r_ip );
-					_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, ci->r_ip, &ip_length );
-
-					__snwprintf( ci->r_port, sizeof( ci->r_port ), L"%hu", port );
-
-					_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&ci->r_host_name, NI_MAXHOST, NULL, 0, 0 );
-
-					// Local
-					_memzero( &addr, sizeof( sockaddr_in ) );
-
-					len = sizeof( sockaddr_in );
-					_getsockname( socket_context->Socket, ( struct sockaddr * )&addr, &len );
-
-					port = _ntohs( addr.sin_port );
-					addr.sin_port = 0;
-
-					ip_length = sizeof( ci->l_ip );
-					_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, ci->l_ip, &ip_length );
-
-					__snwprintf( ci->l_port, sizeof( ci->l_port ), L"%hu", port );
-
-					_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&ci->l_host_name, NI_MAXHOST, NULL, 0, 0 );
-
-					socket_context->ci = ci;
-
-					LVITEM lvi;
-					_memzero( &lvi, sizeof( LVITEM ) );
-					lvi.mask = LVIF_PARAM; // Our listview items will display the text contained the lParam value.
-					lvi.iSubItem = 0;
-					lvi.iItem = _SendMessageW( g_hWnd_connections, LVM_GETITEMCOUNT, 0, 0 );
-					lvi.lParam = ( LPARAM )ci;	// lParam = our contactinfo structure from the connection thread.
-					_SendMessageW( g_hWnd_connections, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+					AddConnectionInfo( socket_context );
 
 					socket_context->dll = dll;
 					DLL_AddNode( &client_context_list, dll, 0 );

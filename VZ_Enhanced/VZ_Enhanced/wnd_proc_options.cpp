@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "globals.h"
 #include "utilities.h"
+#include "message_log_utilities.h"
 #include "file_operations.h"
 #include "string_tables.h"
 
@@ -84,9 +85,11 @@
 #define CB_SSL_VERSION			1040
 #define BTN_ENABLE_HISTORY		1041
 
-#define BTN_ALWAYS_ON_TOP		1042
+#define BTN_ENABLE_MESSAGE_LOG	1042
 
-#define BTN_CHECK_FOR_UPDATES	1043
+#define BTN_ALWAYS_ON_TOP		1043
+
+#define BTN_CHECK_FOR_UPDATES	1044
 
 
 HWND g_hWnd_options_tab = NULL;
@@ -97,6 +100,7 @@ HWND g_hWnd_chk_close = NULL;
 HWND g_hWnd_chk_silent_startup = NULL;
 HWND g_hWnd_chk_always_on_top = NULL;
 HWND g_hWnd_chk_enable_history = NULL;
+HWND g_hWnd_chk_message_log = NULL;
 
 HWND g_hWnd_chk_auto_login = NULL;
 HWND g_hWnd_chk_reconnect = NULL;
@@ -755,6 +759,8 @@ void Set_Window_Settings()
 	_SendMessageW( g_hWnd_chk_always_on_top, BM_SETCHECK, ( cfg_always_on_top == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	_SendMessageW( g_hWnd_chk_enable_history, BM_SETCHECK, ( cfg_enable_call_log_history == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+
+	_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, ( cfg_enable_message_log == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	if ( cfg_tray_icon == true )
 	{
@@ -2461,7 +2467,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				}
 				else	// Warn of leak if we can't destroy.
 				{
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Tree-View image list was not destroyed." );
+					MESSAGE_LOG_OUTPUT( ML_WARNING, ST_TreeView_leak )
 				}
 			}
 		}
@@ -2491,6 +2497,8 @@ LRESULT CALLBACK GeneralTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 
 			g_hWnd_chk_enable_history = _CreateWindowW( WC_BUTTON, ST_Enable_Call_Log_history, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 120, 200, 20, hWnd, ( HMENU )BTN_ENABLE_HISTORY, NULL, NULL );
 
+			g_hWnd_chk_message_log = _CreateWindowW( WC_BUTTON, ST_Log_events_to_Message_Log, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 150, 200, 20, hWnd, ( HMENU )BTN_ENABLE_MESSAGE_LOG, NULL, NULL );
+
 			_SendMessageW( g_hWnd_chk_tray_icon, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_minimize, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_close, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -2499,6 +2507,8 @@ LRESULT CALLBACK GeneralTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 			_SendMessageW( g_hWnd_chk_always_on_top, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_chk_enable_history, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			_SendMessageW( g_hWnd_chk_message_log, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			return 0;
 		}
@@ -2539,6 +2549,7 @@ LRESULT CALLBACK GeneralTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 				case BTN_SILENT_STARTUP:
 				case BTN_ALWAYS_ON_TOP:
 				case BTN_ENABLE_HISTORY:
+				case BTN_ENABLE_MESSAGE_LOG:
 				{
 					options_state_changed = true;
 					_EnableWindow( g_hWnd_apply, TRUE );
@@ -2888,7 +2899,6 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 							if ( g_hWnd_main != NULL ){ _SetWindowPos( g_hWnd_main, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_login != NULL ){ _SetWindowPos( g_hWnd_login, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_options != NULL ){ _SetWindowPos( g_hWnd_options, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_columns != NULL ){ _SetWindowPos( g_hWnd_columns, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_contact != NULL ){ _SetWindowPos( g_hWnd_contact, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_account != NULL ){ _SetWindowPos( g_hWnd_account, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
@@ -2897,7 +2907,65 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							if ( g_hWnd_ignore_phone_number != NULL ){ _SetWindowPos( g_hWnd_ignore_phone_number, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_forward_cid != NULL ){ _SetWindowPos( g_hWnd_forward_cid, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_ignore_cid != NULL ){ _SetWindowPos( g_hWnd_ignore_cid, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_message_log != NULL ){ _SetWindowPos( g_hWnd_message_log, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL ){ _SetWindowPos( g_hWnd_connection_manager, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_options != NULL ){ _SetWindowPos( g_hWnd_options, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+						}
+
+						bool enable_message_log = ( _SendMessageW( g_hWnd_chk_message_log, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+
+						if ( enable_message_log == true && cfg_enable_message_log == false )	// We want to enable message logging.
+						{
+							if ( in_ml_update_thread == false )		// Thread isn't running.
+							{
+								cleanup_message_log_queue();		// Clean up any remnant events before we start logging.
+
+								cfg_enable_message_log = true;		// Allow events to start queuing.
+
+								kill_ml_update_thread_flag = false;	// Ensure the thread waits for events.
+
+								CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL ) );
+							}
+							else	// Thread is running (for some reason).
+							{
+								if ( kill_ml_update_thread_flag == true )	// Thread is in the process of exiting.
+								{
+									_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, BST_UNCHECKED, 0 );
+
+									MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_Message_Log_still_running )
+								}
+								else	// Thread has not been triggered to exit.
+								{
+									cfg_enable_message_log = true;
+								}
+							}
+						}
+						else if ( enable_message_log == false && cfg_enable_message_log == true )	// We want to disable message logging.
+						{
+							if ( in_ml_update_thread == true )				// Thread is running.
+							{
+								if ( kill_ml_update_thread_flag == false )	// Thread has not been triggered to exit.
+								{
+									cfg_enable_message_log = false;			// Stop events from queuing.
+
+									kill_ml_update_thread_flag = true;		// Ensure the thread exits after we stop waiting for events.
+
+									if ( ml_update_trigger_semaphore != NULL )
+									{
+										ReleaseSemaphore( ml_update_trigger_semaphore, 1, NULL );	// Stop waiting for events.
+									}
+								}
+								else	// Thread is in the process of exiting.
+								{
+									_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, BST_UNCHECKED, 0 );
+
+									MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_Message_Log_still_running )
+								}
+							}
+							else	// Thread is not running (for some reason).
+							{
+								cfg_enable_message_log = false;
+							}
 						}
 
 						save_config();

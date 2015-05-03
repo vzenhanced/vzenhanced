@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -37,12 +37,22 @@
 
 #include "menus.h"
 
+//#define USE_DEBUG_DIRECTORY
+
+#ifdef USE_DEBUG_DIRECTORY
+	#define BASE_DIRECTORY_FLAG CSIDL_APPDATA
+#else
+	#define BASE_DIRECTORY_FLAG CSIDL_LOCAL_APPDATA
+#endif
+
 CRITICAL_SECTION cc_cs;	// Close connection critical section.
+
+int row_height = 0;
 
 extern "C" __declspec( dllexport )
 CRITICAL_SECTION *list_cs = NULL;
 
-wchar_t base_directory[ MAX_PATH ];
+wchar_t *base_directory = NULL;
 unsigned int base_directory_length = 0;
 
 bool cfg_enable_web_server = false;
@@ -57,7 +67,7 @@ bool cfg_auto_start = false;
 bool cfg_verify_origin = false;
 bool cfg_enable_ssl = false;
 
-unsigned char cfg_certificate_type;
+unsigned char cfg_certificate_type = 0;	// PKCS
 
 wchar_t *cfg_certificate_pkcs_file_name = NULL;
 wchar_t *cfg_certificate_pkcs_password = NULL;
@@ -71,7 +81,7 @@ bool cfg_use_authentication = false;
 wchar_t *cfg_authentication_username = NULL;
 wchar_t *cfg_authentication_password = NULL;
 
-unsigned long cfg_thread_count = 2;
+unsigned long cfg_thread_count = 1;
 unsigned long max_threads = 2;
 
 char *encoded_authentication = NULL;
@@ -168,7 +178,7 @@ void UpdateCallLog( displayinfo *di )
 }
 
 extern "C" __declspec ( dllexport )
-bool InitializeWebServerDLL()
+bool InitializeWebServerDLL( wchar_t *directory )
 {
 	#ifndef USER32_USE_STATIC_LIB
 		if ( InitializeUser32() == false ){ return false; }
@@ -192,6 +202,35 @@ bool InitializeWebServerDLL()
 		if ( InitializeCrypt32() == false ){ return false; }
 	#endif
 
+	base_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * MAX_PATH );
+
+	// Use the default directory if the main executable didn't set the path for us.
+	if ( directory == NULL )
+	{
+		_SHGetFolderPathW( NULL, BASE_DIRECTORY_FLAG, NULL, 0, base_directory );
+
+		base_directory_length = lstrlenW( base_directory );
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\VZ Enhanced\0", 13 );
+		base_directory_length += 12;
+		base_directory[ base_directory_length ] = 0;	// Sanity.
+
+		// Check to see if the new path exists and create it if it doesn't.
+		if ( GetFileAttributes( base_directory ) == INVALID_FILE_ATTRIBUTES )
+		{
+			CreateDirectory( base_directory, NULL );
+		}
+	}
+	else	// Copy the supplied directory.
+	{
+		base_directory_length = lstrlenW( directory );
+		if ( base_directory_length >= MAX_PATH )
+		{
+			base_directory_length = MAX_PATH - 1;
+		}
+		_wmemcpy_s( base_directory, MAX_PATH, directory, base_directory_length );
+		base_directory[ base_directory_length ] = 0;	// Sanity.
+	}
+
 	InitializeCriticalSection( &cc_cs );
 	InitializeCriticalSection( &g_CriticalSection );
 
@@ -211,13 +250,30 @@ bool InitializeWebServerDLL()
 	// Set our global font to the LOGFONT value obtained from the system.
 	hFont = _CreateFontIndirectW( &ncm.lfMessageFont );
 
-	base_directory_length = GetCurrentDirectory( MAX_PATH, base_directory );	// Get the full path
+	// Get the row height for our listview control.
+	TEXTMETRIC tm;
+	HDC hDC = _GetDC( NULL );
+	HFONT ohf = ( HFONT )_SelectObject( hDC, hFont );
+	_GetTextMetricsW( hDC, &tm );
+	_SelectObject( hDC, ohf );	// Reset old font.
+	_ReleaseDC( NULL, hDC );
+
+	row_height = tm.tmHeight + tm.tmExternalLeading + 5;
+
+	int icon_height = _GetSystemMetrics( SM_CYSMICON ) + 2;
+	if ( row_height < icon_height )
+	{
+		row_height = icon_height;
+	}
 
 	SYSTEM_INFO systemInfo;
 	GetSystemInfo( &systemInfo );
-	max_threads = systemInfo.dwNumberOfProcessors * 2;
 
-	cfg_thread_count = max_threads;
+	if ( systemInfo.dwNumberOfProcessors > 0 )
+	{
+		max_threads = systemInfo.dwNumberOfProcessors * 2;	// Default is 2.
+		cfg_thread_count = systemInfo.dwNumberOfProcessors;	// Default is 1.
+	}
 
 	read_config();
 
@@ -290,6 +346,11 @@ void UnInitializeWebServerDLL()
 	if ( index_file_buf != NULL )
 	{
 		GlobalFree( index_file_buf );
+	}
+
+	if ( base_directory != NULL )
+	{
+		GlobalFree( base_directory );
 	}
 
 	// Perform any necessary cleanup.

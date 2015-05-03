@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@
 	//#define _FlashWindow			FlashWindow
 	#define _GetClientRect			GetClientRect
 	//#define _GetCursorPos			GetCursorPos
-	//#define _GetDC					GetDC
+	#define _GetDC					GetDC
 	//#define _GetDlgItem				GetDlgItem
 	#define _GetKeyState			GetKeyState
 	//#define _GetMessagePos			GetMessagePos
@@ -67,7 +67,7 @@
 	//#define _GetSubMenu				GetSubMenu
 	#define _GetSysColor			GetSysColor
 	#define _GetSysColorBrush		GetSysColorBrush
-	//#define _GetSystemMetrics		GetSystemMetrics
+	#define _GetSystemMetrics		GetSystemMetrics
 	//#define _GetWindowLongW			GetWindowLongW
 	//#define _GetWindowRect			GetWindowRect
 	#define _InsertMenuItemW		InsertMenuItemW
@@ -89,7 +89,7 @@
 	//#define _PostQuitMessage		PostQuitMessage
 	//#define _RegisterClassExW		RegisterClassExW
 	//#define _ReleaseCapture			ReleaseCapture
-	//#define _ReleaseDC				ReleaseDC
+	#define _ReleaseDC				ReleaseDC
 	//#define _RemoveMenu				RemoveMenu
 	//#define _ScreenToClient			ScreenToClient
 	#define _SendMessageA			SendMessageA
@@ -146,7 +146,7 @@
 	//typedef BOOL ( WINAPI *pFlashWindow )( HWND hWnd, BOOL bInvert );
 	typedef BOOL ( WINAPI *pGetClientRect )( HWND hWnd, LPRECT lpRect );
 	//typedef BOOL ( WINAPI *pGetCursorPos )( LPPOINT lpPoint );
-	//typedef HDC ( WINAPI *pGetDC )( HWND hWnd );
+	typedef HDC ( WINAPI *pGetDC )( HWND hWnd );
 	//typedef HWND ( WINAPI *pGetDlgItem )( HWND hDlg, int nIDDlgItem );
 	typedef SHORT ( WINAPI *pGetKeyState )( int nVirtKey );
 	//typedef DWORD ( WINAPI *pGetMessagePos )( void );
@@ -155,7 +155,7 @@
 	//typedef HMENU ( WINAPI *pGetSubMenu )( HMENU hMenu, int nPos );
 	typedef DWORD ( WINAPI *pGetSysColor )( int nIndex );
 	typedef HBRUSH ( WINAPI *pGetSysColorBrush )( int nIndex );
-	//typedef int ( WINAPI *pGetSystemMetrics )( int nIndex );
+	typedef int ( WINAPI *pGetSystemMetrics )( int nIndex );
 	//typedef LONG ( WINAPI *pGetWindowLongW )( HWND hWnd, int nIndex );
 	//typedef BOOL ( WINAPI *pGetWindowRect )( HWND hWnd, LPRECT lpRect );
 	typedef BOOL ( WINAPI *pInsertMenuItemW )( HMENU hMenu, UINT uItem, BOOL fByPosition, LPCMENUITEMINFO lpmii );
@@ -177,7 +177,7 @@
 	//typedef VOID ( WINAPI *pPostQuitMessage )( int nExitCode );
 	//typedef ATOM ( WINAPI *pRegisterClassExW )( const WNDCLASSEX *lpwcx );
 	//typedef BOOL ( WINAPI *pReleaseCapture )( void );
-	//typedef int ( WINAPI *pReleaseDC )( HWND hWnd, HDC hDC );
+	typedef int ( WINAPI *pReleaseDC )( HWND hWnd, HDC hDC );
 	//typedef BOOL ( WINAPI *pRemoveMenu )( HMENU hMenu, UINT uPosition, UINT uFlags );
 	//typedef BOOL ( WINAPI *pScreenToClient )( HWND hWnd, LPPOINT lpPoint );
 	typedef LRESULT ( WINAPI *pSendMessageA )( HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam );
@@ -229,7 +229,7 @@
 	//extern pFlashWindow				_FlashWindow;
 	extern pGetClientRect			_GetClientRect;
 	//extern pGetCursorPos			_GetCursorPos;
-	//extern pGetDC					_GetDC;
+	extern pGetDC					_GetDC;
 	//extern pGetDlgItem				_GetDlgItem;
 	extern pGetKeyState				_GetKeyState;
 	//extern pGetMessagePos			_GetMessagePos;
@@ -238,7 +238,7 @@
 	//extern pGetSubMenu				_GetSubMenu;
 	extern pGetSysColor				_GetSysColor;
 	extern pGetSysColorBrush		_GetSysColorBrush;
-	//extern pGetSystemMetrics		_GetSystemMetrics;
+	extern pGetSystemMetrics		_GetSystemMetrics;
 	//extern pGetWindowLongW			_GetWindowLongW;
 	//extern pGetWindowRect			_GetWindowRect;
 	extern pInsertMenuItemW			_InsertMenuItemW;
@@ -260,7 +260,7 @@
 	//extern pPostQuitMessage			_PostQuitMessage;
 	//extern pRegisterClassExW		_RegisterClassExW;
 	//extern pReleaseCapture			_ReleaseCapture;
-	//extern pReleaseDC				_ReleaseDC;
+	extern pReleaseDC				_ReleaseDC;
 	//extern pRemoveMenu				_RemoveMenu;
 	//extern pScreenToClient			_ScreenToClient;
 	extern pSendMessageA			_SendMessageA;

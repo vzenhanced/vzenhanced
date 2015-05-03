@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,16 +19,31 @@
 #ifndef _FILE_OPERATIONS_H
 #define _FILE_OPERATIONS_H
 
-void read_config();
-void save_config();
-void read_ignore_list();
-void read_ignore_cid_list();
-void save_ignore_list();
-void save_ignore_cid_list();
-void read_forward_list();
-void read_forward_cid_list();
-void save_forward_list();
-void save_forward_cid_list();
-void save_call_log_history();
+#define MAGIC_ID_SETTINGS		"VZE\x00"
+#define MAGIC_ID_IGNORE_PN		"VZE\x10"
+#define MAGIC_ID_IGNORE_CNAM	"VZE\x11"
+#define MAGIC_ID_FORWARD_PN		"VZE\x12"
+#define MAGIC_ID_FORWARD_CNAM	"VZE\x13"
+#define MAGIC_ID_CALL_LOG		"VZE\x20"
+
+char read_config();
+char save_config();
+
+char read_ignore_list( wchar_t *file_path, dllrbt_tree *list );
+char read_ignore_cid_list( wchar_t *file_path, dllrbt_tree *list );
+
+char save_ignore_list( wchar_t *file_path );
+char save_ignore_cid_list( wchar_t *file_path );
+
+char read_forward_list( wchar_t *file_path, dllrbt_tree *list );
+char read_forward_cid_list( wchar_t *file_path, dllrbt_tree *list );
+
+char save_forward_list( wchar_t *file_path );
+char save_forward_cid_list( wchar_t *file_path );
+
+char read_call_log_history( wchar_t *file_path );
+char save_call_log_history( wchar_t *file_path );
+
+char save_call_log_csv_file( wchar_t *file_path );
 
 #endif

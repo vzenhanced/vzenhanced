@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -56,11 +56,12 @@ void decode_cipher( char *buffer, int buffer_length )
 	}
 }
 
-void read_config()
+char read_config()
 {
-	//DWORD length = GetCurrentDirectory( MAX_PATH, settings_path );	// Get the full path
-	_memcpy_s( base_directory + base_directory_length, sizeof( wchar_t ) * ( MAX_PATH - base_directory_length ), L"\\web_server_settings.bin\0", sizeof( wchar_t ) * ( 25 ) );
-	base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
+	char status = 0;
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\web_server_settings\0", 21 );
+	base_directory[ base_directory_length + 20 ] = 0;	// Sanity.
 
 	// Open our config file if it exists.
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
@@ -70,7 +71,7 @@ void read_config()
 		DWORD fz = GetFileSize( hFile_cfg, NULL );
 
 		// Our config file is going to be small. If it's something else, we're not going to read it.
-		if ( fz >= 18 && fz < 1024 )
+		if ( fz >= 22 && fz < 1024 )
 		{
 			char *cfg_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * fz + 1 );
 
@@ -79,9 +80,9 @@ void read_config()
 			cfg_buf[ fz ] = 0;	// Guarantee a NULL terminated buffer.
 
 			// Read the config. It must be in the order specified below.
-			if ( read == fz )
+			if ( read == fz && _memcmp( cfg_buf, MAGIC_ID_WS_SETTINGS, 4 ) == 0 )
 			{
-				char *next = cfg_buf;// + 3;
+				char *next = cfg_buf + 4;
 
 				cfg_enable_web_server = ( *next == 1 ? true : false );
 				next += sizeof( bool );
@@ -278,11 +279,23 @@ void read_config()
 					next += string_length;
 				}
 			}
+			else
+			{
+				status = -2;	// Bad file format.
+			}
 
 			GlobalFree( cfg_buf );
 		}
+		else
+		{
+			status = -3;	// Incorrect file size.
+		}
 
 		CloseHandle( hFile_cfg );
+	}
+	else
+	{
+		status = -1;	// Can't open file for reading.
 	}
 
 	if ( cfg_hostname == NULL )
@@ -299,7 +312,7 @@ void read_config()
 		g_document_root_directory_length = GetCurrentDirectoryW( MAX_PATH, cfg_document_root_directory );
 		if ( g_document_root_directory_length + 8 <= MAX_PATH )
 		{
-			_memcpy_s( cfg_document_root_directory + g_document_root_directory_length, sizeof( wchar_t ) * ( MAX_PATH - g_document_root_directory_length ), L"\\htdocs\0", sizeof( wchar_t ) * 8 );
+			_wmemcpy_s( cfg_document_root_directory + g_document_root_directory_length, MAX_PATH - g_document_root_directory_length, L"\\htdocs\0", 8 );
 			cfg_document_root_directory[ g_document_root_directory_length + 7 ] = 0;	// Sanity.
 
 			g_document_root_directory_length += 7;
@@ -314,27 +327,34 @@ void read_config()
 
 	if ( cfg_thread_count > max_threads )
 	{
-		cfg_thread_count = max_threads;
+		cfg_thread_count = max( ( max_threads / 2 ), 1 );
 	}
 	else if ( cfg_thread_count == 0 )
 	{
-		cfg_thread_count = 2;
+		cfg_thread_count = 1;
 	}
+
+	return status;
 }
 
-void save_config()
+char save_config()
 {
-	_memcpy_s( base_directory + base_directory_length, sizeof( wchar_t ) * ( MAX_PATH - base_directory_length ), L"\\web_server_settings.bin\0", sizeof( wchar_t ) * ( 25 ) );
-	base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
+	char status = 0;
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\web_server_settings\0", 21 );
+	base_directory[ base_directory_length + 20 ] = 0;	// Sanity.
 
 	// Open our config file if it exists.
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_cfg != INVALID_HANDLE_VALUE )
 	{
-		int size = ( sizeof( bool ) * 5 ) + ( sizeof( char ) * 3 ) + ( sizeof( unsigned short ) * 1 ) + ( sizeof( unsigned int ) * 2 );
+		int size = ( sizeof( bool ) * 5 ) + ( sizeof( char ) * 7 ) + ( sizeof( unsigned short ) * 1 ) + ( sizeof( unsigned int ) * 2 );
 		int pos = 0;
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
+
+		_memcpy_s( write_buf + pos, size - pos, MAGIC_ID_WS_SETTINGS, sizeof( char ) * 4 );	// Magic identifier for the web server's settings.
+		pos += ( sizeof( char ) * 4 );
 		
 		_memcpy_s( write_buf + pos, size - pos, &cfg_enable_web_server, sizeof( bool ) );
 		pos += sizeof( bool );
@@ -514,6 +534,12 @@ void save_config()
 
 		CloseHandle( hFile_cfg );
 	}
+	else
+	{
+		status = -1;	// Can't open file for writing.
+	}
+
+	return status;
 }
 
 void PreloadIndexFile()
@@ -530,6 +556,7 @@ void PreloadIndexFile()
 
 	_wmemcpy_s( file_path, MAX_PATH, cfg_document_root_directory, g_document_root_directory_length );
 	_wmemcpy_s( file_path + g_document_root_directory_length, MAX_PATH - g_document_root_directory_length, L"\\index.html\0", 12 );
+	file_path[ g_document_root_directory_length + 11 ] = 0;	// Sanity.
 
 	HANDLE hFile_index = CreateFile( file_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_index == INVALID_HANDLE_VALUE )

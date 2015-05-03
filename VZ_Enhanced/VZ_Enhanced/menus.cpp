@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -124,11 +124,13 @@ void CreateMenus()
 	g_hMenuSub_tabs_context = _CreatePopupMenu();
 
 
-	// FILE MENU
 	MENUITEMINFO mii;
 	_memzero( &mii, sizeof( MENUITEMINFO ) );
 	mii.cbSize = sizeof( MENUITEMINFO );
 	mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
+
+
+	// FILE MENU
 	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST__Log_In___;
 	mii.cch = 10;
@@ -150,11 +152,26 @@ void CreateMenus()
 	_InsertMenuItemW( hMenuSub_file, 3, TRUE, &mii );
 
 	mii.fType = MFT_STRING;
+	mii.dwTypeData = ST_Import___;
+	mii.cch = 9;
+	mii.wID = MENU_IMPORT_LIST;
+	mii.fState = MFS_ENABLED;
+	_InsertMenuItemW( hMenuSub_file, 4, TRUE, &mii );
+
+	mii.dwTypeData = ST_Export___;
+	mii.cch = 9;
+	mii.wID = MENU_EXPORT_LIST;
+	_InsertMenuItemW( hMenuSub_file, 5, TRUE, &mii );
+
+	mii.fType = MFT_SEPARATOR;
+	_InsertMenuItemW( hMenuSub_file, 6, TRUE, &mii );
+
+	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST_E_xit;
 	mii.cch = 5;
 	mii.wID = MENU_EXIT;
 	mii.fState = MFS_ENABLED;
-	_InsertMenuItemW( hMenuSub_file, 4, TRUE, &mii );
+	_InsertMenuItemW( hMenuSub_file, 7, TRUE, &mii );
 
 	
 	// EDIT SUBMENU - SEARCH
@@ -261,7 +278,6 @@ void CreateMenus()
 	mii.dwTypeData = ST_Add_to_Ignore_Caller_ID_Name_List___;
 	mii.cch = 36;
 	mii.wID = MENU_ADD_IGNORE_CID_LIST;
-	mii.fState = MFS_ENABLED;
 	_InsertMenuItemW( g_hMenuSub_ignore_cid_list_context, 0, TRUE, &mii );
 
 	mii.dwTypeData = ST_Add_to_Forward_Phone_Number_List___;
@@ -408,23 +424,32 @@ void CreateMenus()
 	_InsertMenuItemW( hMenuSub_view, 3, TRUE, &mii );
 
 	mii.fType = MFT_STRING;
+	mii.dwTypeData = ST_Message_Log;
+	mii.cch = 11;
+	mii.wID = MENU_MESSAGE_LOG;
+	_InsertMenuItemW( hMenuSub_view, 4, TRUE, &mii );
+
+	mii.fType = MFT_SEPARATOR;
+	_InsertMenuItemW( hMenuSub_view, 5, TRUE, &mii );
+
+	mii.fType = MFT_STRING;
 	mii.dwTypeData = ST_Account_Information;
 	mii.cch = 19;
 	mii.wID = MENU_ACCOUNT;
 	mii.fState = MFS_DISABLED;
-	_InsertMenuItemW( hMenuSub_view, 4, TRUE, &mii );
+	_InsertMenuItemW( hMenuSub_view, 6, TRUE, &mii );
 
 
 	// TOOLS SUBMENU - CONTACTS
 	mii.fType = MFT_STRING;
-	mii.dwTypeData = ST_Export_Contacts___;
-	mii.cch = 18;
-	mii.wID = MENU_EXPORT_CONTACTS;
-	_InsertMenuItemW( g_hMenuSub_contacts, 0, TRUE, &mii );
-
 	mii.dwTypeData = ST_Import_Contacts___;
 	mii.cch = 18;
 	mii.wID = MENU_IMPORT_CONTACTS;
+	_InsertMenuItemW( g_hMenuSub_contacts, 0, TRUE, &mii );
+
+	mii.dwTypeData = ST_Export_Contacts___;
+	mii.cch = 18;
+	mii.wID = MENU_EXPORT_CONTACTS;
 	_InsertMenuItemW( g_hMenuSub_contacts, 1, TRUE, &mii );
 
 
@@ -562,7 +587,6 @@ void CreateMenus()
 
 
 	// HEADER CONTEXT MENU (for right click)
-	mii.fState = MFS_ENABLED;
 	mii.dwTypeData = ST_Select_Columns___;
 	mii.cch = 17;
 	mii.wID = MENU_SELECT_COLUMNS;

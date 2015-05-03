@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 	#define _GdiGradientFill			GdiGradientFill
 	//#define _GetDeviceCaps				GetDeviceCaps
 	//#define _GetStockObject				GetStockObject
+	#define _GetTextMetricsW			GetTextMetricsW
 	#define _PatBlt						PatBlt
 	#define _SelectObject				SelectObject
 	#define _SetBkColor					SetBkColor
@@ -62,6 +63,7 @@
 	typedef BOOL ( WINAPI *pGdiGradientFill )( HDC hdc, PTRIVERTEX pVertex, ULONG dwNumVertex, PVOID pMesh, ULONG dwNumMesh, ULONG dwMode );
 	//typedef int ( WINAPI *pGetDeviceCaps )( HDC hdc, int nIndex );
 	//typedef HGDIOBJ ( WINAPI *pGetStockObject )( int fnObject );
+	typedef BOOL ( WINAPI *pGetTextMetricsW )( HDC hdc, LPTEXTMETRIC lptm );
 	typedef BOOL ( WINAPI *pPatBlt )( HDC hdc, int nXLeft, int nYLeft, int nWidth, int nHeight, DWORD dwRop );
 	typedef HGDIOBJ ( WINAPI *pSelectObject )( HDC hdc, HGDIOBJ hgdiobj );
 	typedef COLORREF ( WINAPI *pSetBkColor )( HDC hdc, COLORREF crColor );
@@ -79,6 +81,7 @@
 	extern pGdiGradientFill				_GdiGradientFill;
 	//extern pGetDeviceCaps				_GetDeviceCaps;
 	//extern pGetStockObject				_GetStockObject;
+	extern pGetTextMetricsW				_GetTextMetricsW;
 	extern pPatBlt						_PatBlt;
 	extern pSelectObject				_SelectObject;
 	extern pSetBkColor					_SetBkColor;

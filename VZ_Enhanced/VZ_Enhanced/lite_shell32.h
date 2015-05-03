@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <windows.h>
 
 #include <shellapi.h>
+#include <shlobj.h>
 
 //#define SHELL32_USE_STATIC_LIB
 
@@ -46,7 +47,9 @@
 
 	#define _StrCmpNIW			StrCmpNIW
 
-	//#define	_CommandLineToArgvW	CommandLineToArgvW;
+	#define _SHGetFolderPathW	SHGetFolderPathW
+
+	#define	_CommandLineToArgvW	CommandLineToArgvW
 
 #else
 
@@ -65,7 +68,9 @@
 
 	typedef int ( WINAPI *pStrCmpNIW )( PCTSTR psz1, PCTSTR psz2, int nChar );
 
-	//typedef LPWSTR * ( WINAPI *pCommandLineToArgvW )( LPCWSTR lpCmdLine, int *pNumArgs );
+	typedef int ( WINAPI *pSHGetFolderPathW )( HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, LPTSTR pszPath );
+
+	typedef LPWSTR * ( WINAPI *pCommandLineToArgvW )( LPCWSTR lpCmdLine, int *pNumArgs );
 
 	extern pShell_NotifyIconW	_Shell_NotifyIconW;
 	extern pShellExecuteW		_ShellExecuteW;
@@ -79,7 +84,9 @@
 
 	extern pStrCmpNIW			_StrCmpNIW;
 
-	//extern pCommandLineToArgvW	_CommandLineToArgvW;
+	extern pSHGetFolderPathW	_SHGetFolderPathW;
+
+	extern pCommandLineToArgvW	_CommandLineToArgvW;
 
 	extern unsigned char shell32_state;
 

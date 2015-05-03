@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -101,7 +101,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 			g_hWnd_connections = _CreateWindowW( WC_LISTVIEW, NULL, LVS_REPORT | LVS_OWNERDRAWFIXED | WS_CHILDWINDOW | WS_VISIBLE, 0, 0, 0, 0, hWnd, NULL, NULL, NULL );
 			_SendMessageW( g_hWnd_connections, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES );
 
-			// Initliaze our listview columns
+			// Initialize our listview columns
 			LVCOLUMN lvc;
 			_memzero( &lvc, sizeof( LVCOLUMN ) );
 			lvc.mask = LVCF_WIDTH | LVCF_TEXT;
@@ -153,6 +153,17 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 			_EndDeferWindowPos( hdwp );
 
 			return 0;
+		}
+		break;
+
+		case WM_MEASUREITEM:
+		{
+			// Set the row height of the list view.
+			if ( ( ( LPMEASUREITEMSTRUCT )lParam )->CtlType = ODT_LISTVIEW )
+			{
+				( ( LPMEASUREITEMSTRUCT )lParam )->itemHeight = row_height;
+			}
+			return TRUE;
 		}
 		break;
 
@@ -257,8 +268,10 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 			DRAWITEMSTRUCT *dis = ( DRAWITEMSTRUCT * )lParam;
 
 			// The item we want to draw is our listview.
-			if ( dis->CtlType == ODT_LISTVIEW )
+			if ( dis->CtlType == ODT_LISTVIEW && dis->itemData != NULL )
 			{
+				CONNECTION_INFO *ci = ( CONNECTION_INFO * )dis->itemData;
+
 				// Alternate item color's background.
 				if ( dis->itemID % 2 )	// Even rows will have a light grey background.
 				{
@@ -282,21 +295,11 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 					selected = true;
 				}
 
-				// Get the item's text.
-				wchar_t tbuf[ MAX_PATH ];
+				wchar_t tbuf[ 21 ];
 				wchar_t *buf = tbuf;
-				LVITEM lvi;
-				_memzero( &lvi, sizeof( LVITEM ) );
-				lvi.mask = LVIF_PARAM;
-				lvi.iItem = dis->itemID;
-				_SendMessageW( dis->hwndItem, LVM_GETITEM, 0, ( LPARAM )&lvi );	// Get the lParam value from our item.
 
 				// This is the full size of the row.
 				RECT last_rc;
-				last_rc.bottom = 0;
-				last_rc.left = 0;
-				last_rc.right = 0;
-				last_rc.top = 0;
 
 				// This will keep track of the current colunn's left position.
 				int last_left = 0;
@@ -317,7 +320,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 						{
 							buf = tbuf;	// Reset the buffer pointer.
 
-							__snwprintf( buf, MAX_PATH, L"%lu", dis->itemID + 1 );
+							__snwprintf( buf, 21, L"%lu", dis->itemID + 1 );
 						}
 						break;
 
@@ -325,18 +328,18 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 						{
 							if ( show_host_name == false )
 							{
-								buf = ( ( CONNECTION_INFO * )lvi.lParam )->l_ip;
+								buf = ci->l_ip;
 							}
 							else
 							{
-								buf = ( ( CONNECTION_INFO * )lvi.lParam )->l_host_name;
+								buf = ci->l_host_name;
 							}
 						}
 						break;
 
 						case 2:
 						{
-							buf = ( ( CONNECTION_INFO * )lvi.lParam )->l_port;
+							buf = ci->l_port;
 						}
 						break;
 
@@ -344,18 +347,18 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 						{
 							if ( show_host_name == false )
 							{
-								buf = ( ( CONNECTION_INFO * )lvi.lParam )->r_ip;
+								buf = ci->r_ip;
 							}
 							else
 							{
-								buf = ( ( CONNECTION_INFO * )lvi.lParam )->r_host_name;
+								buf = ci->r_host_name;
 							}
 						}
 						break;
 
 						case 4:
 						{
-							buf = ( ( CONNECTION_INFO * )lvi.lParam )->r_port;
+							buf = ci->r_port;
 						}
 						break;
 
@@ -363,7 +366,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 						{
 							buf = tbuf;	// Reset the buffer pointer.
 
-							__snwprintf( buf, MAX_PATH, L"%llu", ( ( CONNECTION_INFO * )lvi.lParam )->tx_bytes );
+							__snwprintf( buf, 21, L"%llu", ci->tx_bytes );
 						}
 						break;
 
@@ -371,7 +374,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 						{
 							buf = tbuf;	// Reset the buffer pointer.
 
-							__snwprintf( buf, MAX_PATH, L"%llu", ( ( CONNECTION_INFO * )lvi.lParam )->rx_bytes );
+							__snwprintf( buf, 21, L"%llu", ci->rx_bytes );
 						}
 						break;
 					}
@@ -390,7 +393,6 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 					// This will adjust the text to fit nicely into the rectangle.
 					last_rc.left = 5 + last_left;
 					last_rc.right = lvc.cx + last_left - 5;
-					last_rc.top += 2;
 
 					// Save the height and width of this region.
 					int width = last_rc.right - last_rc.left;
@@ -425,7 +427,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 
 						// White text.
 						_SetTextColor( hdcMem, RGB( 0xFF, 0xFF, 0xFF ) );
-						_DrawTextW( hdcMem, buf, -1, &rc, DT_SINGLELINE | DT_END_ELLIPSIS );
+						_DrawTextW( hdcMem, buf, -1, &rc, DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS );
 						_BitBlt( dis->hDC, dis->rcItem.left + last_rc.left, last_rc.top, width, height, hdcMem, 0, 0, SRCCOPY );
 					}
 					else	// Draw normal text.
@@ -437,7 +439,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 
 						// Black text.
 						_SetTextColor( hdcMem, RGB( 0x00, 0x00, 0x00 ) );
-						_DrawTextW( hdcMem, buf, -1, &rc, DT_SINGLELINE | DT_END_ELLIPSIS );
+						_DrawTextW( hdcMem, buf, -1, &rc, DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS );
 						_BitBlt( dis->hDC, dis->rcItem.left + last_rc.left, last_rc.top, width, height, hdcMem, 0, 0, SRCAND );
 					}
 

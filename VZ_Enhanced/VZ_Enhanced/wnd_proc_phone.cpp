@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -169,7 +169,6 @@ LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 		break;
 	}
 
-	
 	// Everything that we don't handle gets passed back to the parent to process.
 	return _CallWindowProcW( EditProc, hWnd, msg, wParam, lParam );
 }
@@ -268,7 +267,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					{
 						length = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_GETTEXT, 17, ( LPARAM )number );
 
-						if ( length > 0 )
+						/*if ( length > 0 )
 						{
 							if ( length == 10 || ( length == 11 && number[ 0 ] == '1' ) )
 							{
@@ -299,7 +298,8 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 								}
 							}
 						}
-						else
+						else*/
+						if ( length <= 0 )
 						{
 							_MessageBoxW( hWnd, ST_enter_valid_phone_number, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING );
 							_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER ) );
@@ -334,7 +334,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						char number2[ 17 ];
 						int length2 = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER2 ), WM_GETTEXT, 17, ( LPARAM )number2 );
 
-						if ( length2 > 0 )
+						/*if ( length2 > 0 )
 						{
 							if ( length2 == 10 || ( length2 == 11 && number2[ 0 ] == '1' ) )
 							{
@@ -365,7 +365,8 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 								}
 							}
 						}
-						else
+						else*/
+						if ( length2 <= 0 )
 						{
 							_MessageBoxW( hWnd, ST_enter_valid_phone_number, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING );
 							_SetFocus( _GetDlgItem( hWnd, EDIT_NUMBER2 ) );

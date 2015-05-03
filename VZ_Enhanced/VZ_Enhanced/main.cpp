@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -34,19 +34,29 @@
 
 #include "web_server.h"
 
+//#define USE_DEBUG_DIRECTORY
+
+#ifdef USE_DEBUG_DIRECTORY
+	#define BASE_DIRECTORY_FLAG CSIDL_APPDATA
+#else
+	#define BASE_DIRECTORY_FLAG CSIDL_LOCAL_APPDATA
+#endif
+
 // We want to get these objects before the window is shown.
 
 // Object variables
 HWND g_hWnd_main = NULL;		// Handle to our main window.
 HWND g_hWnd_login = NULL;		// Handle to our login window.
+HWND g_hWnd_message_log = NULL;	// Handle to our message log window.
 HWND g_hWnd_phone_lines = NULL;	// Handle to our phone lines window.
 
 HWND g_hWnd_active = NULL;		// Handle to the active window. Used to handle tab stops.
 
 HFONT hFont = NULL;				// Handle to our font object.
 
+int row_height = 0;
 
-wchar_t base_directory[ MAX_PATH ];
+wchar_t *base_directory = NULL;
 unsigned int base_directory_length = 0;
 
 #ifndef NTDLL_USE_STATIC_LIB
@@ -75,37 +85,58 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		if ( InitializeShell32() == false ){ goto UNLOAD_DLLS; }
 	#endif
 
-	if ( InitializeWebServer() == false )
-	{
-		UnInitializeWebServer();
-	}
-
 	unsigned char fail_type = 0;
 
-	// Count the number of parameters and split them into an array.
-	/*int argCount = 0;
-	LPWSTR *szArgList = _CommandLineToArgvW( GetCommandLine(), &argCount );
+	base_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * MAX_PATH );
+
+	// Get the new base directory if the user supplied a path.
+	bool default_directory = true;
+	int argCount = 0;
+	LPWSTR *szArgList = _CommandLineToArgvW( GetCommandLineW(), &argCount );
 	if ( szArgList != NULL )
 	{
-		// The first parameter is the path to the executable. Ignore it.
-		if ( argCount > 1 )
+		// The first parameter is the path to the executable, second is our switch "-d", and third is the new base directory path.
+		if ( argCount == 3 &&
+			 szArgList[ 1 ][ 0 ] != 0 && szArgList[ 1 ][ 0 ] == L'-' && szArgList[ 1 ][ 1 ] != 0 && szArgList[ 1 ][ 1 ] == L'd' && szArgList[ 1 ][ 2 ] == 0 &&
+			 GetFileAttributes( szArgList[ 2 ] ) == FILE_ATTRIBUTE_DIRECTORY )
 		{
-			for ( int i = 1; i < argCount; ++i )
+			base_directory_length = lstrlenW( szArgList[ 2 ] );
+			if ( base_directory_length >= MAX_PATH )
 			{
-				int arg_length = lstrlenW( szArgList[ i ] );
-
-				// See if it's the correct parameter is set.
-				if ( arg_length == 2 && szArgList[ i ][ 0 ] == L'-' && szArgList[ i ][ 1 ] == L's' )
-				{
-					// Do command line option.
-					break;
-				}
+				base_directory_length = MAX_PATH - 1;
 			}
+			_wmemcpy_s( base_directory, MAX_PATH, szArgList[ 2 ], base_directory_length );
+			base_directory[ base_directory_length ] = 0;	// Sanity.
+
+			default_directory = false;
 		}
 
 		// Free the parameter list.
 		LocalFree( szArgList );
-	}*/
+	}
+
+	// Use our default directory if none was supplied.
+	if ( default_directory == true )
+	{
+		_SHGetFolderPathW( NULL, BASE_DIRECTORY_FLAG, NULL, 0, base_directory );
+
+		base_directory_length = lstrlenW( base_directory );
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\VZ Enhanced\0", 13 );
+		base_directory_length += 12;
+		base_directory[ base_directory_length ] = 0;	// Sanity.
+
+		// Check to see if the new path exists and create it if it doesn't.
+		if ( GetFileAttributes( base_directory ) == INVALID_FILE_ATTRIBUTES )
+		{
+			CreateDirectory( base_directory, NULL );
+		}
+	}
+
+	// We want the base directory to be set before calling InitializeWebServerDLL so that the dll can use the same path.
+	if ( InitializeWebServer() == true && InitializeWebServerDLL( base_directory ) == false )
+	{
+		UnInitializeWebServer();	// This will also perform UnInitializeWebServerDLL.
+	}
 
 	// Blocks our reading thread and various GUI operations.
 	InitializeCriticalSection( &pe_cs );
@@ -121,6 +152,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	// Blocks our update check threads.
 	InitializeCriticalSection( &cut_cs );
+
+	// Blocks our message log worker threads.
+	InitializeCriticalSection( &ml_cs );
+
+	// Blocks our message log update thread.
+	InitializeCriticalSection( &ml_update_cs );
+
+	// Blocks threads from adding/removing from the message log queue.
+	InitializeCriticalSection( &ml_queue_cs );
 
 	// Get the default message system font.
 	NONCLIENTMETRICS ncm;
@@ -138,20 +178,58 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	// Set our global font to the LOGFONT value obtained from the system.
 	hFont = _CreateFontIndirectW( &ncm.lfMessageFont );
 
+	// Get the row height for our listview control.
+	TEXTMETRIC tm;
+	HDC hDC = _GetDC( NULL );
+	HFONT ohf = ( HFONT )_SelectObject( hDC, hFont );
+	_GetTextMetricsW( hDC, &tm );
+	_SelectObject( hDC, ohf );	// Reset old font.
+	_ReleaseDC( NULL, hDC );
+
+	row_height = tm.tmHeight + tm.tmExternalLeading + 5;
+
+	int icon_height = _GetSystemMetrics( SM_CYSMICON ) + 2;
+	if ( row_height < icon_height )
+	{
+		row_height = icon_height;
+	}
+
 	// Default position if no settings were saved.
 	cfg_pos_x = ( ( _GetSystemMetrics( SM_CXSCREEN ) - MIN_WIDTH ) / 2 );
 	cfg_pos_y = ( ( _GetSystemMetrics( SM_CYSCREEN ) - MIN_HEIGHT ) / 2 );
-
-	base_directory_length = GetCurrentDirectory( MAX_PATH, base_directory );	// Get the full path
 
 	_memzero( ignore_range_list, sizeof( ignore_range_list ) );
 	_memzero( forward_range_list, sizeof( forward_range_list ) );
 
 	read_config();
-	read_ignore_list();
-	read_forward_list();
-	read_ignore_cid_list();
-	read_forward_cid_list();
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_phone_numbers\0", 22 );
+	base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
+
+	ignore_list = dllrbt_create( dllrbt_compare );
+
+	read_ignore_list( base_directory, ignore_list );
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_phone_numbers\0", 23 );
+	base_directory[ base_directory_length + 22 ] = 0;	// Sanity.
+
+	forward_list = dllrbt_create( dllrbt_compare );
+
+	read_forward_list( base_directory, forward_list );
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_caller_id_names\0", 24 );
+	base_directory[ base_directory_length + 23 ] = 0;	// Sanity.
+
+	ignore_cid_list = dllrbt_create( dllrbt_icid_compare );
+
+	read_ignore_cid_list( base_directory, ignore_cid_list );
+
+	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_caller_id_names\0", 25 );
+	base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
+
+	forward_cid_list = dllrbt_create( dllrbt_fcid_compare );
+
+	read_forward_cid_list( base_directory, forward_cid_list );
 
 	// Create a tree of linked lists. Each linked list contains a list of displayinfo structs that share the same "call from" phone number.
 	call_log = dllrbt_create( dllrbt_compare );
@@ -247,6 +325,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	wcex.lpfnWndProc    = ColumnsWndProc;
 	wcex.lpszClassName  = L"columns";
+
+	if ( !_RegisterClassExW( &wcex ) )
+	{
+		fail_type = 1;
+		goto CLEANUP;
+	}
+
+	wcex.lpfnWndProc    = MessageLogWndProc;
+	wcex.lpszClassName  = L"message_log";
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{
@@ -402,6 +489,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		}
 	}
 
+	// Create this first so that the other windows and their function calls can start logging to it.
+	g_hWnd_message_log = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"message_log", ST_Message_Log, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 600 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 480 ) / 2 ), 600, 480, NULL, NULL, NULL, NULL );
+
+	if ( !g_hWnd_message_log )
+	{
+		fail_type = 2;
+		goto CLEANUP;
+	}
+
 	g_hWnd_main = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"callerid", PROGRAM_CAPTION, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cfg_pos_x, cfg_pos_y, cfg_width, cfg_height, NULL, NULL, NULL, NULL );
 
 	if ( !g_hWnd_main )
@@ -465,22 +561,34 @@ CLEANUP:
 
 	if ( ignore_list_changed == true )
 	{
-		save_ignore_list();
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_phone_numbers\0", 22 );
+		base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
+
+		save_ignore_list( base_directory );
 	}
 
 	if ( forward_list_changed == true )
 	{
-		save_forward_list();
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_phone_numbers\0", 23 );
+		base_directory[ base_directory_length + 22 ] = 0;	// Sanity.
+
+		save_forward_list( base_directory );
 	}
 
 	if ( ignore_cid_list_changed == true )
 	{
-		save_ignore_cid_list();
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_caller_id_names\0", 24 );
+		base_directory[ base_directory_length + 23 ] = 0;	// Sanity.
+
+		save_ignore_cid_list( base_directory );
 	}
 
 	if ( forward_cid_list_changed == true )
 	{
-		save_forward_cid_list();
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_caller_id_names\0", 25 );
+		base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
+
+		save_forward_cid_list( base_directory );
 	}
 
 	if ( cfg_username != NULL )
@@ -630,6 +738,11 @@ CLEANUP:
 
 	cleanup_custom_caller_id();
 
+	if ( base_directory != NULL )
+	{
+		GlobalFree( base_directory );
+	}
+
 	// Delete our font.
 	_DeleteObject( hFont );
 
@@ -639,6 +752,9 @@ CLEANUP:
 	DeleteCriticalSection( &cwt_cs );	// User initiated connections
 	DeleteCriticalSection( &cit_cs );	// Automated connections
 	DeleteCriticalSection( &cut_cs );	// Update check
+	DeleteCriticalSection( &ml_cs );	// Message log actions
+	DeleteCriticalSection( &ml_update_cs );	// Message log updates
+	DeleteCriticalSection( &ml_queue_cs );	// Message log queue operations
 
 	if ( fail_type == 1 )
 	{

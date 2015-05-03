@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			GlobalFree( val );
 			val = NULL;
 
-			HWND ok = _CreateWindowW( WC_BUTTON, ST_OK, BS_DEFPUSHBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, ( rc.right - rc.left - ( _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ) ) ) / 2, rc.bottom - 32, _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ), 23, hWnd, ( HMENU )BTN_EXIT_INFO, NULL, NULL );
+			HWND close = _CreateWindowW( WC_BUTTON, ST_Close, BS_DEFPUSHBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, ( rc.right - rc.left - ( _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ) ) ) / 2, rc.bottom - 32, _GetSystemMetrics( SM_CXMINTRACK ) - ( 2 * _GetSystemMetrics( SM_CXSIZEFRAME ) ), 23, hWnd, ( HMENU )BTN_EXIT_INFO, NULL, NULL );
 
 			_SendMessageW( hWnd_static1, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( hWnd_static2, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -189,7 +189,7 @@ LRESULT CALLBACK AccountWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			_SendMessageW( hWnd_edit9, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( hWnd_edit10, WM_SETFONT, ( WPARAM )hFont, 0 );
 
-			_SendMessageW( ok, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( close, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			return 0;
 		}

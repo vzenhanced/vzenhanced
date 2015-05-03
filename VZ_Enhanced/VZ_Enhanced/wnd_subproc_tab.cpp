@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -332,10 +332,6 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 			// Get the tab item's height. (bottom)
 			RECT rc_tab;
-			rc_tab.bottom = 0;
-			rc_tab.left = 0;
-			rc_tab.right = 0;
-			rc_tab.top = 0;
 			_SendMessageW( hWnd, TCM_GETITEMRECT, 0, ( LPARAM )&rc_tab );
 
 			// Draw our tab border.
@@ -364,11 +360,11 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 			int tab_count = _SendMessageW( hWnd, TCM_GETITEMCOUNT, 0, 0 );
 			for ( int i = 0; i < tab_count; i++ )
 			{
-				_SendMessageW( hWnd, TCM_GETITEMRECT, i, ( LPARAM )&rc_tab );
-	
 				// Exclude the selected tab. We draw it last so it can clip the non-selected tabs.
 				if ( i != index )
 				{
+					_SendMessageW( hWnd, TCM_GETITEMRECT, i, ( LPARAM )&rc_tab );
+
 					if ( rc_tab.left >= 0 )
 					{
 						// If the mouse is over the current selection, then set it to normal.
@@ -403,13 +399,14 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 							}
 						}
 
-						rc_tab.top += 3;
+						// Offset the text position.
+						++rc_tab.top;
 
 						_SetBkMode( hdcMem, TRANSPARENT );
 						_SetTextColor( hdcMem, RGB( 0x00, 0x00, 0x00 ) );
 
-						_SendMessageW( hWnd, TCM_GETITEM, i, ( LPARAM )&tci );	// Get the tab's information
-						_DrawTextW( hdcMem, GetTabTextByHandle( ( HWND )( tci.lParam ) ), -1, &rc_tab, DT_CENTER | DT_SINGLELINE | DT_END_ELLIPSIS );
+						_SendMessageW( hWnd, TCM_GETITEM, i, ( LPARAM )&tci );	// Get the tab's information.
+						_DrawTextW( hdcMem, GetTabTextByHandle( ( HWND )( tci.lParam ) ), -1, &rc_tab, DT_CENTER | DT_VCENTER | DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS );
 					}
 				}
 			}
@@ -444,50 +441,58 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 			// Draw the selected tab on top of the others.
 			_SendMessageW( hWnd, TCM_GETITEMRECT, index, ( LPARAM )&rc_tab );
+
 			// Only show the tab if it's completely visible.
 			if ( rc_tab.left > 0 )
 			{
 				// Enlarge the selected tab's area.
-				rc_tab.left -= 2;
-				rc_tab.top -= 2;
-				rc_tab.bottom += 2;
-				rc_tab.right += 2;
+				RECT rc_selected;
+				rc_selected.left = rc_tab.left - 2;
+				rc_selected.top = rc_tab.top - 2;
+				rc_selected.bottom = rc_tab.bottom + 2;
+				rc_selected.right = rc_tab.right + 2;
 	
 				// Exclude the 1 pixel white bottom.
-				RECT rc_clip = rc_tab;
-				rc_clip.bottom -= 1;
+				RECT rc_clip;
+				rc_clip.left = rc_selected.left;
+				rc_clip.right = rc_selected.right;
+				rc_clip.top  = rc_selected.top;
+				rc_clip.bottom = rc_selected.bottom - 1;
 
 				if ( hTheme != NULL )
 				{
-					_DrawThemeBackground( hTheme, hdcMem, TABP_TABITEM, TIS_SELECTED, &rc_tab, &rc_clip );
+					_DrawThemeBackground( hTheme, hdcMem, TABP_TABITEM, TIS_SELECTED, &rc_selected, &rc_clip );
 				}
 
-				rc_clip.top += 3;
+				// Position of our text (offset up).
+				RECT rc_text;
+				rc_text.left = rc_tab.left;
+				rc_text.right = rc_tab.right;
+				rc_text.top  = rc_tab.top - 1;
+				rc_text.bottom = rc_tab.bottom - 2;
 
 				_SetBkMode( hdcMem, TRANSPARENT );
 				_SetTextColor( hdcMem, RGB( 0x00, 0x00, 0x00 ) );
 
-				_SendMessageW( hWnd, TCM_GETITEM, index, ( LPARAM )&tci );	// Get the tab's information
-				_DrawTextW( hdcMem, GetTabTextByHandle( ( HWND )( tci.lParam ) ), -1, &rc_clip, DT_CENTER | DT_SINGLELINE | DT_END_ELLIPSIS );
+				_SendMessageW( hWnd, TCM_GETITEM, index, ( LPARAM )&tci );	// Get the tab's information.
+				wchar_t *tab_text = GetTabTextByHandle( ( HWND )( tci.lParam ) );
+				_DrawTextW( hdcMem, tab_text, -1, &rc_text, DT_CENTER | DT_VCENTER | DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS );
 
 				// Draw the transparent selected tab on top of everything else.
 				if ( tab_is_dragging == true && tab_moved == true )
 				{
 					// Tab position.
 					RECT rc_drag_tab;
-					rc_drag_tab.top = client_rc.top;
-					rc_drag_tab.bottom = rc_tab.bottom;
-					rc_drag_tab.left = rc_tab.left + ( cur_tab_x_pos - tab_x_pos );
-					rc_drag_tab.right = rc_drag_tab.left + ( rc_tab.right - rc_tab.left );
-
-					// Exclude the 1 pixel white bottom.
-					rc_drag_tab.bottom -= 1;
+					rc_drag_tab.top = rc_selected.top;
+					rc_drag_tab.bottom = rc_selected.bottom;
+					rc_drag_tab.left = rc_selected.left + ( cur_tab_x_pos - tab_x_pos );
+					rc_drag_tab.right = rc_drag_tab.left + ( rc_selected.right - rc_selected.left );
 
 					// Bitmap dimensions
 					rc_clip.left = 0;
-					rc_clip.right = rc_drag_tab.right - rc_drag_tab.left;
+					rc_clip.right = rc_selected.right - rc_selected.left;	// Width
 					rc_clip.top = 0;
-					rc_clip.bottom = rc_drag_tab.bottom - rc_drag_tab.top;
+					rc_clip.bottom = rc_selected.bottom - rc_selected.top;	// Height.
 
 					HDC hdcMem2 = _CreateCompatibleDC( hDC );
 					HBITMAP hbm2 = _CreateCompatibleBitmap( hDC, rc_clip.right, rc_clip.bottom );
@@ -496,7 +501,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 					_DeleteObject( hbm2 );
 
 					// Set our font.
-					HFONT hf = ( HFONT )_SelectObject( hdcMem2, hFont );
+					hf = ( HFONT )_SelectObject( hdcMem2, hFont );
 					// Delete our old font.
 					_DeleteObject( hf );
 
@@ -505,21 +510,23 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 						_DrawThemeBackground( hTheme, hdcMem2, TABP_TABITEM, TIS_DISABLED, &rc_clip, 0 );
 					}
 
-					// Offset text position.
-					rc_clip.top += 3;
+					// Position of our text (offset up).
+					rc_text.left = 0;
+					rc_text.right = rc_selected.right - rc_selected.left;
+					rc_text.top = 1;
+					rc_text.bottom = rc_tab.bottom - rc_tab.top;
 
 					_SetBkMode( hdcMem2, TRANSPARENT );
 					_SetTextColor( hdcMem2, RGB( 0xFF, 0xFF, 0xFF ) );
 
-					_SendMessageW( hWnd, TCM_GETITEM, index, ( LPARAM )&tci );	// Get the tab's information
-					_DrawTextW( hdcMem2, GetTabTextByHandle( ( HWND )( tci.lParam ) ), -1, &rc_clip, DT_CENTER | DT_SINGLELINE | DT_END_ELLIPSIS );
+					_DrawTextW( hdcMem2, tab_text, -1, &rc_text, DT_CENTER | DT_VCENTER | DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS );
 
 					BLENDFUNCTION blend;
 					blend.BlendOp = AC_SRC_OVER;
 					blend.BlendFlags = 0;
 					blend.SourceConstantAlpha = 192;
 					blend.AlphaFormat = AC_SRC_OVER;
-					_GdiAlphaBlend( hdcMem, rc_drag_tab.left, rc_drag_tab.top, rc_drag_tab.right - rc_drag_tab.left, rc_drag_tab.bottom - rc_drag_tab.top, hdcMem2, 0, 0, rc_drag_tab.right - rc_drag_tab.left, rc_drag_tab.bottom - rc_drag_tab.top, blend );
+					_GdiAlphaBlend( hdcMem, rc_drag_tab.left, rc_drag_tab.top, rc_clip.right, rc_clip.bottom - 1, hdcMem2, 0, 0, rc_clip.right, rc_clip.bottom - 1, blend );	// Exclude the 1 pixel white bottom.
 
 					// Delete our back buffer.
 					_DeleteDC( hdcMem2 );

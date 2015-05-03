@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 #define PROGRAM_CAPTION		L"VZ Enhanced"
 #define PROGRAM_CAPTION_A	"VZ Enhanced"
 
-#define HOME_PAGE			L"https://code.google.com/p/vz-enhanced/"
+#define HOME_PAGE			L"https://vzenhanced.github.io/"
 
 #define MIN_WIDTH			480
 #define MIN_HEIGHT			320
@@ -91,6 +91,9 @@
 #define NUM_COLUMNS4		3
 #define NUM_COLUMNS5		6
 #define NUM_COLUMNS6		5
+
+#define _wcsicmp_s( a, b ) ( ( a == NULL && b == NULL ) ? 0 : ( a != NULL && b == NULL ) ? 1 : ( a == NULL && b != NULL ) ? -1 : lstrcmpiW( a, b ) )
+#define _stricmp_s( a, b ) ( ( a == NULL && b == NULL ) ? 0 : ( a != NULL && b == NULL ) ? 1 : ( a == NULL && b != NULL ) ? -1 : lstrcmpiA( a, b ) )
 
 #define SAFESTRA( s ) ( s != NULL ? s : "" )
 #define SAFESTR2A( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : "" ) )
@@ -365,7 +368,7 @@ struct forwardcidinfo
 			char *c_total_calls;
 		};
 
-		char *c_fowardcidinfo_values[ 5 ];
+		char *c_forwardcidinfo_values[ 5 ];
 	};
 
 	union
@@ -411,6 +414,14 @@ struct forwardcidupdateinfo
 	bool match_whole_word;
 };
 
+struct sortinfo
+{
+	HWND hWnd;
+	int column;
+	unsigned char direction;
+};
+
+
 // These are all variables that are shared among the separate .cpp files.
 
 // Object handles.
@@ -425,6 +436,7 @@ extern HWND g_hWnd_forward;
 extern HWND g_hWnd_ignore_phone_number;
 extern HWND g_hWnd_forward_cid;
 extern HWND g_hWnd_ignore_cid;
+extern HWND g_hWnd_message_log;
 extern HWND g_hWnd_phone_lines;
 extern HWND g_hWnd_call_log;				// Handle to the call log listview control.
 extern HWND g_hWnd_contact_list;
@@ -444,6 +456,10 @@ extern CRITICAL_SECTION cwt_cs;			// Allow only one connection worker thread to 
 extern CRITICAL_SECTION cit_cs;			// Allow only one connection incoming thread to be active.
 extern CRITICAL_SECTION cut_cs;			// Allow only one update check thread to be active.
 
+extern CRITICAL_SECTION ml_cs;			// Allow only one message log worker thread to be active.
+extern CRITICAL_SECTION ml_update_cs;	// Allow only one message log update thread to be active.
+extern CRITICAL_SECTION ml_queue_cs;	// Used when adding/removing values from the message log queue.
+
 extern HANDLE connection_semaphore;			// Blocks shutdown while the connection thread is active.
 extern HANDLE connection_worker_semaphore;
 extern HANDLE connection_incoming_semaphore;
@@ -452,25 +468,35 @@ extern HANDLE reconnect_semaphore;
 
 extern HANDLE worker_semaphore;			// Blocks shutdown while a worker thread is active.
 
+extern HANDLE ml_update_semaphore;
+extern HANDLE ml_worker_semaphore;
+
 extern HANDLE select_line_semaphore;
 
 extern HFONT hFont;						// Handle to the system's message font.
+
+extern int row_height;					// Listview row height based on font size.
 
 extern HCURSOR wait_cursor;				// Temporary cursor while processing entries.
 
 extern NOTIFYICONDATA g_nid;			// Tray icon information.
 
-extern wchar_t base_directory[ MAX_PATH ];
+extern wchar_t *base_directory;
 extern unsigned int base_directory_length;
 
 // Thread variables
-extern bool kill_worker_thead;			// Allow for a clean shutdown.
+extern bool kill_worker_thread_flag;	// Allow for a clean shutdown.
+
+extern bool kill_ml_update_thread_flag;
+extern bool kill_ml_worker_thread_flag;
 
 extern bool in_worker_thread;			// Flag to indicate that we're in a worker thread.
 extern bool in_connection_thread;		// Flag to indicate that we're in the connection thread.
 extern bool in_connection_worker_thread;
 extern bool in_connection_incoming_thread;
 extern bool in_update_check_thread;
+extern bool in_ml_update_thread;
+extern bool in_ml_worker_thread;
 
 extern bool skip_log_draw;				// Prevents WM_DRAWITEM from accessing listview items while we're removing them.
 extern bool skip_contact_draw;
@@ -541,6 +567,8 @@ extern bool cfg_silent_startup;
 extern bool cfg_always_on_top;
 
 extern bool cfg_enable_call_log_history;
+
+extern bool cfg_enable_message_log;
 
 extern bool cfg_check_for_updates;
 

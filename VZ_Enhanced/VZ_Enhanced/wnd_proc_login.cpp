@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -333,21 +333,6 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			_DefWindowProcW( hWnd, msg, wParam, lParam );
 			return FALSE;
-		}
-		break;
-
-		case WM_ALERT:
-		{
-			if ( wParam == 0 )	// Const wchar_t string.
-			{
-				_MessageBoxW( hWnd, ( LPCWSTR )lParam, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_SETFOREGROUND );
-			}
-			else if ( wParam == 1 )	// Pointer to char string. Must be freed.
-			{
-				_MessageBoxA( hWnd, ( LPCSTR )lParam, PROGRAM_CAPTION_A, MB_APPLMODAL | MB_ICONWARNING | MB_SETFOREGROUND );
-
-				GlobalFree( ( char * )lParam );
-			}
 		}
 		break;
 

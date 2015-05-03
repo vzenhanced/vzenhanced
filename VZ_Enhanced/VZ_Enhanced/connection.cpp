@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "parsing.h"
 #include "menus.h"
 #include "utilities.h"
+#include "message_log_utilities.h"
 #include "list_operations.h"
 
 #include "lite_advapi32.h"
@@ -29,12 +30,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.5"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.6"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.1.5"
+#define USER_AGENT			"VZ-Enhanced/1.0.1.6"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -44,7 +45,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1015
+#define CURRENT_VERSION		1016
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -108,6 +109,8 @@ char *connection_send_buffer = NULL;
 char *incoming_send_buffer = NULL;
 
 char device_id[ 13 ];
+
+#define CHECK_CONNECTION_STATE( con, statement ) if ( con.state != LOGGED_OUT && con.state != LOGGING_OUT ) { statement }
 
 void free_shared_variables()
 {
@@ -508,8 +511,10 @@ SSL *Client_Connection_Secure( const char *server, unsigned short port, int time
 	return ssl;
 }
 
-void CleanupConnection( CONNECTION *con )
+void CleanupConnection( CONNECTION *con, char *host = NULL )
 {
+	char message_log[ 320 ];
+
 	if ( con->ssl_socket != NULL )
 	{
 		SOCKET s = con->ssl_socket->s;
@@ -518,6 +523,19 @@ void CleanupConnection( CONNECTION *con )
 		con->ssl_socket = NULL;
 		_shutdown( s, SD_BOTH );
 		_closesocket( s );
+
+		if ( cfg_enable_message_log == true )
+		{
+			if ( host != NULL )
+			{
+				__snprintf( message_log, 320, "Closed connection to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
+			}
+			else
+			{
+				_SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_W | ML_NOTICE, ( LPARAM )ST_Closed_connection );
+			}
+		}
 	}
 
 	if ( con->socket != INVALID_SOCKET )
@@ -525,6 +543,19 @@ void CleanupConnection( CONNECTION *con )
 		_shutdown( con->socket, SD_BOTH );
 		_closesocket( con->socket );
 		con->socket = INVALID_SOCKET;
+
+		if ( cfg_enable_message_log == true )
+		{
+			if ( host != NULL )
+			{
+				__snprintf( message_log, 320, "Closed connection: to %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
+			}
+			else
+			{
+				_SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_W | ML_NOTICE, ( LPARAM )ST_Closed_connection );
+			}
+		}
 	}
 }
 
@@ -876,6 +907,13 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 		total_retries = cfg_connection_retries;
 	}
 
+	char message_log[ 320 ];
+	if ( cfg_enable_message_log == true )
+	{
+		__snprintf( message_log, 320, "Connecting to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+		_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
+	}
+
 	// We consider retry == 0 to be our normal connection.
 	for ( int retry = 0; retry <= total_retries; ++retry )
 	{
@@ -904,21 +942,39 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 				break;
 			}
 
+			if ( cfg_enable_message_log == true )
+			{
+				__snprintf( message_log, 320, "Retrying connection to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_WARNING, ( LPARAM )message_log );
+			}
+
 			// Retry from the beginning.
 			continue;
+		}
+
+		if ( cfg_enable_message_log == true )
+		{
+			__snprintf( message_log, 320, "Connected to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+			_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 		}
 
 		// We've made a successful connection.
 		return true;
 	}
 
+	if ( cfg_enable_message_log == true )
+	{
+		__snprintf( message_log, 320, "Failed to connect to %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+		_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_ERROR, ( LPARAM )message_log );
+	}
+
 	// If we couldn't establish a connection, or we've abuptly shutdown, then free any ssl_socket resources.
-	CleanupConnection( con );
+	CleanupConnection( con, host );
 
 	return false;
 }
 
-int Try_Send_Receive( CONNECTION *con, char *host,
+int Try_Send_Receive( CONNECTION *con, char *host, char *resource /*for logging only*/,
 					  char *request_buffer, unsigned int request_buffer_length,
 					  char **response_buffer, unsigned int &response_buffer_length, unsigned short &http_status, unsigned int &content_length, unsigned int &last_buffer_size,
 					  int timeout = 0, bool retry = true )
@@ -943,9 +999,22 @@ int Try_Send_Receive( CONNECTION *con, char *host,
 
 		response_code = 0;
 
+		char message_log[ 2430 ];
+		if ( cfg_enable_message_log == true )
+		{
+			__snprintf( message_log, 2430, "Sending %lu byte request for: http%s://%.253s:%d%.2048s", request_buffer_length, ( con->secure == true ? "s" : "" ), host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
+			_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
+		}
+
 		if ( SendHTTPRequest( con, request_buffer, request_buffer_length ) > 0 )
 		{
 			response_code = GetHTTPResponse( con, response_buffer, response_buffer_length, http_status, content_length, last_buffer_size );
+		}
+
+		if ( cfg_enable_message_log == true )
+		{
+			__snprintf( message_log, 2430, "Received %lu byte response with status code %lu from: http%s://%.253s:%d%.2048s", response_buffer_length, http_status, ( con->secure == true ? "s" : "" ), host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
+			_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 		}
 
 		// HTTP Status codes: 200 OK, 302 Found (redirect)
@@ -970,8 +1039,14 @@ int Try_Send_Receive( CONNECTION *con, char *host,
 				break;
 			}
 
+			if ( cfg_enable_message_log == true )
+			{
+				__snprintf( message_log, 2430, "Retrying %lu byte request for: http%s://%.253s:%d%.2048s", request_buffer_length, ( con->secure == true ? "s" : "" ), host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
+				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_WARNING, ( LPARAM )message_log );
+			}
+
 			// Close the connection since no more data will be sent or received.
-			CleanupConnection( con );
+			CleanupConnection( con, host );
 
 			// Establish the connection again.
 			if ( Try_Connect( con, host, timeout ) == false )
@@ -986,7 +1061,7 @@ int Try_Send_Receive( CONNECTION *con, char *host,
 	}
 
 	// If we couldn't establish a connection, or we've abuptly shutdown, then free any ssl_socket resources.
-	CleanupConnection( con );
+	CleanupConnection( con, host );
 
 	return -1;
 }
@@ -1039,12 +1114,12 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 			goto CLEANUP;
 		}
 
-		if ( Try_Send_Receive( &update_con, host, version_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &update_con, host, resource, version_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
 			goto CLEANUP;
 		}
 
-		CleanupConnection( &update_con );
+		CleanupConnection( &update_con, host );
 
 		GlobalFree( resource );
 		resource = NULL;
@@ -1085,7 +1160,7 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 					unsigned int download_url_length = ( content_length - ( version_end - file ) );
 
 					*download_url = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( download_url_length + 1 ) );
-					_memcpy_s( *download_url, sizeof( char ) * ( download_url_length + 1 ), version_end, download_url_length );
+					_memcpy_s( *download_url, download_url_length + 1, version_end, download_url_length );
 
 					*( *download_url + download_url_length ) = 0;	// Sanity.
 				}
@@ -1095,19 +1170,12 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 
 CLEANUP:
 
-	CleanupConnection( &update_con );
+	CleanupConnection( &update_con, host );
 
 	GlobalFree( response );
-	response = NULL;
-
 	GlobalFree( resource );
-	resource = NULL;
-
 	GlobalFree( host );
-	host = NULL;
-
 	GlobalFree( version_send_buffer );
-	version_send_buffer = NULL;
 
 	_SetWindowTextW( g_hWnd_main, PROGRAM_CAPTION );
 }
@@ -1187,12 +1255,12 @@ bool DownloadUpdate( char *download_url )
 			goto CLEANUP;
 		}
 
-		if ( Try_Send_Receive( &update_con, host, download_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &update_con, host, resource, download_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
 			goto CLEANUP;
 		}
 
-		CleanupConnection( &update_con );
+		CleanupConnection( &update_con, host );
 
 		GlobalFree( resource );
 		resource = NULL;
@@ -1247,7 +1315,7 @@ bool DownloadUpdate( char *download_url )
 				}
 				else
 				{
-					if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"File could not be saved." ); }
+					if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ MESSAGE_LOG_OUTPUT_MB( ML_ERROR, ST_File_could_not_be_saved ) }
 				}
 			}
 		}
@@ -1255,22 +1323,13 @@ bool DownloadUpdate( char *download_url )
 
 CLEANUP:
 
-	CleanupConnection( &update_con );
+	CleanupConnection( &update_con, host );
 
 	GlobalFree( response );
-	response = NULL;
-
 	GlobalFree( resource );
-	resource = NULL;
-
 	GlobalFree( host );
-	host = NULL;
-
 	GlobalFree( download_buffer );
-	download_buffer = NULL;
-
 	GlobalFree( file_path );
-	file_path = NULL;
 
 	_SetWindowTextW( g_hWnd_main, PROGRAM_CAPTION );
 
@@ -1296,6 +1355,8 @@ THREAD_RETURN CheckForUpdates( void *pArguments )
 	// Check the version.txt file.
 	if ( update_info->download_url == NULL )
 	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Checking_for_updates )
+
 		unsigned int new_version = 0;
 
 		_EnableMenuItem( g_hMenu, MENU_CHECK_FOR_UPDATES, MF_DISABLED );
@@ -1311,6 +1372,8 @@ THREAD_RETURN CheckForUpdates( void *pArguments )
 				// Up to date
 				if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 0, NULL ); }
 			}
+
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_The_program_is_up_to_date )
 		}
 		else if ( new_version > CURRENT_VERSION )
 		{
@@ -1323,14 +1386,20 @@ THREAD_RETURN CheckForUpdates( void *pArguments )
 
 				_SendNotifyMessageW( g_hWnd_main, WM_ALERT, 1, ( LPARAM )t_update_info );
 			}
+
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_A_new_version_of_the_program_is_available )
 		}
 		else
 		{
 			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 2, NULL ); }
+
+			MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_update_check_could_not_be_completed )
 		}
 	}
 	else	// If we have a download url, then get the file.
 	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloading_update )
+
 		MENUITEMINFO mii;
 		_memzero( &mii, sizeof( MENUITEMINFO ) );
 		mii.cbSize = sizeof( MENUITEMINFO );
@@ -1345,6 +1414,12 @@ THREAD_RETURN CheckForUpdates( void *pArguments )
 		if ( DownloadUpdate( update_info->download_url ) == false )
 		{
 			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 3, NULL ); }
+
+			MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_download_could_not_be_completed )
+		}
+		else
+		{
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloaded_update )
 		}
 
 		mii.dwTypeData = ST_Check_for__Updates;
@@ -1360,10 +1435,7 @@ CLEANUP:
 	if ( update_info != NULL )
 	{
 		GlobalFree( update_info->download_url );
-		update_info->download_url = NULL;
-
 		GlobalFree( update_info );
-		update_info = NULL;
 	}
 
 	// Release the semaphore if we're killing the thread.
@@ -1441,7 +1513,7 @@ bool UploadMedia( wchar_t *file_path, HWND hWnd_update, unsigned char media_type
 	// If it's larger than 5 MB, then exit the thread. The server doesn't want files larger than 5 MB.
 	if ( size > 5242880 )
 	{
-		_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"File size must be less than 5 megabytes." );
+		MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_File_size_must_be_less_than_5_megabytes )
 		goto CLEANUP;
 	}
 
@@ -1566,7 +1638,6 @@ CLEANUP:
 	}
 
 	GlobalFree( upload_buffer );
-	upload_buffer = NULL;
 
 	return upload_status;
 }
@@ -1605,11 +1676,13 @@ THREAD_RETURN ImportContactList( void *pArguments )
 
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Importing_contact_list )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	// Use a 60 second timeout in case the file has a lot of entries. The server seems to take a while to process them.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, 60/*cfg_connection_timeout*/ ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -1627,7 +1700,7 @@ THREAD_RETURN ImportContactList( void *pArguments )
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
 
@@ -1676,14 +1749,14 @@ THREAD_RETURN ImportContactList( void *pArguments )
 			send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, update_location_reply, update_location_reply_length );
 
 			// Get the import information.
-			if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, 60/*cfg_connection_timeout*/ ) == -1 )
+			if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, 60/*cfg_connection_timeout*/ ) == -1 )
 			{
 				if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 				{
 					char *error_code = NULL;	// POST requests only.
 					if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 					{
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+						MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 					}
 				}
 
@@ -1699,10 +1772,10 @@ THREAD_RETURN ImportContactList( void *pArguments )
 				int failure_count = 0;
 				ParseImportResponse( xml, success_count, failure_count );
 
-				wchar_t response_message[ 256 ];
-				__snwprintf( response_message, 256, L"%d out of %d contacts were imported successfully.", success_count, success_count + failure_count );
+				char *response_message = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * 128 );
+				__snprintf( response_message, 128, "%d out of %d contacts were imported successfully.", success_count, success_count + failure_count );
 
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )response_message );
+				_SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ( cfg_enable_message_log == true ? ML_WRITE_OUTPUT_A : 0 ) | ML_FREE_INPUT | ML_MESSAGE_BOX_A | ML_NOTICE, ( LPARAM )response_message );	// response_message will be freed.
 
 				// We imported at least 1 contact. Add them to our contact list.
 				if ( success_count > 0 )
@@ -1722,10 +1795,9 @@ THREAD_RETURN ImportContactList( void *pArguments )
 
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	if ( iei != NULL )
 	{
@@ -1784,10 +1856,12 @@ THREAD_RETURN ExportContactList( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/contacts";
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Exporting_contact_list )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -1802,14 +1876,14 @@ THREAD_RETURN ExportContactList( void *pArguments )
 
 	send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, export_reply, export_reply_length );
 
-	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
 
@@ -1842,12 +1916,12 @@ THREAD_RETURN ExportContactList( void *pArguments )
 				"Cookie: %s\r\n" \
 				"Connection: close\r\n\r\n", list_resource, list_host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
-				if ( Try_Send_Receive( &worker_con, list_host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+				if ( Try_Send_Receive( &worker_con, list_host, list_resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 				{
 					GlobalFree( list_host );
 					GlobalFree( list_resource );
 
-					if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to export contact list." ); }
+					CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT_MB( ML_ERROR, ST_Failed_to_export_contact_list ) )
 					goto CLEANUP;
 				}
 
@@ -1864,10 +1938,12 @@ THREAD_RETURN ExportContactList( void *pArguments )
 						WriteFile( hFile, xml, content_length, &write, NULL );
 
 						CloseHandle( hFile );
+
+						MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Exported_contact_list )
 					}
 					else
 					{
-						if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"File could not be saved." ); }
+						CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT_MB( ML_ERROR, ST_File_could_not_be_saved ) )
 					}
 				}
 			}
@@ -1879,10 +1955,9 @@ THREAD_RETURN ExportContactList( void *pArguments )
 
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	if ( iei != NULL )
 	{
@@ -1918,6 +1993,8 @@ void DownloadContactPictures( updateinfo *ui )
 	char *host = NULL;
 	char *resource = NULL;
 
+	bool downloaded_picture = false;	// For logging purposes.
+
 	contactinfo *old_ci = NULL;	// Do not free this.
 
 	EnterCriticalSection( &pe_cs );
@@ -1931,6 +2008,8 @@ void DownloadContactPictures( updateinfo *ui )
 	{
 		old_ci = ( contactinfo * )ui->old_ci;
 	}
+
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloading_contact_picture_s_ )
 
 	// If ui == NULL, then download all contact pictures.
 
@@ -2041,7 +2120,7 @@ void DownloadContactPictures( updateinfo *ui )
 				"Cookie: %s\r\n" \
 				"Connection: close\r\n\r\n", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
-				if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+				if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 				{
 					// Don't keep the path if downloading the file failed.
 					GlobalFree( ci->picture_path );
@@ -2068,6 +2147,11 @@ void DownloadContactPictures( updateinfo *ui )
 						WriteFile( hFile, xml, content_length, &write, NULL );
 
 						CloseHandle( hFile );
+
+						if ( downloaded_picture == false )
+						{
+							downloaded_picture = true;
+						}
 					}
 					else	// Don't keep the path if saving the file failed.
 					{
@@ -2093,19 +2177,20 @@ void DownloadContactPictures( updateinfo *ui )
 		}
 	}
 
+	if ( downloaded_picture == true )
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloaded_contact_picture_s_ )
+	}
+
 CLEANUP:
 
 	LeaveCriticalSection( &pe_cs );
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
-
 	GlobalFree( host );
-	host = NULL;
 	GlobalFree( resource );
-	resource = NULL;
 }
 
 
@@ -2146,10 +2231,12 @@ bool UploadContactPicture( updateinfo *ui )
 
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Uploading_contact_picture )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -2167,7 +2254,7 @@ bool UploadContactPicture( updateinfo *ui )
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
 
@@ -2224,14 +2311,14 @@ bool UploadContactPicture( updateinfo *ui )
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, update_location_reply, update_location_reply_length );
 
 		// Update the contact's picture location on the server.
-		if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
 			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 			{
 				char *error_code = NULL;	// POST requests only.
 				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 				{
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
 			}
 
@@ -2268,14 +2355,15 @@ bool UploadContactPicture( updateinfo *ui )
 
 		// Upload was a success.
 		upload_status = true;
+
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Uploaded_contact_picture )
 	}
 
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	// If we never updated the old_ci picture_path to the new_ci picture_path, then free the new_ci picture_path.
 	if ( new_ci != NULL && new_ci->picture_path != NULL && upload_status == false )
@@ -2297,6 +2385,10 @@ THREAD_RETURN Authorization( void *pArguments )
 
 	char *resource = NULL;
 	char *host = NULL;
+	char *orignialResourceUri = "aHR0cHM6Ly92cG5zLnRpbWV3YXJuZXJjYWJsZS5jb20vdnBuc3NlcnZpY2UvdjEv";
+
+	char ml_resource[ 256 ];
+	ml_resource[ 0 ] = 0;	// Sanity.
 
 	int saml_parameter_length = 0;
 	char *saml_parameters = NULL;
@@ -2309,11 +2401,14 @@ THREAD_RETURN Authorization( void *pArguments )
 
 	int send_buffer_length = 0;
 
-	char *start_host = "wayfarer.timewarnercable.com";
-	char *orignialResourceUri = "aHR0cHM6Ly92cG5zLnRpbWV3YXJuZXJjYWJsZS5jb20vdnBuc3NlcnZpY2UvdjEv";
+	host = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * 29 );
+	_memcpy_s( host, 29, "wayfarer.timewarnercable.com\0", 29 );
+	host[ 28 ] = 0;	// Sanity.
 
 	if ( wayfarer_cookies != NULL )
 	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Reauthorizing_login_information )
+
 		send_buffer_length = __snprintf( worker_send_buffer, DEFAULT_BUFLEN * 2,
 		"GET /wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=%s&Ecom%%5FPassword=%s " \
 		"HTTP/1.1\r\n" \
@@ -2321,36 +2416,53 @@ THREAD_RETURN Authorization( void *pArguments )
 		"Referer: %s\r\n" \
 		"User-Agent: %s\r\n" \
 		"Cookie: %s\r\n" \
-		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host, REFERER, USER_AGENT, wayfarer_cookies );
+		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, host, REFERER, USER_AGENT, wayfarer_cookies );
 	}
 	else
 	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Logging_in )
+
 		send_buffer_length = __snprintf( worker_send_buffer, DEFAULT_BUFLEN * 2,
 		"GET /wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=%s&Ecom%%5FPassword=%s " \
 		"HTTP/1.1\r\n" \
 		"Host: %s\r\n" \
 		"Referer: %s\r\n" \
 		"User-Agent: %s\r\n" \
-		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, start_host, REFERER, USER_AGENT );
+		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, host, REFERER, USER_AGENT );
 	}
 
-	if ( Try_Connect( &worker_con, start_host, cfg_connection_timeout ) == false )
+	if ( Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to wayfarer server." ); }
+		// Alert the user when logging in (not reauthorizing) if we failed to connect.
+		if ( wayfarer_cookies == NULL )
+		{
+			CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT_MB( ML_ERROR, ST_A_connection_could_not_be_established ) )
+		}
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_wayfarer_server ) )
 		goto CLEANUP;
 	}
 
-	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( cfg_enable_message_log == true )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code from wayfarer server." ); }
+		__snprintf( ml_resource, 256, "/wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=[REDACTED]&Ecom%%5FPassword=[REDACTED]", orignialResourceUri );
+	}
+
+	if ( Try_Send_Receive( &worker_con, host, ml_resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	{
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_status_code_from_wayfarer_server ) )
 		goto CLEANUP;
 	}
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
+
+	GlobalFree( host );
+	host = NULL;
+
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Parsing_SAML_request )
 
 	if ( ParseSAMLForm( response, &host, &resource, &saml_parameters, saml_parameter_length ) == false )	// This will parse the SAML request.
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse SAML request." ); }
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_SAML_request ) )
 		goto CLEANUP;
 	}
 
@@ -2382,25 +2494,20 @@ THREAD_RETURN Authorization( void *pArguments )
 		"%s", resource, host, REFERER, USER_AGENT, saml_parameter_length, saml_parameters );
 	}
 
-	GlobalFree( resource );
-	resource = NULL;
 	GlobalFree( saml_parameters );
 	saml_parameters = NULL;
 
 	if ( Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to SAML server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_SAML_server ) )
 		goto CLEANUP;
 	}
 
-	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code from SAML server." ); }
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_status_code_from_SAML_server ) )
 		goto CLEANUP;
 	}
-
-	GlobalFree( host );
-	host = NULL;
 
 	char *new_saml_cookies = NULL;
 
@@ -2409,7 +2516,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		GlobalFree( new_saml_cookies );
 		new_saml_cookies = NULL;
 
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse server cookies." ); }
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_server_cookies ) )
 		goto CLEANUP;
 	}
 
@@ -2432,9 +2539,14 @@ THREAD_RETURN Authorization( void *pArguments )
 	// HTTP redirect. Follow it.
 	if ( http_status == 302 )
 	{
+		GlobalFree( resource );
+		resource = NULL;
+		GlobalFree( host );
+		host = NULL;
+
 		if ( ParseRedirect( response, &host, &resource ) == false )
 		{
-			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Incorrect username or password." ); }
+			CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_Incorrect_username_or_password ) )
 			goto CLEANUP;
 		}
 
@@ -2447,24 +2559,25 @@ THREAD_RETURN Authorization( void *pArguments )
 		"Cookie: %s\r\n" \
 		"Connection: close\r\n\r\n", resource, host, REFERER, USER_AGENT, saml_cookies );
 
-		GlobalFree( resource );
-		resource = NULL;
-
-		if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
-			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code from SAML server." ); }
+			CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_status_code_from_SAML_server ) )
 			goto CLEANUP;
 		}
-
-		GlobalFree( host );
-		host = NULL;
 	}
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
+
+	GlobalFree( resource );
+	resource = NULL;
+	GlobalFree( host );
+	host = NULL;
+
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Parsing_SAML_response )
 
 	if ( ParseSAMLForm( response, &host, &resource, &saml_parameters, saml_parameter_length ) == false )	// This will parse the SAML response.
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse SAML response." ); }
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_SAML_response ) )
 		goto CLEANUP;
 	}
 
@@ -2496,27 +2609,27 @@ THREAD_RETURN Authorization( void *pArguments )
 		"%s", resource, host, REFERER, USER_AGENT, saml_parameter_length, saml_parameters );
 	}
 
-	GlobalFree( resource );
-	resource = NULL;
 	GlobalFree( saml_parameters );
 	saml_parameters = NULL;
 
 	if ( Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
-	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code from VPNS server." ); }
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_status_code_from_VPNS_server ) )
 		goto CLEANUP;
 	}
 
+	CleanupConnection( &worker_con, host );
+
+	GlobalFree( resource );
+	resource = NULL;
 	GlobalFree( host );
 	host = NULL;
-
-	CleanupConnection( &worker_con );
 
 	char *new_wayfarer_cookies = NULL;
 
@@ -2526,7 +2639,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		GlobalFree( new_wayfarer_cookies );
 		new_wayfarer_cookies = NULL;
 
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse server cookies." ); }
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_server_cookies ) )
 		goto CLEANUP;
 	}
 
@@ -2551,19 +2664,12 @@ THREAD_RETURN Authorization( void *pArguments )
 
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
-
 	GlobalFree( saml_parameters );
-	saml_parameters = NULL;
-
 	GlobalFree( resource );
-	resource = NULL;
-
 	GlobalFree( host );
-	host = NULL;
 
 	// Release the semaphore if we're killing the thread.
 	if ( connection_worker_semaphore != NULL )
@@ -2579,23 +2685,6 @@ CLEANUP:
 	_ExitThread( 0 );
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 THREAD_RETURN CallPhoneNumber( void *pArguments )
 {
@@ -2623,10 +2712,12 @@ THREAD_RETURN CallPhoneNumber( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/clicktocall";
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Initiating_outbound_call )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( incoming_con.ssl_socket == NULL && Try_Connect( &incoming_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( incoming_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -2648,27 +2739,28 @@ THREAD_RETURN CallPhoneNumber( void *pArguments )
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, phone_call_reply, phone_call_reply_length );
 
 	// HTTP status error 400 indicates a bad request. Here it means that the area code was restricted, or bad.
-	if ( Try_Send_Receive( &incoming_con, host, incoming_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &incoming_con, host, resource, incoming_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
-
-		goto CLEANUP;
+	}
+	else
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Initiated_outbound_call )
 	}
 
 CLEANUP:
 
 	// Close the connection since no more data will be sent or received.
-	CleanupConnection( &incoming_con );
+	CleanupConnection( &incoming_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	GlobalFree( ci->call_from );
 	GlobalFree( ci->call_to );
@@ -2717,10 +2809,12 @@ THREAD_RETURN ForwardIncomingCall( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/incomingcall/";
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Forwarding_incoming_call )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( incoming_con.ssl_socket == NULL && Try_Connect( &incoming_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( incoming_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -2743,26 +2837,27 @@ THREAD_RETURN ForwardIncomingCall( void *pArguments )
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, forward_reply, forward_reply_length );
 
-	if ( Try_Send_Receive( &incoming_con, host, incoming_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &incoming_con, host, resource, incoming_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
-
-		goto CLEANUP;
+	}
+	else
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Forwarded_incoming_call )
 	}
 
 CLEANUP:
 
-	CleanupConnection( &incoming_con );
+	CleanupConnection( &incoming_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	// Release the semaphore if we're killing the thread.
 	if ( connection_incoming_semaphore != NULL )
@@ -2805,10 +2900,12 @@ THREAD_RETURN IgnoreIncomingCall( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/incomingcall/";
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Ignoring_incoming_call )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( incoming_con.ssl_socket == NULL && Try_Connect( &incoming_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( incoming_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -2830,26 +2927,27 @@ THREAD_RETURN IgnoreIncomingCall( void *pArguments )
 
 	send_buffer_length = ConstructVPNSPOST( incoming_send_buffer, resource, ignore_reply, ignore_reply_length );
 
-	if ( Try_Send_Receive( &incoming_con, host, incoming_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &incoming_con, host, resource, incoming_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
-
-		goto CLEANUP;
+	}
+	else
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Ignored_incoming_call )
 	}
 
 CLEANUP:
 
-	CleanupConnection( &incoming_con );
+	CleanupConnection( &incoming_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	// Release the semaphore if we're killing the thread.
 	if ( connection_incoming_semaphore != NULL )
@@ -2884,10 +2982,12 @@ THREAD_RETURN UpdateRegistration( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/registration";
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updating_registration )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -2904,26 +3004,27 @@ THREAD_RETURN UpdateRegistration( void *pArguments )
 	send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, update_registration, update_registration_reply_length );
 
 	// Update registration
-	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 		{ 
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
-
-		goto CLEANUP;
+	}
+	else
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updated_registration )
 	}
 
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	// Release the semaphore if we're killing the thread.
 	if ( connection_worker_semaphore != NULL )
@@ -2956,6 +3057,7 @@ THREAD_RETURN DeleteContact( void *pArguments )
 	// The contact we want to delete.
 	contactinfo *ci = ( contactinfo * )pArguments;
 
+	// This should stop the user from modifying the contact selection if our connection takes a while to be established.
 	Processing_Window( g_hWnd_contact_list, false );
 
 	if ( ci == NULL )
@@ -2968,10 +3070,12 @@ THREAD_RETURN DeleteContact( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/contacts";
 	char *host = "vpns.timewarnercable.com";
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Deleting_contact )
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -2986,7 +3090,7 @@ THREAD_RETURN DeleteContact( void *pArguments )
 
 	send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, delete_contact, delete_reply_length );
 
-	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		bool delete_status = false;
 
@@ -3004,7 +3108,7 @@ THREAD_RETURN DeleteContact( void *pArguments )
 					delete_status = true;
 				}
 
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 		}
 
@@ -3023,19 +3127,18 @@ THREAD_RETURN DeleteContact( void *pArguments )
 	// ri will be freed in the remove_items thread.
 	HANDLE hThread = ( HANDLE )_CreateThread( NULL, 0, remove_items, ( void * )ri, 0, NULL );
 
+	// Make sure the removal completes before we call Processing_Window below. Shouldn't take long.
 	if ( hThread != NULL )
 	{
 		WaitForSingleObject( hThread, INFINITE );
 		CloseHandle( hThread );
 	}
 
-
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	Processing_Window( g_hWnd_contact_list, true );
 
@@ -3085,7 +3188,6 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	bool update_status = false;
 	bool picture_status = false;
 
-
 	ui = ( updateinfo * )pArguments;
 
 	if ( ui == NULL )
@@ -3109,14 +3211,21 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/contacts";
 	char *host = "vpns.timewarnercable.com";
 
+	char ml_resource[ 256 ];
+	ml_resource[ 0 ] = 0;	// Sanity.
 
 	int update_contact_reply_length = 0;
 	char update_contact[ 2048 ];
 
+	if ( picture_only == false )
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updating_contact_information )
+	}
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -3246,14 +3355,14 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, update_contact, update_contact_reply_length );
 
-		if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
 			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 			{
 				char *error_code = NULL;	// POST requests only.
 				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 				{
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
 			}
 
@@ -3279,11 +3388,16 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 			"Cookie: %s; %s\r\n" \
 			"Connection: close\r\n\r\n", resource, account_id, old_ci->contact.contact_entry_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
 
-			if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+			if ( cfg_enable_message_log == true )
+			{
+				__snprintf( ml_resource, 256, "%s?UserId=[REDACTED]&ContactId=%s", resource, old_ci->contact.contact_entry_id );
+			}
+
+			if ( Try_Send_Receive( &worker_con, host, ml_resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 			{
 				update_status = false;	// Signals the cleanup to free ci.
 
-				if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code when requesting contact information." ); }
+				CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_status_code_when_requesting_contact_information ) )
 				goto CLEANUP;
 			}
 
@@ -3327,6 +3441,8 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	}
 	else	// Remove the contact's picture.
 	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removing_contact_picture )
+
 		update_contact_reply_length = __snprintf( update_contact, 1024,
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
 		"<UABContactList operation=\"update\">" \
@@ -3338,19 +3454,21 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, update_contact, update_contact_reply_length );
 
-		if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
 			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 			{
 				char *error_code = NULL;	// POST requests only.
 				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 				{
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
 			}
 		}
 		else	// Remove the old_ci picture path/location from the contact.
 		{
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_contact_picture )
+
 			GlobalFree( old_ci->picture_path );
 			old_ci->picture_path = NULL;
 
@@ -3370,10 +3488,9 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	// If something went wrong and we never received a reply from the server, then free the new contactinfo structure.
 	if ( new_ci != NULL && update_status == false )
@@ -3450,10 +3567,22 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 	char *resource = "/vpnsservice/v1_5/contacts";
 	char *host = "vpns.timewarnercable.com";
 
+	char ml_resource[ 256 ];
+	ml_resource[ 0 ] = 0;	// Sanity.
+
+	if ( mi->manage_type == 0 )
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Requesting_contact_list )
+	}
+	else if ( mi->manage_type == 1 )
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Adding_contact )
+	}
+
 	// Establish a connection to the server and keep it active until shutdown.
 	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -3470,6 +3599,11 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"User-Agent: %s\r\n" \
 		"Cookie: %s; %s\r\n" \
 		"Connection: close\r\n\r\n", resource, account_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
+
+		if ( cfg_enable_message_log == true )
+		{
+			__snprintf( ml_resource, 256, "%s?UserId=[REDACTED]", resource );
+		}
 	}
 	else if ( mi->manage_type == 1 )	// Add a single contact to our contact list.
 	{
@@ -3549,7 +3683,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, add_contact, add_contact_length );
 
-		if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
 			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 			{
@@ -3557,7 +3691,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 				char *error_code = NULL;	// POST requests only.
 				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 				{
-					_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
 			}
 
@@ -3576,7 +3710,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		// If we get here and haven't added the contact, then exit.
 		if ( add_status == false )
 		{
-			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper reply when adding contact." ); }
+			CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_reply_when_adding_contact ) )
 			goto CLEANUP;
 		}
 
@@ -3590,13 +3724,18 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"User-Agent: %s\r\n" \
 		"Cookie: %s; %s\r\n" \
 		"Connection: close\r\n\r\n", resource, account_id, ci->contact.contact_entry_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
+
+		if ( cfg_enable_message_log == true )
+		{
+			__snprintf( ml_resource, 256, "%s?UserId=[REDACTED]&ContactId=%s", resource, ci->contact.contact_entry_id );
+		}
 	}
 
-	if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &worker_con, host, ml_resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		add_status = false;	// Signals the cleanup to free ci.
 
-		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code when requesting contact list." ); }
+		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_status_code_when_requesting_contact_list ) )
 		goto CLEANUP;
 	}
 
@@ -3632,6 +3771,8 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		if ( cfg_download_pictures == true )
 		{
 			resource = "/vpnsservice/v1_5/contactsPics";
+
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Requesting_contact_picture_location_s_ )
 
 			int download_reply_length = 0;
 
@@ -3716,14 +3857,14 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 			}
 
 			// Doesn't really matter if this fails.
-			if ( Try_Send_Receive( &worker_con, host, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+			if ( Try_Send_Receive( &worker_con, host, resource, worker_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 			{
 				if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 				{
 					char *error_code = NULL;	// POST requests only.
 					if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 					{
-						_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+						MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 					}
 				}
 			}
@@ -3740,6 +3881,10 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 					{
 						// Download the pictures if any contact has one.
 						DownloadContactPictures( NULL );
+					}
+					else
+					{
+						MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_No_contact_picture_location_s__were_found )
 					}
 				}
 			}
@@ -3767,18 +3912,15 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 			ui->remove_picture = false;
 			// Add the contact to the listview. The only values this creates are the wide character phone values. Everything else will have been set.
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_contact_list, ( void * )ui, 0, NULL ) );
-
-			_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Contact was added successfully." );
 		}
 	}
 
 
 CLEANUP:
 
-	CleanupConnection( &worker_con );
+	CleanupConnection( &worker_con, host );
 
 	GlobalFree( response );
-	response = NULL;
 
 	// Free the manageinfo structure.
 	if ( mi != NULL )
@@ -3842,8 +3984,10 @@ THREAD_RETURN Connection( void *pArguments )
 
 	char *xml = NULL;
 
-	char *resource = NULL;
-	char *host = NULL;
+	char *host = "vpns.timewarnercable.com";
+
+	char ml_resource[ 256 ];
+	ml_resource[ 0 ] = 0;	// Sanity.
 
 	dllrbt_tree *session_cookie_tree = NULL;
 	char *session_cookies = NULL;
@@ -3869,12 +4013,6 @@ THREAD_RETURN Connection( void *pArguments )
 	GlobalFree( ls->password );
 	ls->password = NULL;
 
-	GlobalFree( resource );
-	resource = GlobalStrDupA( "/vpnsservice/v1_5/" );	// Use this version instead of v1.
-
-	GlobalFree( host );
-	host = GlobalStrDupA( "vpns.timewarnercable.com" );
-
 	HANDLE hThread = ( HANDLE )_CreateThread( NULL, 0, Authorization, ( void * )NULL, 0, NULL );
 
 	if ( hThread != NULL )
@@ -3891,7 +4029,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 	if ( Try_Connect( &main_con, host, cfg_connection_timeout ) == false )
 	{
-		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to connect to VPNS server." ); }
+		//CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
@@ -3911,7 +4049,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 	// App-Name header is required.	// Must use "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" with "Origin" header.
 	send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
-	"POST %sregistration " \
+	"POST /vpnsservice/v1_5/registration " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
 	"Referer: %s\r\n" \
@@ -3922,21 +4060,23 @@ THREAD_RETURN Connection( void *pArguments )
 	"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" \
 	"Content-Length: %d\r\n" \
 	"Connection: keep-alive\r\n\r\n" \
-	"%s", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, wayfarer_cookies, content_length, registration_buffer );
+	"%s", host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, wayfarer_cookies, content_length, registration_buffer );
+
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Requesting_available_services )
 
 	// Request available services.
-	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &main_con, host, "/vpnsservice/v1_5/registration", connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
 		{ 
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 			else
 			{
-				if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to request available services.\r\n\r\nPlease check your username and password and try again." ); }
+				CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_Failed_to_request_available_services ) )
 			}
 		}
 
@@ -3948,21 +4088,23 @@ THREAD_RETURN Connection( void *pArguments )
 	{
 		xml += 4;
 
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Parsing_account_information )
+
 		if ( GetAccountInformation( xml, &client_id, &account_id, &account_status, &account_type, &principal_id, &service_type, &service_status, &service_context, &service_phone_number, &service_privacy_value, &service_notifications, &service_features, phone_lines ) == false )
 		{
-			if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse account information." ); }
+			CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_account_information ) )
 			goto CLEANUP;
 		}
 	}
 	else
 	{
-		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"The login was unsuccessful.\r\n\r\nPlease check your username and password and try again." ); }
+		CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_The_login_was_unsuccessful ) )
 		goto CLEANUP;
 	}
 
 	if ( ParseCookies( response, &vpns_cookie_tree, &vpns_cookies ) == false )
 	{
-		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse server cookies." ); }
+		CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_server_cookies ) )
 		goto CLEANUP;
 	}
 
@@ -3970,6 +4112,12 @@ THREAD_RETURN Connection( void *pArguments )
 	// This will set current_phone_line.
 	if ( phone_lines > 1 )
 	{
+		// Don't block if we've canceled the login.
+		if ( main_con.state == LOGGED_OUT || main_con.state == LOGGING_OUT )
+		{
+			goto CLEANUP;
+		}
+
 		// This semaphore will be released in g_hWnd_phone_lines' WM_DESTROY.
 		select_line_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
@@ -4003,7 +4151,7 @@ THREAD_RETURN Connection( void *pArguments )
 	}
 
 	send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
-	"POST %sregistration " \
+	"POST /vpnsservice/v1_5/registration " \
 	"HTTP/1.1\r\n" \
 	"Host: %s\r\n" \
 	"Referer: %s\r\n" \
@@ -4014,29 +4162,28 @@ THREAD_RETURN Connection( void *pArguments )
 	"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n" \
 	"Content-Length: %d\r\n" \
 	"Connection: keep-alive\r\n\r\n" \
-	"%s", resource, host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, vpns_cookies, wayfarer_cookies, content_length, registration_buffer );
+	"%s", host, REFERER, APPLICATION_NAME, USER_AGENT, ORIGIN, vpns_cookies, wayfarer_cookies, content_length, registration_buffer );
+
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Subscribing_to_available_services )
 
 	// Subscribe to the available services above.
-	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	if ( Try_Send_Receive( &main_con, host, "/vpnsservice/v1_5/registration", connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 	{
 		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
 		{ 
 			char *error_code = NULL;	// POST requests only.
 			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
 			{
-				_SendNotifyMessageW( g_hWnd_login, WM_ALERT, 1, ( LPARAM )error_code );	// Frees error_code
+				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
 			else
 			{
-				if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to register available services." ); }
+				CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_subscribe_to_available_services ) )
 			}
 		}
 
 		goto CLEANUP;
 	}
-
-	GlobalFree( resource );
-	resource = NULL;
 
 	manageinfo *mi = ( manageinfo * )GlobalAlloc( GMEM_FIXED, sizeof( manageinfo ) );
 	mi->ci = NULL;
@@ -4056,16 +4203,23 @@ THREAD_RETURN Connection( void *pArguments )
 	"Cookie: %s\r\n" \
 	"Connection: keep-alive\r\n\r\n", ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( client_id ), host, REFERER, APPLICATION_NAME, USER_AGENT, wayfarer_cookies );
 
-	// Notification setup.
-	if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Joining_notification_server )
+
+	if ( cfg_enable_message_log == true )
 	{
-		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to receive proper status code when attempting notification setup." ); }
+		__snprintf( ml_resource, 256, "/vpnspush/v1_5/join?id=[REDACTED]&clientId=[REDACTED]" );
+	}
+
+	// Notification setup.
+	if ( Try_Send_Receive( &main_con, host, ml_resource, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+	{
+		CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_status_code_when_attempting_notification_setup ) )
 		goto CLEANUP;
 	}
 
 	if ( ParseCookies( response, &session_cookie_tree, &session_cookies ) == false )
 	{
-		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT ) { _SendNotifyMessageW( g_hWnd_login, WM_ALERT, 0, ( LPARAM )L"Failed to parse notification setup cookies." ); }
+		CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_notification_setup_cookies ) )
 		goto CLEANUP;
 	}
 
@@ -4085,6 +4239,8 @@ THREAD_RETURN Connection( void *pArguments )
 
 	// At this point we should be logged in. We can send our ping to the server.
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Logged_in )
+
 	if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
 	{
 		main_con.state = LOGGED_IN;
@@ -4100,10 +4256,12 @@ THREAD_RETURN Connection( void *pArguments )
 	li_register.LowPart = LastFileTime.dwLowDateTime;
 	li_register.HighPart = LastFileTime.dwHighDateTime;
 
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Polling_for_incoming_data )
+
 	while ( true )
 	{
 		// HTTP status error 400 indicates a bad request. Here it means that the session cookie has expired, or is bad.
-		if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
+		if ( Try_Send_Receive( &main_con, host, "/vpnspush/v1_5/check", connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout ) == -1 )
 		{
 			// Reconnect loop.
 			while ( true )
@@ -4113,7 +4271,9 @@ THREAD_RETURN Connection( void *pArguments )
 					goto CLEANUP;
 				}
 
-				CleanupConnection( &main_con );
+				CleanupConnection( &main_con, host );
+
+				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Reestablishing_connection )
 
 				if ( Try_Connect( &main_con, host, cfg_connection_timeout, false ) == true )
 				{
@@ -4128,8 +4288,13 @@ THREAD_RETURN Connection( void *pArguments )
 					"Cookie: %s; %s\r\n" \
 					"Connection: keep-alive\r\n\r\n", ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( client_id ), host, REFERER, APPLICATION_NAME, USER_AGENT, session_cookies, wayfarer_cookies );
 
+					if ( cfg_enable_message_log == true )
+					{
+						__snprintf( ml_resource, 256, "/vpnspush/v1_5/join?id=[REDACTED]&clientId=[REDACTED]" );
+					}
+
 					// Notification setup.
-					if ( Try_Send_Receive( &main_con, host, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout, false ) != -1 )
+					if ( Try_Send_Receive( &main_con, host, ml_resource, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout, false ) != -1 )
 					{
 						// If the wayfarer cookie is bad, then http_status will probably be 403.
 						if ( http_status != 200 && CheckAuthorization( response ) == true )
@@ -4314,7 +4479,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 CLEANUP:
 
-	CleanupConnection( &main_con );
+	CleanupConnection( &main_con, host );
 
 	// Stop any connection worker threads.
 	kill_connection_worker_thread();
@@ -4331,6 +4496,8 @@ CLEANUP:
 		CloseHandle( reconnect_semaphore );
 		reconnect_semaphore = NULL;
 	}
+
+	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Logged_out )
 
 	// Show the default login window if we cleanly logged off, canceled the login procedure, or if we experienced an unexpected log off.
 	if ( main_con.state != LOGGED_OUT )
@@ -4363,37 +4530,25 @@ CLEANUP:
 	}
 
 	dllrbt_delete_recursively( session_cookie_tree );
-	session_cookie_tree = NULL;
 
 	GlobalFree( session_cookies );
-	session_cookies = NULL;
 
 	GlobalFree( response );
-	response = NULL;
-
-	GlobalFree( host );
-	host = NULL;
-	GlobalFree( resource );
-	resource = NULL;
 
 	if ( service_notifications != NULL )
 	{
 		for ( int i = 0; i < phone_lines; ++i )
 		{
 			GlobalFree( service_notifications[ i ] );
-			service_notifications[ i ] = NULL;
 		}
 		GlobalFree( service_notifications );
-		service_notifications = NULL;
 	}
 
 	if ( ls != NULL )
 	{
 		// Free login information.
 		GlobalFree( ls->username );
-		ls->username = NULL;
 		GlobalFree( ls->password );
-		ls->password = NULL;
 		GlobalFree( ls );
 	}
 

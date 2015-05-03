@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2014 Eric Kutcher
+	Copyright (C) 2013-2015 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "globals.h"
 #include "utilities.h"
+#include "message_log_utilities.h"
 #include "menus.h"
 #include "string_tables.h"
 #include "lite_gdi32.h"
@@ -25,7 +26,7 @@
 #define CID_LIST_COUNT	6
 
 HANDLE worker_semaphore = NULL;			// Blocks shutdown while a worker thread is active.
-bool kill_worker_thead = false;			// Allow for a clean shutdown.
+bool kill_worker_thread_flag = false;	// Allow for a clean shutdown.
 
 CRITICAL_SECTION pe_cs;					// Queues additional worker threads.
 
@@ -51,7 +52,9 @@ bool cfg_silent_startup = false;
 
 bool cfg_always_on_top = false;
 
-bool cfg_enable_call_log_history = false;
+bool cfg_enable_call_log_history = true;
+
+bool cfg_enable_message_log = false;
 
 bool cfg_check_for_updates = false;
 
@@ -245,7 +248,7 @@ int *ignore_list_columns_width[ NUM_COLUMNS4 ] =  { &cfg_column4_width1, &cfg_co
 int *forward_cid_list_columns_width[ NUM_COLUMNS5 ] = { &cfg_column5_width1, &cfg_column5_width2, &cfg_column5_width3, &cfg_column5_width4, &cfg_column5_width5, &cfg_column5_width6 };
 int *ignore_cid_list_columns_width[ NUM_COLUMNS6 ] =  { &cfg_column6_width1, &cfg_column6_width2, &cfg_column6_width3, &cfg_column6_width4, &cfg_column6_width5 };
 
-unsigned short bad_area_codes[ 29 ] = { 211, 242, 246, 264, 268, 284, 311, 345, 411, 441, 473, 511, 611, 649, 664, 711, 758, 767, 784, 809, 811, 829, 849, 868, 869, 876, 900, 911, 976 };
+//unsigned short bad_area_codes[ 29 ] = { 211, 242, 246, 264, 268, 284, 311, 345, 411, 441, 473, 511, 611, 649, 664, 711, 758, 767, 784, 809, 811, 829, 849, 868, 869, 876, 900, 911, 976 };
 
 #define ROTATE_LEFT( x, n ) ( ( ( x ) << ( n ) ) | ( ( x ) >> ( 8 - ( n ) ) ) )
 #define ROTATE_RIGHT( x, n ) ( ( ( x ) >> ( n ) ) | ( ( x ) << ( 8 - ( n ) ) ) )
@@ -1372,7 +1375,7 @@ void kill_worker_thread()
 		// This semaphore will be released when the thread gets killed.
 		worker_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
-		kill_worker_thead = true;	// Causes secondary threads to cease processing and release the semaphore.
+		kill_worker_thread_flag = true;	// Causes secondary threads to cease processing and release the semaphore.
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
 		WaitForSingleObject( worker_semaphore, 5000 );
@@ -1389,6 +1392,8 @@ THREAD_RETURN cleanup( void *pArguments )
 	kill_connection_incoming_thread();
 	kill_connection_thread();
 	kill_update_check_thread();
+	kill_ml_update_thread();
+	kill_ml_worker_thread();
 
 	// DestroyWindow won't work on a window from a different thread. So we'll send a message to trigger it.
 	_SendMessageW( g_hWnd_main, WM_DESTROY_ALT, 0, 0 );

@@ -263,6 +263,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\message_log_utilities.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\parsing.cpp"
 				>
 			</File>
@@ -312,6 +316,10 @@
 			</File>
 			<File
 				RelativePath=".\wnd_proc_main.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\wnd_proc_message_log.cpp"
 				>
 			</File>
 			<File
@@ -414,6 +422,10 @@
 			</File>
 			<File
 				RelativePath=".\menus.h"
+				>
+			</File>
+			<File
+				RelativePath=".\message_log_utilities.h"
 				>
 			</File>
 			<File
