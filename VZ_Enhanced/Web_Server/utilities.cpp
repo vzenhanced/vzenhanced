@@ -432,11 +432,11 @@ char *json_escape( char *str, unsigned int str_len, unsigned int *enc_len )
 			*pbuf++ = '\\';
 			*pbuf++ = 'f';
 		}
-		else if ( *pstr == '\u' )
+		/*else if ( *pstr == '\u' )	// \u0000
 		{
 			*pbuf++ = '\\';
 			*pbuf++ = 'u';
-		}
+		}*/
 		else// if ( *pstr > 0x1F && *pstr != 0x7F )
 		{
 			*pbuf++ = *pstr;
