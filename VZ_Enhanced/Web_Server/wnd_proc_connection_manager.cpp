@@ -394,8 +394,16 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 					last_rc.left = 5 + last_left;
 					last_rc.right = lvc.cx + last_left - 5;
 
+					// Save the last left position of our column.
+					last_left += lvc.cx;
+
 					// Save the height and width of this region.
 					int width = last_rc.right - last_rc.left;
+					if ( width <= 0 )
+					{
+						continue;
+					}
+
 					int height = last_rc.bottom - last_rc.top;
 
 					// Normal text position.
@@ -445,9 +453,6 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 
 					// Delete our back buffer.
 					_DeleteDC( hdcMem );
-
-					// Save the last left position of our column.
-					last_left += lvc.cx;
 				}
 			}
 			return TRUE;

@@ -2474,7 +2474,7 @@ bool CreateListenSocket()
 
 		g_domain = GetUTF8Domain( wcs_ip );
 
-		if ( _GetAddrInfoW( wcs_ip, cport, &hints, &addrlocal) != 0 )
+		if ( _GetAddrInfoW( wcs_ip, cport, &hints, &addrlocal ) != 0 )
 		{
 			ret = false;
 			goto CLEANUP;

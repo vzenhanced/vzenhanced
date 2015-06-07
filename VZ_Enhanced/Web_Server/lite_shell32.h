@@ -74,7 +74,7 @@
 	typedef PIDLIST_ABSOLUTE ( WINAPI *pSHBrowseForFolderW )( LPBROWSEINFO lpbi );
 	typedef BOOL ( WINAPI *pSHGetPathFromIDListW )( PCIDLIST_ABSOLUTE pidl, LPTSTR pszPath );
 
-	typedef int ( WINAPI *pSHGetFolderPathW )( HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, LPTSTR pszPath );
+	typedef HRESULT ( WINAPI *pSHGetFolderPathW )( HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, LPTSTR pszPath );
 
 	//typedef LPWSTR * ( WINAPI *pCommandLineToArgvW )( LPCWSTR lpCmdLine, int *pNumArgs );
 

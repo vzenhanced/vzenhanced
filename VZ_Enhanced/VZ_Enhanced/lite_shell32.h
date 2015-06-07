@@ -68,7 +68,7 @@
 
 	typedef int ( WINAPI *pStrCmpNIW )( PCTSTR psz1, PCTSTR psz2, int nChar );
 
-	typedef int ( WINAPI *pSHGetFolderPathW )( HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, LPTSTR pszPath );
+	typedef HRESULT ( WINAPI *pSHGetFolderPathW )( HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, LPTSTR pszPath );
 
 	typedef LPWSTR * ( WINAPI *pCommandLineToArgvW )( LPCWSTR lpCmdLine, int *pNumArgs );
 
