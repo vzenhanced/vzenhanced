@@ -2630,6 +2630,9 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 			// Continue to write any data that hasn't been sent.
 			if ( socket_context->io_context->nSentBytes < socket_context->io_context->nTotalBytes )
 			{
+				socket_context->io_context->wsabuf.buf = socket_context->io_context->buffer + socket_context->io_context->nSentBytes;
+				socket_context->io_context->wsabuf.len = socket_context->io_context->nTotalBytes - socket_context->io_context->nSentBytes;
+
 				bool ret = TrySend( socket_context, overlapped, socket_context->io_context->LastIOOperation, socket_context->io_context->IOOperation );
 				if ( ret == false )
 				{
@@ -2804,6 +2807,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 			{
 				socket_context->ci->tx_bytes += dwIoSize;
 
+				socket_context->io_context->wsabuf.buf = socket_context->io_context->buffer;
 				socket_context->io_context->wsabuf.buf[ dwIoSize ] = 0;	// Sanity.
 				socket_context->io_context->wsabuf.len = dwIoSize;
 
@@ -2859,6 +2863,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 			{
 				socket_context->ci->rx_bytes += dwIoSize;
 
+				socket_context->io_context->wsabuf.buf = socket_context->io_context->buffer;
 				socket_context->io_context->wsabuf.buf[ dwIoSize ] = 0;	// Sanity.
 				socket_context->io_context->wsabuf.len = dwIoSize;
 

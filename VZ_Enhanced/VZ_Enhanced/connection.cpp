@@ -30,12 +30,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.7"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.8"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.1.7"
+#define USER_AGENT			"VZ-Enhanced/1.0.1.8"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -45,7 +45,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1017
+#define CURRENT_VERSION		1018
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -678,6 +678,7 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 					{
 						// Status response.
 						char cstatus[ 4 ];
+						_memzero( cstatus, 4 );
 						_memcpy_s( cstatus, 4, find_status, ( ( end_status - find_status ) > 3 ? 3 : ( end_status - find_status ) ) );
 						cstatus[ 3 ] = 0; // Sanity
 						http_status = ( unsigned short )_strtoul( cstatus, NULL, 10 );
@@ -762,7 +763,8 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 						}
 
 						char clength[ 11 ];
-						_memcpy_s( clength, 11, content_length_header, ( ( end_of_length_header - content_length_header ) > 11 ? 11 : ( end_of_length_header - content_length_header ) ) );
+						_memzero( clength, 11 );
+						_memcpy_s( clength, 11, content_length_header, ( ( end_of_length_header - content_length_header ) > 10 ? 10 : ( end_of_length_header - content_length_header ) ) );
 						clength[ 10 ] = 0;	// Sanity
 						content_length = _strtoul( clength, NULL, 10 );
 
