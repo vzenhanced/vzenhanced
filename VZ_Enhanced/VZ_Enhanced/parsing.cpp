@@ -358,10 +358,8 @@ bool ParseURL( char *url, char **host, char **resource )
 	_memcpy_s( *host, sizeof( char ) * ( host_length + 1 ), str_pos_start, host_length + 1 );
 	*( *host + host_length ) = 0;	// Sanity
 
-	str_pos_start += host_length;
-
 	// Save the resource.
-	*resource = GlobalStrDupA( str_pos_start );
+	*resource = GlobalStrDupA( str_pos_end );
 
 	return true;
 }
