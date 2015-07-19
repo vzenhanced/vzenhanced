@@ -2315,7 +2315,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_options == NULL )
 						{
-							g_hWnd_options = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 600 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 395 ) / 2 ), 600, 395, NULL, NULL, NULL, NULL );
+							g_hWnd_options = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 470 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 395 ) / 2 ), 470, 395, NULL, NULL, NULL, NULL );
 							_ShowWindow( g_hWnd_options, SW_SHOWNORMAL );
 						}
 						_SetForegroundWindow( g_hWnd_options );
@@ -2357,7 +2357,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.1.8\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.1.9\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -2879,7 +2879,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					// This leaves us with an integer in which the last digit will represent the decimal value.
 					float f_percentage = 1000.0f * ( float )upload_info->sent / ( float )upload_info->size;
 					int i_percentage = 0;
-					_asm
+					__asm
 					{
 						fld f_percentage;	//; Load the floating point value onto the FPU stack.
 						fistp i_percentage;	//; Convert the floating point value into an integer, store it in an integer, and then pop it off the stack.

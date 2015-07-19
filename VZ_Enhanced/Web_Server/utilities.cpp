@@ -24,6 +24,55 @@
 #include "lite_shell32.h"
 #include "lite_user32.h"
 
+// Must use GlobalFree on this.
+char *GlobalStrDupA( const char *_Str )
+{
+	if ( _Str == NULL )
+	{
+		return NULL;
+	}
+
+	size_t size = lstrlenA( _Str ) + sizeof( char );
+
+	char *ret = ( char * )GlobalAlloc( GMEM_FIXED, size );
+
+	if ( ret == NULL )
+	{
+		return NULL;
+	}
+
+	_memcpy_s( ret, size, _Str, size );
+
+	return ret;
+}
+
+// Must use GlobalFree on this.
+wchar_t *GlobalStrDupW( const wchar_t *_Str )
+{
+	if ( _Str == NULL )
+	{
+		return NULL;
+	}
+
+	size_t size = lstrlenW( _Str ) * sizeof( wchar_t ) + sizeof( wchar_t );
+
+	wchar_t *ret = ( wchar_t * )GlobalAlloc( GMEM_FIXED, size );
+
+	if ( ret == NULL )
+	{
+		return NULL;
+	}
+
+	_memcpy_s( ret, size, _Str, size );
+
+	return ret;
+}
+
+int dllrbt_compare( void *a, void *b )
+{
+	return lstrcmpA( ( char * )a, ( char * )b );
+}
+
 char *CreateAuthentication( wchar_t *authentication_username, wchar_t *authentication_password, DWORD &authentication_length )
 {
 	int concatenated_offset = 0;
@@ -145,164 +194,75 @@ __int64 ntohll( __int64 i )
 	//return ( ( __int64 )_ntohl( i & 0xFFFFFFFFU ) << 32 ) | _ntohl( ( __int64 )( i >> 32 ) );
 }
 
-char *DeconstructFrame( char *buf, DWORD *buf_length, WS_OPCODE &opcode, char **payload, unsigned __int64 &payload_length )
+unsigned long long strtoull( char *str )
 {
-	if ( buf == NULL || *buf_length < 2 )
-	{
-		return NULL;
-	}
-
-	int buffer_offset = 0;
-	/*unsigned short websocket_header = 0;
-	_memcpy_s( &websocket_header, sizeof( unsigned short ), lpIOContext->wsabuf.buf, sizeof( unsigned short ) );
-	buffer_offset += sizeof( unsigned short );
-
-	websocket_header = _ntohs( websocket_header );
-	
-	unsigned short ws_fin =			websocket_header >> 15 & 0x01;
-	unsigned short ws_rsv1 =		websocket_header >> 14 & 0x01;
-	unsigned short ws_rsv2 =		websocket_header >> 13 & 0x01;
-	unsigned short ws_rsv3 =		websocket_header >> 12 & 0x01;
-	unsigned short ws_opcode =		websocket_header >> 8 & 0x0F;
-	unsigned short ws_mask =		websocket_header >> 7 & 0x01;
-	unsigned short ws_payload_len =	websocket_header >> 0 & 0x7F;
-	*/
-
-	unsigned char ws_fin =			buf[ 0 ] >> 7 & 0x01;
-	unsigned char ws_rsv1 =			buf[ 0 ] >> 6 & 0x01;
-	unsigned char ws_rsv2 =			buf[ 0 ] >> 5 & 0x01;
-	unsigned char ws_rsv3 =			buf[ 0 ] >> 4 & 0x01;
-	unsigned char ws_opcode =		buf[ 0 ] & 0x0F;
-
-	unsigned char ws_mask =			buf[ 1 ] >> 7 & 0x01;
-	unsigned char ws_payload_len =	buf[ 1 ] & 0x7F;
-
-	buffer_offset += ( sizeof( unsigned char ) * 2 );
-
-	opcode = ( WS_OPCODE )ws_opcode;
-
-	if ( ws_payload_len == 126 )
-	{
-		unsigned short extended_payload1 = 0;
-		_memcpy_s( &extended_payload1, sizeof( unsigned short ), buf + buffer_offset, sizeof( unsigned short ) );
-		buffer_offset += sizeof( unsigned short );
-
-		payload_length = ( unsigned __int64 )_ntohs( extended_payload1 );
-	}
-	else if ( ws_payload_len >= 127 )
-	{
-		_memcpy_s( &payload_length, sizeof( unsigned __int64 ), buf + buffer_offset, sizeof( unsigned __int64 ) );
-		buffer_offset += sizeof( unsigned __int64 );
-
-		payload_length = ntohll( payload_length );
-	}
-	else
-	{
-		payload_length = ( unsigned __int64 )ws_payload_len;
-	}
-
-	unsigned char masking_key[ 4 ];
-	_memzero( &masking_key, sizeof( masking_key ) );
-	if ( ws_mask == 1 )
-	{
-		_memcpy_s( masking_key, sizeof( masking_key ), buf + buffer_offset, sizeof( masking_key ) );
-		buffer_offset += sizeof( masking_key );
-	}
-
-	*payload = buf + buffer_offset;
-
-	for ( unsigned int i = 0; i < payload_length; ++i )
-	//for ( unsigned __int64 i = 0; i < payload_length; ++i )
-	{
-		if ( i + buffer_offset >= ( unsigned int )*buf_length )
-		{
-			break;
-		}
-
-		buf[ buffer_offset + i ] ^= masking_key[ i % 4 ];
-	}
-
-	if ( buffer_offset + payload_length < *buf_length )
-	{
-		*buf_length -= ( int )( buffer_offset + payload_length );
-		return buf + ( buffer_offset + payload_length );
-	}
-	else
-	{
-		*buf_length = 0;
-		return NULL;
-	}
-}
-
-int ConstructFrameHeader( char *buf, int buf_length, WS_OPCODE opcode, /*char *payload,*/ unsigned __int64 payload_length )
-{
-	if ( buf == NULL || buf_length < 2 )
+	if ( str == NULL )
 	{
 		return 0;
 	}
 
-	unsigned char fin =		0x01;	// Final frame. We're not going to break up our frames.
-	unsigned char rsv1 =	0x00;	// Reserved
-	unsigned char rsv2 =	0x00;	// Reserved
-	unsigned char rsv3 =	0x00;	// Reserved
-	unsigned char mask =	0x00;	// Server doesn't mask payload. Client has this bit set.
-	unsigned char len =		0x00;
+	char *p = str;
 
-	// Adjust the length accordingly.
-	unsigned char len_type = 0;
-	if ( payload_length > 65535 )
+	ULARGE_INTEGER uli;
+	uli.QuadPart = 0;
+
+	unsigned char digit = 0;
+
+	while ( *p && ( *p >= '0' && *p <= '9' ) )
 	{
-		len = 127;
-		len_type = 2;
+		if ( uli.QuadPart > ( ULLONG_MAX / 10 ) )
+		{
+			uli.QuadPart = ULLONG_MAX;
+			break;
+		}
+
+		//uli.QuadPart *= 10;
+
+		__asm
+		{
+			mov     eax, dword ptr [ uli.QuadPart + 4 ]
+			cmp		eax, 0					;// See if our QuadPart's value extends to 64 bits.
+			mov     ecx, 10					;// Store the base (10) multiplier (low order bits).
+			jne     short extend			;// If there are high order bits in QuadPart, then multiply/add high and low bits.
+
+			mov     eax, dword ptr [ uli.QuadPart + 0 ]	;// Store the QuadPart's low order bits.
+			mul     ecx						;// Multiply the low order bits.
+
+			jmp		finish					;// Store the results in our 64 bit value.
+
+		extend:
+
+			push    ebx						;// Save value to stack.
+
+			mul     ecx						;// Multiply the high order bits of QuadPart with the low order bits of base (10).
+			mov     ebx, eax				;// Store the result.
+
+			mov     eax, dword ptr [ uli.QuadPart + 0 ]	;// Store QuadPart's low order bits.
+			mul     ecx						;// Multiply the low order bits of QuadPart with the low order bits of base (10). edx = high, eax = low
+			add     edx, ebx				;// Add the low order bits (ebx) to the high order bits (edx).
+
+			pop     ebx						;// Restore value from stack.
+
+		finish:
+
+			mov		uli.HighPart, edx		;// Store the high order bits.
+			mov		uli.LowPart, eax		;// Store the low order bits.
+		}
+
+		digit = *p - '0';
+
+		if ( uli.QuadPart > ( ULLONG_MAX - digit ) )
+		{
+			uli.QuadPart = ULLONG_MAX;
+			break;
+		}
+
+		uli.QuadPart += digit;
+
+		++p;
 	}
-	else if ( payload_length > 125 )
-	{
-		len = 126;
-		len_type = 1;
-	}
-	else
-	{
-		len = ( unsigned char )payload_length;
-		len_type = 0;
-	}
 
-	unsigned short frame_header = 0;
-
-	// Big endian (network byte order)
-	// Byte 2.
-	frame_header =	 frame_header		 | mask;
-	frame_header = ( frame_header << 7 ) | len;
-	// Byte 1.
-	frame_header = ( frame_header << 1 ) | fin;
-	frame_header = ( frame_header << 1 ) | rsv1;
-	frame_header = ( frame_header << 1 ) | rsv2;
-	frame_header = ( frame_header << 1 ) | rsv3;
-	frame_header = ( frame_header << 4 ) | opcode;
-
-	int buf_offset = 0;
-	_memcpy_s( buf, buf_length, &frame_header, sizeof( unsigned short ) );
-	buf_offset += sizeof( unsigned short );
-
-	if ( len_type == 1 )	// Extended payload 16 bits.
-	{
-		unsigned short extended_payload_length = _ntohs( ( unsigned short )payload_length );
-		_memcpy_s( buf + buf_offset, buf_length - buf_offset, &extended_payload_length, sizeof( unsigned short ) );
-		buf_offset += sizeof( unsigned short );
-	}
-	else if ( len_type == 2 )	// Extended payload 64 bits.
-	{
-		unsigned __int64 extended_payload_length = ntohll( payload_length );
-		_memcpy_s( buf + buf_offset, buf_length - buf_offset, &extended_payload_length, sizeof( unsigned __int64 ) );
-		buf_offset += sizeof( unsigned __int64 );
-	}
-
-	/*if ( payload_length > 0 && payload_length <= ( buf_length - buf_offset )  )
-	{
-		_memcpy_s( buf + buf_offset, buf_length - buf_offset, payload, ( rsize_t )payload_length );
-		buf_offset += ( int )payload_length;
-	}*/
-
-	return buf_offset;
+	return uli.QuadPart;
 }
 
 char from_hex( char c )
@@ -459,6 +419,15 @@ char *json_escape( char *str, unsigned int str_len, unsigned int *enc_len )
 	}
 
 	return buf;
+}
+
+char *GetUTF8Domain( wchar_t *domain )
+{
+	int domain_length = WideCharToMultiByte( CP_UTF8, 0, domain, -1, NULL, 0, NULL, NULL );
+	char *utf8_domain = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * domain_length ); // Size includes the null character.
+	WideCharToMultiByte( CP_UTF8, 0, domain, -1, utf8_domain, domain_length, NULL, NULL );
+
+	return utf8_domain;
 }
 
 char *GetFileExtension( char *path )

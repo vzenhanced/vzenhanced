@@ -24,6 +24,6 @@
 char read_config();
 char save_config();
 
-void PreloadIndexFile();
+void PreloadIndexFile( dllrbt_tree *resource_cache, unsigned long long *resource_cache_size, unsigned long long maximum_resource_cache_size );
 
 #endif

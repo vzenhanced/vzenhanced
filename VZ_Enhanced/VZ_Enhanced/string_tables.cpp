@@ -298,11 +298,11 @@ wchar_t *options_string_table[] =
 	L"Check for updates upon startup",
 	L"Close to System Tray",
 	L"Connection",
-	L"Delay Time:",
-	L"Down",
+	L"Delay Time (seconds):",
+	/*L"Down",*/
 	L"Enable Call Log history",
 	L"Enable contact picture downloads",
-	L"Enable Popup windows:",
+	L"Enable popup windows:",
 	L"Enable System Tray icon:",
 	L"Font:",
 	L"Font color:",
@@ -310,7 +310,7 @@ wchar_t *options_string_table[] =
 	L"General",
 	L"Gradient background color:",
 	L"Gradient direction:",
-	L"Height:",
+	L"Height (pixels):",
 	L"Hide window border",
 	L"Horizontal",
 	L"Justify text:",
@@ -324,24 +324,24 @@ wchar_t *options_string_table[] =
 	L"Reconnect upon connection loss:",
 	L"Retries:",
 	L"Right",
-	L"Sample:",
+	/*L"Sample:",*/
 	L"Screen Position:",
 	L"Show line:",
 	L"Silent startup",
 	L"SSL 2.0",
 	L"SSL 3.0",
-	L"SSL version:",
+	L"SSL/TLS version:",
 	L"Time format:",
-	L"Timeout:",
+	L"Timeout (seconds):",
 	L"TLS 1.0",
 	L"TLS 1.1",
 	L"TLS 1.2",
 	L"Top Left",
 	L"Top Right",
 	L"Transparency:",
-	L"Up",
+	/*L"Up",*/
 	L"Vertical",
-	L"Width:"
+	L"Width (pixels):"
 };
 
 wchar_t *call_log_string_table[] =

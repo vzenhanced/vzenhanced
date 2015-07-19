@@ -938,7 +938,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					// This leaves us with an integer in which the last digit will represent the decimal value.
 					float f_percentage = 1000.0f * ( float )upload_info->sent / ( float )upload_info->size;
 					int i_percentage = 0;
-					_asm
+					__asm
 					{
 						fld f_percentage;	//; Load the floating point value onto the FPU stack.
 						fistp i_percentage;	//; Convert the floating point value into an integer, store it in an integer, and then pop it off the stack.

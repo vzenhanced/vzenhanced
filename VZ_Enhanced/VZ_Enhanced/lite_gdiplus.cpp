@@ -156,7 +156,7 @@ HBITMAP ImageToBitmap( wchar_t *file_path, unsigned int &height, unsigned int &w
 			int nw = 0;
 			int nh = 0;
 
-			_asm
+			__asm
 			{
 				fld w;		//; Load the floating point width onto the FPU stack.
 				fistp nw;	//; Convert the floating point width into an integer, store it in an integer, and then pop it off the stack.

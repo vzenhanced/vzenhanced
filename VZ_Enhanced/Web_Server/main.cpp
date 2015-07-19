@@ -21,6 +21,7 @@
 #include "file_operations.h"
 
 #include "connection.h"
+#include "connection_websocket.h"
 
 #include "lite_ntdll.h"
 #include "lite_shell32.h"
@@ -37,6 +38,8 @@
 
 #include "menus.h"
 
+#include "readwritelock.h"
+
 //#define USE_DEBUG_DIRECTORY
 
 #ifdef USE_DEBUG_DIRECTORY
@@ -44,8 +47,6 @@
 #else
 	#define BASE_DIRECTORY_FLAG CSIDL_LOCAL_APPDATA
 #endif
-
-CRITICAL_SECTION cc_cs;	// Close connection critical section.
 
 int row_height = 0;
 
@@ -65,6 +66,7 @@ unsigned char cfg_ssl_version = 2;	// TLS 1.0
 
 bool cfg_auto_start = false;
 bool cfg_verify_origin = false;
+bool cfg_allow_keep_alive_requests = false;
 bool cfg_enable_ssl = false;
 
 unsigned char cfg_certificate_type = 0;	// PKCS
@@ -84,12 +86,11 @@ wchar_t *cfg_authentication_password = NULL;
 unsigned long cfg_thread_count = 1;
 unsigned long max_threads = 2;
 
+unsigned long long cfg_resource_cache_size = 2097152;	// 2 megabytes.
+
 char *encoded_authentication = NULL;
 DWORD encoded_authentication_length = 0;
 
-
-char *index_file_buf = NULL;
-DWORD index_file_buf_length = 0;
 
 // DO NOT FREE
 extern "C" __declspec( dllexport )
@@ -202,6 +203,11 @@ bool InitializeWebServerDLL( wchar_t *directory )
 		if ( InitializeCrypt32() == false ){ return false; }
 	#endif
 
+	// If this is false, then we're probably on XP or older.
+	// In that case, we'll use our own reader-writer lock functions.
+	// Otherwise, we'll use the Kernel32 library functions.
+	use_rwl_library = InitializeKernel32();
+
 	base_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * MAX_PATH );
 
 	// Use the default directory if the main executable didn't set the path for us.
@@ -230,9 +236,6 @@ bool InitializeWebServerDLL( wchar_t *directory )
 		_wmemcpy_s( base_directory, MAX_PATH, directory, base_directory_length );
 		base_directory[ base_directory_length ] = 0;	// Sanity.
 	}
-
-	InitializeCriticalSection( &cc_cs );
-	InitializeCriticalSection( &g_CriticalSection );
 
 	// Get the default message system font.
 	NONCLIENTMETRICS ncm;
@@ -343,11 +346,6 @@ void UnInitializeWebServerDLL()
 		GlobalFree( encoded_authentication );
 	}
 
-	if ( index_file_buf != NULL )
-	{
-		GlobalFree( index_file_buf );
-	}
-
 	if ( base_directory != NULL )
 	{
 		GlobalFree( base_directory );
@@ -355,9 +353,6 @@ void UnInitializeWebServerDLL()
 
 	// Perform any necessary cleanup.
 	_DeleteObject( hFont );
-
-	DeleteCriticalSection( &g_CriticalSection );
-	DeleteCriticalSection( &cc_cs );
 
 	// Delay loaded.
 	SSL_library_uninit();
@@ -373,6 +368,8 @@ void UnInitializeWebServerDLL()
 	#endif
 
 	// Start up loaded DLLs
+	UnInitializeKernel32();
+
 	#ifndef CRYPT32_USE_STATIC_LIB
 		UnInitializeCrypt32();
 	#endif

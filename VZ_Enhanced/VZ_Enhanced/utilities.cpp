@@ -1247,11 +1247,20 @@ void CreatePopup( displayinfo *fi )
 		__snwprintf( time_line, 16, L"%s%d:%02d", ( st.wHour > 9 ? L"" : L"0" ), st.wHour, st.wMinute );
 	}
 
+	SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( SHARED_SETTINGS ) );
+	shared_settings->popup_gradient = cfg_popup_gradient;
+	shared_settings->popup_gradient_direction = cfg_popup_gradient_direction;
+	shared_settings->popup_background_color1 = cfg_popup_background_color1;
+	shared_settings->popup_background_color2 = cfg_popup_background_color2;
+	shared_settings->popup_time = cfg_popup_time;
+	shared_settings->popup_play_sound = cfg_popup_play_sound;
+	shared_settings->popup_sound = GlobalStrDupW( cfg_popup_sound );
+
 	LOGFONT lf;
 	_memzero( &lf, sizeof( LOGFONT ) );
 
-
 	POPUP_SETTINGS *ls1 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
+	ls1->shared_settings = shared_settings;
 	ls1->popup_line_order = cfg_popup_line_order1;
 	ls1->popup_justify = cfg_popup_justify_line1;
 	ls1->font_color = cfg_popup_font_color1;
@@ -1277,6 +1286,7 @@ void CreatePopup( displayinfo *fi )
 	}
 
 	POPUP_SETTINGS *ls2 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
+	ls2->shared_settings = shared_settings;
 	ls2->popup_line_order = cfg_popup_line_order2;
 	ls2->popup_justify = cfg_popup_justify_line2;
 	ls2->font_color = cfg_popup_font_color2;
@@ -1302,6 +1312,7 @@ void CreatePopup( displayinfo *fi )
 	}
 
 	POPUP_SETTINGS *ls3 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
+	ls3->shared_settings = shared_settings;
 	ls3->popup_line_order = cfg_popup_line_order3;
 	ls3->popup_justify = cfg_popup_justify_line3;
 	ls3->font_color = cfg_popup_font_color3;
@@ -1326,22 +1337,12 @@ void CreatePopup( displayinfo *fi )
 		ls3->font = NULL;
 	}
 
-	SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( SHARED_SETTINGS ) );
-	shared_settings->popup_gradient = cfg_popup_gradient;
-	shared_settings->popup_gradient_direction = cfg_popup_gradient_direction;
-	shared_settings->popup_background_color1 = cfg_popup_background_color1;
-	shared_settings->popup_background_color2 = cfg_popup_background_color2;
-	shared_settings->popup_time = cfg_popup_time;
-	shared_settings->popup_play_sound = cfg_popup_play_sound;
-	shared_settings->popup_sound = GlobalStrDupW( cfg_popup_sound );
+	DoublyLinkedList *t_ll = DLL_CreateNode( ( void * )ls1 );
 
-
-	DoublyLinkedList *t_ll = DLL_CreateNode( ( void * )ls1, ( void * )shared_settings );
-
-	DoublyLinkedList *ll = DLL_CreateNode( ( void * )ls2, ( void * )shared_settings );
+	DoublyLinkedList *ll = DLL_CreateNode( ( void * )ls2 );
 	DLL_AddNode( &t_ll, ll, -1 );
 
-	ll = DLL_CreateNode( ( void * )ls3, ( void * )shared_settings );
+	ll = DLL_CreateNode( ( void * )ls3 );
 	DLL_AddNode( &t_ll, ll, -1 );
 
 	_SetWindowLongW( hWnd_popup, 0, ( LONG_PTR )t_ll );

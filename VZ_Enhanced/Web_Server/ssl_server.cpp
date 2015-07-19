@@ -156,7 +156,6 @@ SSL *SSL_new( DWORD protocol )
 		}
 	}
 
-
 	return ssl;
 }
 
@@ -170,22 +169,43 @@ void SSL_free( SSL *ssl )
 	if ( ssl->sdd.OutBuffers[ 0 ].pvBuffer != NULL )
 	{
 		g_pSSPI->FreeContextBuffer( ssl->sdd.OutBuffers[ 0 ].pvBuffer );
-
 		ssl->sdd.OutBuffers[ 0 ].pvBuffer = NULL;
 	}
 
 	if ( ssl->ad.OutBuffers[ 0 ].pvBuffer != NULL )
 	{
 		g_pSSPI->FreeContextBuffer( ssl->ad.OutBuffers[ 0 ].pvBuffer );
-
 		ssl->ad.OutBuffers[ 0 ].pvBuffer = NULL;
 	}
 
-	if ( ssl->sd.pbDataBuffer != NULL )
+	/*if ( ssl->sd.pbDataBuffer != NULL )
 	{
 		GlobalFree( ssl->sd.pbDataBuffer );
 		ssl->sd.pbDataBuffer = NULL;
 	}
+
+	if ( ssl->sd.pbPingDataBuffer != NULL )
+	{
+		GlobalFree( ssl->sd.pbPingDataBuffer );
+		ssl->sd.pbPingDataBuffer = NULL;
+	}
+
+	if ( ssl->sd.pbUpdateDataBuffer != NULL )
+	{
+		GlobalFree( ssl->sd.pbUpdateDataBuffer );
+		ssl->sd.pbUpdateDataBuffer = NULL;
+	}*/
+
+	while ( ssl->sd.send_buffer_pool != NULL )
+	{
+		DoublyLinkedList *del_node = ssl->sd.send_buffer_pool;
+		ssl->sd.send_buffer_pool = ssl->sd.send_buffer_pool->next;
+
+		GlobalFree( ( ( SEND_BUFFER * )del_node->data )->pbDataBuffer );
+		GlobalFree( ( SEND_BUFFER * )del_node->data );
+		GlobalFree( del_node );
+	}
+	ssl->sd.send_buffer_pool = NULL;
 
 	if ( ssl->pbRecDataBuf != NULL )
 	{
@@ -208,106 +228,108 @@ void SSL_free( SSL *ssl )
 	GlobalFree( ssl );
 }
 
-SECURITY_STATUS WSAAPI SSL_WSASend( SOCKET_CONTEXT *socket_context, WSABUF *send_buf, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent )
+SECURITY_STATUS WSAAPI SSL_WSASend( SOCKET_CONTEXT *socket_context, WSABUF *send_buf, SEND_BUFFER *sb, bool &sent )
 {
+	SECURITY_STATUS scRet = SEC_E_INTERNAL_ERROR;
+
 	sent = false;
-	if ( socket_context != NULL && socket_context->ssl != NULL && socket_context->io_context != NULL )
+
+	if ( socket_context != NULL && socket_context->ssl != NULL && sb != NULL )
 	{
 		SSL *ssl = socket_context->ssl;
 
 		DWORD dwFlags = 0;
 
+		SecBuffer Buffers[ 4 ];
 		SecBufferDesc Message;
+		DWORD cbMessage;
 
-		WSABUF encrypted_buf;
-
-		// ssl->sd.pbDataBuffer is freed when we clean up the connection.
-		if ( ssl->sd.pbDataBuffer == NULL )
+		if ( ssl->sd.got_stream_sizes == false )
 		{
-			ssl->sd.scRet = g_pSSPI->QueryContextAttributesA( &ssl->hContext, SECPKG_ATTR_STREAM_SIZES, &ssl->sd.Sizes );
-			if ( ssl->sd.scRet != SEC_E_OK )
+			scRet = g_pSSPI->QueryContextAttributesA( &ssl->hContext, SECPKG_ATTR_STREAM_SIZES, &ssl->sd.Sizes );
+			if ( scRet != SEC_E_OK )
 			{
-				return ssl->sd.scRet;
+				return scRet;
 			}
 
+			ssl->sd.got_stream_sizes = true;
+		}
+
+		// sb->pbDataBuffer is freed when we clean up the connection.
+		if ( sb->pbDataBuffer == NULL )
+		{
 			// The size includes the SSL header, max message length (16 KB), and SSL trailer.
-			ssl->sd.pbDataBuffer = ( PUCHAR )GlobalAlloc( GPTR, ( ssl->sd.Sizes.cbHeader + ssl->sd.Sizes.cbMaximumMessage + ssl->sd.Sizes.cbTrailer ) );
+			sb->pbDataBuffer = ( PUCHAR )GlobalAlloc( GPTR, ( ssl->sd.Sizes.cbHeader + ssl->sd.Sizes.cbMaximumMessage + ssl->sd.Sizes.cbTrailer ) );
 		}
 
 		// Copy our message to the buffer. Truncate the message if it's larger than the maximum allowed size (16 KB).
-		ssl->sd.cbMessage = min( ssl->sd.Sizes.cbMaximumMessage, ( DWORD )send_buf->len );
-		_memcpy_s( ssl->sd.pbDataBuffer + ssl->sd.Sizes.cbHeader, ssl->sd.Sizes.cbMaximumMessage, send_buf->buf, ssl->sd.cbMessage );
+		cbMessage = min( ssl->sd.Sizes.cbMaximumMessage, ( DWORD )send_buf->len );
+		_memcpy_s( sb->pbDataBuffer + ssl->sd.Sizes.cbHeader, ssl->sd.Sizes.cbMaximumMessage, send_buf->buf, cbMessage );
 
-		send_buf->len -= ssl->sd.cbMessage;
-		send_buf->buf += ssl->sd.cbMessage;
+		send_buf->len -= cbMessage;
+		send_buf->buf += cbMessage;
 
 		// Header location. (Beginning of the data buffer).
-		ssl->sd.Buffers[ 0 ].pvBuffer = ssl->sd.pbDataBuffer;
-		ssl->sd.Buffers[ 0 ].cbBuffer = ssl->sd.Sizes.cbHeader;
-		ssl->sd.Buffers[ 0 ].BufferType = SECBUFFER_STREAM_HEADER;
+		Buffers[ 0 ].pvBuffer = sb->pbDataBuffer;
+		Buffers[ 0 ].cbBuffer = ssl->sd.Sizes.cbHeader;
+		Buffers[ 0 ].BufferType = SECBUFFER_STREAM_HEADER;
 
 		// Message location. (After the header).
-		ssl->sd.Buffers[ 1 ].pvBuffer = ssl->sd.pbDataBuffer + ssl->sd.Sizes.cbHeader;
-		ssl->sd.Buffers[ 1 ].cbBuffer = ssl->sd.cbMessage;
-		ssl->sd.Buffers[ 1 ].BufferType = SECBUFFER_DATA;
+		Buffers[ 1 ].pvBuffer = sb->pbDataBuffer + ssl->sd.Sizes.cbHeader;
+		Buffers[ 1 ].cbBuffer = cbMessage;
+		Buffers[ 1 ].BufferType = SECBUFFER_DATA;
 
 		// Trailer location. (After the message).
-		ssl->sd.Buffers[ 2 ].pvBuffer = ssl->sd.pbDataBuffer + ssl->sd.Sizes.cbHeader + ssl->sd.cbMessage;
-		ssl->sd.Buffers[ 2 ].cbBuffer = ssl->sd.Sizes.cbTrailer;
-		ssl->sd.Buffers[ 2 ].BufferType = SECBUFFER_STREAM_TRAILER;
+		Buffers[ 2 ].pvBuffer = sb->pbDataBuffer + ssl->sd.Sizes.cbHeader + cbMessage;
+		Buffers[ 2 ].cbBuffer = ssl->sd.Sizes.cbTrailer;
+		Buffers[ 2 ].BufferType = SECBUFFER_STREAM_TRAILER;
 
-		ssl->sd.Buffers[ 3 ].BufferType = SECBUFFER_EMPTY;
+		Buffers[ 3 ].BufferType = SECBUFFER_EMPTY;
 
 		Message.ulVersion = SECBUFFER_VERSION;
 		Message.cBuffers = 4;
-		Message.pBuffers = ssl->sd.Buffers;
+		Message.pBuffers = Buffers;
 
 		if ( g_pSSPI->EncryptMessage != NULL )
 		{
-			ssl->sd.scRet = g_pSSPI->EncryptMessage( &ssl->hContext, 0, &Message, 0 );
+			scRet = g_pSSPI->EncryptMessage( &ssl->hContext, 0, &Message, 0 );
 		}
 		else
 		{
-			ssl->sd.scRet = ( ( ENCRYPT_MESSAGE_FN )g_pSSPI->Reserved3 )( &ssl->hContext, 0, &Message, 0 );
+			scRet = ( ( ENCRYPT_MESSAGE_FN )g_pSSPI->Reserved3 )( &ssl->hContext, 0, &Message, 0 );
 		}
 
-		if ( FAILED( ssl->sd.scRet ) )
+		if ( FAILED( scRet ) )
 		{
-			return ssl->sd.scRet;
+			return scRet;
 		}
 
-		encrypted_buf.buf = ( char * )ssl->sd.pbDataBuffer;
-		encrypted_buf.len = ssl->sd.Buffers[ 0 ].cbBuffer + ssl->sd.Buffers[ 1 ].cbBuffer + ssl->sd.Buffers[ 2 ].cbBuffer; // Calculate encrypted packet size
+		sb->wsabuf->buf = ( char * )( sb->pbDataBuffer );
+		sb->wsabuf->len = Buffers[ 0 ].cbBuffer + Buffers[ 1 ].cbBuffer + Buffers[ 2 ].cbBuffer; // Calculate encrypted packet size
 
-		socket_context->io_context->nTotalBytes += ( ssl->sd.Buffers[ 0 ].cbBuffer + ssl->sd.Buffers[ 2 ].cbBuffer );	// Add the header and trailer to the total size (for each packet).
+		*( sb->IOOperation ) = ClientIoWrite;
 
 		sent = true;
 
-		int nRet = _WSASend( ssl->s, &encrypted_buf, 1, NULL, dwFlags, lpWSAOverlapped, NULL );
+		int nRet = _WSASend( ssl->s, sb->wsabuf, 1, NULL, dwFlags, sb->overlapped, NULL );
 		if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 		{
-			socket_context->io_context->nTotalBytes = 0;
-
 			sent = false;
 			g_pSSPI->DeleteSecurityContext( &ssl->hContext );
 			SecInvalidateHandle( &ssl->hContext );
 
-			ssl->sd.scRet = SEC_E_INTERNAL_ERROR;
+			scRet = SEC_E_INTERNAL_ERROR;
 		}
+	}
 
-		return ssl->sd.scRet;
-	}
-	else
-	{
-		return SEC_E_INTERNAL_ERROR;
-	}
+	return scRet;
 }
-
 
 SECURITY_STATUS WSAAPI SSL_WSARecv( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent )
 {
 	sent = false;
-	if ( socket_context != NULL && socket_context->ssl != NULL && socket_context->io_context != NULL )
+
+	if ( socket_context != NULL && socket_context->ssl != NULL )
 	{
 		SSL *ssl = socket_context->ssl;
 
@@ -361,10 +383,9 @@ SECURITY_STATUS WSAAPI SSL_WSAAccept( SOCKET_CONTEXT *socket_context, LPWSAOVERL
 
 	sent = false;
 
-	if ( socket_context != NULL && socket_context->ssl != NULL && socket_context->io_context != NULL )
+	if ( socket_context != NULL && socket_context->ssl != NULL )
 	{
 		SSL *ssl = socket_context->ssl;
-		scRet = ssl->ad.scRet;
 
 		DWORD dwFlags = 0;
 
@@ -399,7 +420,6 @@ SECURITY_STATUS WSAAPI SSL_WSAAccept( SOCKET_CONTEXT *socket_context, LPWSAOVERL
 		encrypted_buf.buf = ( char * )ssl->pbIoBuffer + ssl->cbIoBuffer;
 		encrypted_buf.len = ssl->sbIoBuffer - ssl->cbIoBuffer;
 		int nRet = _WSARecv( ssl->s, &encrypted_buf, 1, NULL, &dwFlags, lpWSAOverlapped, NULL );
-
 		if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 		{
 			sent = false;
@@ -417,10 +437,8 @@ SECURITY_STATUS SSL_WSAAccept_Reply( SOCKET_CONTEXT *socket_context, LPWSAOVERLA
 
 	sent = false;
 
-	if ( socket_context != NULL && socket_context->ssl != NULL && socket_context->io_context != NULL )
+	if ( socket_context != NULL && socket_context->ssl != NULL )
 	{
-		WSABUF encrypted_buf;
-
 		SecBufferDesc InBuffer;
 		SecBufferDesc OutBuffer;
 		TimeStamp tsExpiry;
@@ -497,17 +515,14 @@ SECURITY_STATUS SSL_WSAAccept_Reply( SOCKET_CONTEXT *socket_context, LPWSAOVERLA
 				{
 					sent = true;
 
-					encrypted_buf.buf = ( char * )ssl->ad.OutBuffers[ 0 ].pvBuffer;
-					encrypted_buf.len = ssl->ad.OutBuffers[ 0 ].cbBuffer;
+					socket_context->io_context.wsabuf.buf = ( char * )ssl->ad.OutBuffers[ 0 ].pvBuffer;
+					socket_context->io_context.wsabuf.len = ssl->ad.OutBuffers[ 0 ].cbBuffer;
 
-					socket_context->io_context->nTotalBytes = ssl->ad.OutBuffers[ 0 ].cbBuffer;
+					socket_context->io_context.IOOperation = ClientIoWrite;
 
-					int nRet = _WSASend( ssl->s, &encrypted_buf, 1, NULL, dwFlags, lpWSAOverlapped, NULL );
-
+					int nRet = _WSASend( ssl->s, &( socket_context->io_context.wsabuf ), 1, NULL, dwFlags, lpWSAOverlapped, NULL );
 					if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 					{
-						socket_context->io_context->nTotalBytes = 0;
-
 						sent = false;
 						g_pSSPI->FreeContextBuffer( ssl->ad.OutBuffers[ 0 ].pvBuffer );
 						ssl->ad.OutBuffers[ 0 ].pvBuffer = NULL;
@@ -521,49 +536,13 @@ SECURITY_STATUS SSL_WSAAccept_Reply( SOCKET_CONTEXT *socket_context, LPWSAOVERLA
 
 					return SEC_I_CONTINUE_NEEDED;
 				}
-				else if ( scRet == SEC_I_CONTINUE_NEEDED )	// Safari likes to send us 0 byte output buffers. Request more data until we get something.
-				{
-					// We're going to call this function again when we receive more data.
-					socket_context->io_context->IOOperation = ClientIoHandshakeReply;
-
-					ssl->cbIoBuffer = 0;
-
-					sent = true;
-
-					encrypted_buf.buf = ( char * )ssl->pbIoBuffer + ssl->cbIoBuffer;
-					encrypted_buf.len = ssl->sbIoBuffer - ssl->cbIoBuffer;
-					int nRet = _WSARecv( ssl->s, &encrypted_buf, 1, NULL, &dwFlags, lpWSAOverlapped, NULL );
-
-					if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
-					{
-						sent = false;
-
-						if ( ssl->pbIoBuffer != NULL )
-						{
-							GlobalFree( ssl->pbIoBuffer );
-							ssl->pbIoBuffer = NULL;
-						}
-
-						ssl->sbIoBuffer = 0;
-
-						g_pSSPI->DeleteSecurityContext( &ssl->hContext );
-						SecInvalidateHandle( &ssl->hContext );
-
-						return SEC_E_INTERNAL_ERROR;
-					}
-
-					return SEC_I_COMPLETE_AND_CONTINUE;
-				}
 				else if ( scRet == SEC_E_OK )
 				{
 					// Store remaining data for further use
-					if ( ssl->ad.InBuffers[ 1 ].BufferType == SECBUFFER_EXTRA )	// Seems to occur with Opera 12. The extra data is actually the HTTP request.
+					if ( ssl->ad.InBuffers[ 1 ].BufferType == SECBUFFER_EXTRA )	// The extra data is actually the HTTP request.
 					{
 						_memmove( ssl->pbIoBuffer, ssl->pbIoBuffer + ( ssl->cbIoBuffer - ssl->ad.InBuffers[ 1 ].cbBuffer ), ssl->ad.InBuffers[ 1 ].cbBuffer );
 						ssl->cbIoBuffer = ssl->ad.InBuffers[ 1 ].cbBuffer;
-
-						// We have read data in this extra buffer. Post a read.
-						socket_context->io_context->LastIOOperation = ClientIoReadMore;
 					}
 					else
 					{
@@ -591,14 +570,13 @@ SECURITY_STATUS SSL_WSAAccept_Reply( SOCKET_CONTEXT *socket_context, LPWSAOVERLA
 	return scRet;
 }
 
-
 SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent )
 {
 	SECURITY_STATUS scRet = SEC_E_INTERNAL_ERROR;
 
 	sent = false;
 
-	if ( socket_context != NULL && socket_context->ssl != NULL && socket_context->io_context != NULL )
+	if ( socket_context != NULL && socket_context->ssl != NULL )
 	{
 		DWORD dwFlags = 0;
 
@@ -613,7 +591,7 @@ SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVE
 
 		if ( scRet == SEC_I_CONTINUE_NEEDED || scRet == SEC_E_INCOMPLETE_MESSAGE || scRet == SEC_I_INCOMPLETE_CREDENTIALS ) 
 		{
-			// server just requested client authentication. 
+			// Server just requested client authentication. 
 			if ( scRet == SEC_I_INCOMPLETE_CREDENTIALS )
 			{
 				// Go around again.
@@ -623,7 +601,7 @@ SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVE
 				return ssl->ad.scRet;
 			}
 
-			// we need to read more data from the server and try again.
+			// We need to read more data from the server and try again.
 			if ( scRet == SEC_E_INCOMPLETE_MESSAGE ) 
 			{
 				return scRet;
@@ -665,7 +643,6 @@ SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVE
 					encrypted_buf.buf = ( char * )ssl->pbIoBuffer + ssl->cbIoBuffer;
 					encrypted_buf.len = ssl->sbIoBuffer - ssl->cbIoBuffer;
 					int nRet = _WSARecv( ssl->s, &encrypted_buf, 1, NULL, &dwFlags, lpWSAOverlapped, NULL );
-
 					if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 					{
 						sent = false;
@@ -689,19 +666,14 @@ SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVE
 					ssl->ad.fDoRead = true;
 				}
 			}
-
-			return scRet;
 		}
 		else if ( scRet == SEC_E_OK )	// Handshake completed successfully.
 		{
 			// Store remaining data for further use
-			if ( ssl->ad.InBuffers[ 1 ].BufferType == SECBUFFER_EXTRA )	// Seems to occur with Opera 12. The extra data is actually the HTTP request.
+			if ( ssl->ad.InBuffers[ 1 ].BufferType == SECBUFFER_EXTRA )	// The extra data is actually the HTTP request.
 			{
 				_memmove( ssl->pbIoBuffer, ssl->pbIoBuffer + ( ssl->cbIoBuffer - ssl->ad.InBuffers[ 1 ].cbBuffer ), ssl->ad.InBuffers[ 1 ].cbBuffer );
 				ssl->cbIoBuffer = ssl->ad.InBuffers[ 1 ].cbBuffer;
-
-				// We have read data in this extra buffer. Post a read.
-				socket_context->io_context->LastIOOperation = ClientIoReadMore;
 			}
 			else
 			{
@@ -729,19 +701,19 @@ SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVE
 
 SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent )
 {
+	SECURITY_STATUS scRet = SEC_E_INTERNAL_ERROR;
+
 	sent = false;
-	if ( socket_context != NULL && socket_context->ssl != NULL && socket_context->io_context != NULL )
+
+	if ( socket_context != NULL && socket_context->ssl != NULL )
 	{
 		DWORD dwType;
 
 		DWORD dwSSPIFlags;
 		DWORD dwSSPIOutFlags;
 		TimeStamp tsExpiry;
-		DWORD Status;
 
 		SecBufferDesc OutBuffer;
-
-		WSABUF encrypted_buf;
 
 		DWORD dwFlags = 0;
 
@@ -762,11 +734,11 @@ SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED
 		OutBuffer.pBuffers = ssl->sdd.OutBuffers;
 		OutBuffer.ulVersion = SECBUFFER_VERSION;
 
-		Status = g_pSSPI->ApplyControlToken( &ssl->hContext, &OutBuffer );
-		if ( FAILED( Status ) )
+		scRet = g_pSSPI->ApplyControlToken( &ssl->hContext, &OutBuffer );
+		if ( FAILED( scRet ) )
 		{
 			ssl->sdd.OutBuffers[ 0 ].pvBuffer = NULL;
-			return Status;
+			return scRet;
 		}
 
 		// Build an SSL close notify message.
@@ -786,7 +758,7 @@ SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED
 					  ASC_REQ_ALLOCATE_MEMORY	|
 					  ASC_REQ_STREAM;
 
-		Status = g_pSSPI->AcceptSecurityContext(
+		scRet = g_pSSPI->AcceptSecurityContext(
 						&g_hCreds,
 						&ssl->hContext,
 						NULL,
@@ -797,7 +769,7 @@ SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED
 						&dwSSPIOutFlags,
 						&tsExpiry );
 
-		if ( FAILED( Status ) )
+		if ( FAILED( scRet ) )
 		{
 			if ( ssl->sdd.OutBuffers[ 0 ].pvBuffer != NULL )
 			{
@@ -805,7 +777,7 @@ SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED
 				ssl->sdd.OutBuffers[ 0 ].pvBuffer = NULL;
 			}
 
-			return Status;
+			return scRet;
 		}
 
 		// Send the close notify message to the server.
@@ -813,18 +785,19 @@ SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED
 		{
 			sent = true;
 
-			encrypted_buf.buf = ( char * )ssl->sdd.OutBuffers[ 0 ].pvBuffer;
-			encrypted_buf.len = ssl->sdd.OutBuffers[ 0 ].cbBuffer;
+			socket_context->io_context.wsabuf.buf = ( char * )ssl->sdd.OutBuffers[ 0 ].pvBuffer;
+			socket_context->io_context.wsabuf.len = ssl->sdd.OutBuffers[ 0 ].cbBuffer;
 
-			int nRet = _WSASend( ssl->s, &encrypted_buf, 1, NULL, dwFlags, lpWSAOverlapped, NULL );
-			
+			socket_context->io_context.IOOperation = ClientIoWrite;
+
+			int nRet = _WSASend( ssl->s, &( socket_context->io_context.wsabuf ), 1, NULL, dwFlags, lpWSAOverlapped, NULL );
 			if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 			{
 				sent = false;
 				g_pSSPI->FreeContextBuffer( ssl->sdd.OutBuffers[ 0 ].pvBuffer );
 				ssl->sdd.OutBuffers[ 0 ].pvBuffer = NULL;
 
-				Status = SEC_E_INTERNAL_ERROR;
+				scRet = SEC_E_INTERNAL_ERROR;
 			}
 			/*else	// Freed in SSL_free.
 			{
@@ -837,13 +810,9 @@ SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED
 		// Free the security context.
 		//g_pSSPI->DeleteSecurityContext( &ssl->hContext );
 		//SecInvalidateHandle( &ssl->hContext );
-
-		return Status;
 	}
-	else
-	{
-		return SEC_E_INTERNAL_ERROR;
-	}
+	
+	return scRet;
 }
 
 SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumberOfBytesDecoded )
@@ -922,7 +891,7 @@ SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumbe
 	}
 
 	// Locate data and (optional) extra buffers.
-	pDataBuffer  = NULL;
+	pDataBuffer = NULL;
 	pExtraBuffer = NULL;
 	for ( int i = 1; i < 4; i++ )
 	{

@@ -1,168 +1,92 @@
-.columns_container
+html, body
 {
-	position:relative;
-	width: 100%;
+	margin: 0px;
+    padding: 0px;
+	height: 100%;
 }
 
-.columns_row
+body
 {
-	z-index: 2;
-	display: table-row;
-	position: absolute;
-	width: 640px;
-	height: 20px;
-	border-bottom: 1px solid #AAAAAA;
-	background-color: #EEEEEE;
-	color: #777777;
-	font-weight: bold;
-	text-shadow: 0px 1px 0px #FFFFFF;
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 12px;
+	overflow: hidden;
 }
 
-.column
+.connect
 {
 	display: table-cell;
 	vertical-align: middle;
-	height: 20px;
-	padding-left: 10px; 
+	padding: 0 5px 0 5px;
+	height: 40px;
+	text-align: center;
 }
 
-.column_left
+.data_row
 {
-	border-right: 1px solid #AAAAAA;
-}
-
-.column_right
-{
-	padding-right: 10px;
-}
-
-.list_container
-{
-	background-color: #FFFFFF;
+	position: relative;
 	width: 100%;
-	height: 440px;
+	height: calc( 100% - 41px );
+	border-top: 1px solid #AAAAAA;
+}
+
+.container
+{
+	position: absolute;
+	top: 0px;
+	bottom: 0;
+	width: 100%;
 	overflow: auto;
 }
 
-.list
+.tab_row
 {
-	/*display: table;
-	border-collapse: collapse;*/
-	position: relative;
-	height: 0px;
+	display: table;
 	width: 100%;
-	margin-top: 21px;
+	overflow: hidden;
 }
 
-/* Does not paint nicely with Opera 12
-.list_item_odd,
-.list_item_even
+.tab,
+.tab:hover
 {
-	display: table-row;
-	width: 100%;
-	border-top: 1px solid #DDDDDD;
-	border-bottom: 1px solid #DDDDDD;
-}
-
-.list_item_even
-{
-	background-color: #FFFFFF;
-}
-
-.list_item_odd
-{
-	background-color: #EEEEEE;
-}
-
-.list_item_odd:hover,
-.list_item_even:hover
-{
-	border-top: 1px double #AAAAAA;
-	border-bottom: 1px double #AAAAAA;
-	background-color: #D0D0D0;
-}
-*/
-
-.list_item_odd,
-.list_item_even
-{
-	position: relative;
-	margin-top: -1px;
-	z-index: 0;
-	width: 100%;
-	border-top: 1px solid #DDDDDD;
-	border-bottom: 1px solid #DDDDDD;
-}
-
-.list_item_even
-{
-	background-color: #FFFFFF;
-}
-
-.list_item_odd
-{
-	background-color: #EEEEEE;
-}
-
-.list_item_odd:hover,
-.list_item_even:hover
-{
-	z-index: 1;
-	border-top-color: #AAAAAA;
-	border-bottom-color: #AAAAAA;
-	background-color: #D0D0D0;
-}
-
-.r_header,
-.r_header:hover,
-.header,
-.header:hover
-{
+	white-space: nowrap;
 	display: table-cell;
+	cursor: pointer;
+
+	height: 40px;
+
 	vertical-align: middle;
 
-	padding-left: 10px;
-	padding-right: 10px;
+	padding: 0 5px 0 5px;
 	color: #777777;
 	font-size: 14px;
 	font-weight: bold;
 	text-align: center;
 	text-decoration: none;
 	text-shadow: 0px 1px 0px #FFFFFF;
-	
-	border-bottom: 1px solid #AAAAAA;
+
+	box-sizing: border-box;
+	border-top: 2px solid #AAAAAA;
+	border-left: 1px solid #AAAAAA;
 }
 
-.r_header,
-.header
+.tab
 {
 	background-color: #DDDDDD;
 	background-image: linear-gradient(to bottom, #EEEEEE, #CCCCCC);
 }
 
-.header
-{
-	border-right: 1px solid #AAAAAA;
-}
-
-.r_header:hover,
-.header:hover
+.tab:hover
 {
 	background-color: #C0C0C0;
 	background-image: linear-gradient(to bottom, #DDDDDD, #C0C0C0);
 }
 
-/*.r_header:active,
-.header:active
-{
-	background-color: #EEEEEE;
-	background-image: linear-gradient(to bottom, #CCCCCC, #EEEEEE);
-}*/
-
 .popup_button:active,
 .popup_button:hover,
 .popup_button
 {
+	cursor: pointer;
+
 	display: table-cell;
 	vertical-align: middle;
 
@@ -195,8 +119,86 @@
 	background-image: linear-gradient(to bottom, #CCCCCC, #EEEEEE);
 }
 
-body
+.l_table
 {
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-	font-size: 12px;
+	display: table;
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.l_row
+{
+	display: table-row;
+	border-bottom: 1px solid #AAAAAA;
+	margin-right: 10px;
+}
+
+.l_row:nth-child(even)
+{
+	background-color: #EEEEEE;
+}
+
+.l_row:hover
+{
+	background-color: #D0D0D0;
+}
+
+.l_header
+{
+	display: table-header-group;
+	background-color: #DDDDDD;
+	border-bottom: 1px solid #AAAAAA;
+}
+
+.l_cell,
+.l_heading
+{
+	display: table-cell;
+	padding: 3px 10px;
+	border-left: 1px solid #AAAAAA;
+	border-right: 1px solid #AAAAAA;
+}
+
+.l_heading
+{
+	background-color: #DDDDDD;
+}
+
+.l_heading:first-child,
+.l_cell:first-child
+{
+	border-left: none;
+}
+
+.l_heading:last-child,
+.l_cell:last-child
+{
+	border-right: none;
+}
+
+@media screen and (max-width: 810px)
+{
+	.connect,
+	.tab_row,
+	.tab,.tab:hover
+	{
+		height: 28px;
+		line-height: 28px;
+	}
+	
+	.tab_row
+	{
+		border-collapse: collapse;
+	}
+
+	.connect,
+	.tab
+	{
+		display: table-row;
+	}
+	
+	.data_row
+	{
+		height: calc( 100% - 210px );
+	}
 }

@@ -92,6 +92,7 @@
 	#define _ReleaseDC				ReleaseDC
 	#define _RemoveMenu				RemoveMenu
 	#define _ScreenToClient			ScreenToClient
+	#define _ScrollWindow			ScrollWindow
 	#define _SendMessageA			SendMessageA
 	#define _SendMessageW			SendMessageW
 	#define _SendNotifyMessageW		SendNotifyMessageW
@@ -104,6 +105,8 @@
 	#define _SetMenu				SetMenu
 	#define _SetMenuItemInfoW		SetMenuItemInfoW
 	#define _SetRect				SetRect
+	#define _SetScrollInfo			SetScrollInfo
+	#define _SetScrollPos			SetScrollPos
 	#define _SetTimer				SetTimer
 	#define _SetWindowLongW			SetWindowLongW
 	#define _SetWindowPos			SetWindowPos
@@ -183,6 +186,7 @@
 	typedef int ( WINAPI *pReleaseDC )( HWND hWnd, HDC hDC );
 	typedef BOOL ( WINAPI *pRemoveMenu )( HMENU hMenu, UINT uPosition, UINT uFlags );
 	typedef BOOL ( WINAPI *pScreenToClient )( HWND hWnd, LPPOINT lpPoint );
+	typedef BOOL ( WINAPI *pScrollWindow )( HWND hWnd, int XAmount, int YAmount, const RECT *lpRect, const RECT *lpClipRect );
 	typedef LRESULT ( WINAPI *pSendMessageA )( HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam );
 	typedef LRESULT ( WINAPI *pSendMessageW )( HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam );
 	typedef BOOL ( WINAPI *pSendNotifyMessageW )( HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam );
@@ -195,6 +199,8 @@
 	typedef BOOL ( WINAPI *pSetMenu )( HWND hWnd, HMENU hMenu );
 	typedef BOOL ( WINAPI *pSetMenuItemInfoW )( HMENU hMenu, UINT uItem, BOOL fByPosition, LPMENUITEMINFO lpmii );
 	typedef BOOL ( WINAPI *pSetRect )( LPRECT lprc, int xLeft, int yTop, int xRight, int yBottom );
+	typedef int ( WINAPI *pSetScrollInfo )( HWND hwnd, int fnBar, LPCSCROLLINFO lpsi, BOOL fRedraw );
+	typedef int ( WINAPI *pSetScrollPos )( HWND hWnd, int nBar, int nPos, BOOL bRedraw );
 	typedef UINT_PTR ( WINAPI *pSetTimer )( HWND hWnd, UINT_PTR nIDEvent, UINT uElapse, TIMERPROC lpTimerFunc );
 	typedef LONG ( WINAPI *pSetWindowLongW )( HWND hWnd, int nIndex, LONG dwNewLong );
 	typedef BOOL ( WINAPI *pSetWindowPos )( HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags );
@@ -267,6 +273,7 @@
 	extern pReleaseDC				_ReleaseDC;
 	extern pRemoveMenu				_RemoveMenu;
 	extern pScreenToClient			_ScreenToClient;
+	extern pScrollWindow			_ScrollWindow;
 	extern pSendMessageA			_SendMessageA;
 	extern pSendMessageW			_SendMessageW;
 	extern pSendNotifyMessageW		_SendNotifyMessageW;
@@ -279,6 +286,8 @@
 	extern pSetMenu					_SetMenu;
 	extern pSetMenuItemInfoW		_SetMenuItemInfoW;
 	extern pSetRect					_SetRect;
+	extern pSetScrollInfo			_SetScrollInfo;
+	extern pSetScrollPos			_SetScrollPos
 	extern pSetTimer				_SetTimer;
 	extern pSetWindowLongW			_SetWindowLongW;
 	extern pSetWindowPos			_SetWindowPos;

@@ -65,8 +65,10 @@
 #define EDIT_AUTHENTICATION_PASSWORD	1022
 
 #define EDIT_THREAD_COUNT				1023
+#define EDIT_CACHE_SIZE					1024
 
-#define BTN_VERIFY_ORIGIN				1024
+#define BTN_VERIFY_ORIGIN				1025
+#define BTN_KEEP_ALIVE					1026
 
 HWND g_hWnd_chk_web_server = NULL;
 HWND g_hWnd_ip_address = NULL;
@@ -88,7 +90,11 @@ HWND g_hWnd_certificate_pkcs_password = NULL;
 HWND g_hWnd_static_thread_count = NULL;
 HWND g_hWnd_thread_count = NULL;
 
+HWND g_hWnd_static_resource_cache_size = NULL;
+HWND g_hWnd_resource_cache_size = NULL;
+
 HWND g_hWnd_chk_verify_origin = NULL;
+HWND g_hWnd_chk_keep_alive = NULL;
 
 HWND g_hWnd_chk_type_hostname = NULL;
 HWND g_hWnd_chk_type_ip_address = NULL;
@@ -133,6 +139,9 @@ wchar_t *certificate_cer_file_name = NULL;
 wchar_t *certificate_key_file_name = NULL;
 wchar_t *t_document_root_directory = NULL;
 
+int web_server_tab_height = 0;
+int web_server_tab_scroll_pos = 0;
+
 extern "C" __declspec ( dllexport )
 void SaveWebServerSettings()
 {
@@ -159,11 +168,13 @@ void SaveWebServerSettings()
 
 	cfg_verify_origin = ( _SendMessageW( g_hWnd_chk_verify_origin, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
+	cfg_allow_keep_alive_requests = ( _SendMessageW( g_hWnd_chk_keep_alive, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+
 	cfg_enable_ssl = ( _SendMessageW( g_hWnd_chk_enable_ssl, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
 	cfg_certificate_type = ( _SendMessageW( g_hWnd_chk_type_pair, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? 1 : 0 );
 
-	char value[ 11 ];
+	char value[ 21 ];
 	_SendMessageA( g_hWnd_port, WM_GETTEXT, 6, ( LPARAM )value );
 	cfg_port = ( unsigned short )_strtoul( value, NULL, 10 );
 
@@ -186,8 +197,11 @@ void SaveWebServerSettings()
 	cfg_authentication_password = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( authentication_password_length + 1 ) );
 	_SendMessageW( g_hWnd_authentication_password, WM_GETTEXT, authentication_password_length + 1, ( LPARAM )cfg_authentication_password );
 
-	_SendMessageA( g_hWnd_thread_count, WM_GETTEXT, 10, ( LPARAM )value );
+	_SendMessageA( g_hWnd_thread_count, WM_GETTEXT, 11, ( LPARAM )value );
 	cfg_thread_count = _strtoul( value, NULL, 10 );
+
+	_SendMessageA( g_hWnd_resource_cache_size, WM_GETTEXT, 21, ( LPARAM )value );
+	cfg_resource_cache_size = strtoull( value );
 
 	if ( cfg_certificate_pkcs_file_name != NULL )
 	{
@@ -270,6 +284,7 @@ void Enable_Disable_Windows( BOOL enable )
 
 	_EnableWindow( g_hWnd_chk_auto_start, enable );
 	_EnableWindow( g_hWnd_chk_verify_origin, enable );
+	_EnableWindow( g_hWnd_chk_keep_alive, enable );
 
 	_EnableWindow( g_hWnd_static_web_server_directory, enable );
 	_EnableWindow( g_hWnd_web_server_directory, enable );
@@ -277,6 +292,9 @@ void Enable_Disable_Windows( BOOL enable )
 
 	_EnableWindow( g_hWnd_static_thread_count, enable );
 	_EnableWindow( g_hWnd_thread_count, enable );
+
+	_EnableWindow( g_hWnd_static_resource_cache_size, enable );
+	_EnableWindow( g_hWnd_resource_cache_size, enable );
 
 	_EnableWindow( g_hWnd_chk_use_authentication, enable );
 
@@ -345,13 +363,14 @@ void Set_Window_Settings()
 
 	_SendMessageW( g_hWnd_ip_address, IPM_SETADDRESS, 0, cfg_ip_address );
 
-	char value[ 11 ];
-	_memzero( value, sizeof( char ) * 11 );
-	__snprintf( value, 11, "%hu", cfg_port );
+	char value[ 21 ];
+	_memzero( value, sizeof( char ) * 21 );
+	__snprintf( value, 21, "%hu", cfg_port );
 	_SendMessageA( g_hWnd_port, WM_SETTEXT, 0, ( LPARAM )value );
 
 	_SendMessageW( g_hWnd_chk_auto_start, BM_SETCHECK, ( cfg_auto_start == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 	_SendMessageW( g_hWnd_chk_verify_origin, BM_SETCHECK, ( cfg_verify_origin == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_keep_alive, BM_SETCHECK, ( cfg_allow_keep_alive_requests == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	_SendMessageW( g_hWnd_chk_enable_ssl, BM_SETCHECK, ( cfg_enable_ssl == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
@@ -362,8 +381,11 @@ void Set_Window_Settings()
 	_SendMessageW( g_hWnd_authentication_username, WM_SETTEXT, 0, ( LPARAM )cfg_authentication_username );
 	_SendMessageW( g_hWnd_authentication_password, WM_SETTEXT, 0, ( LPARAM )cfg_authentication_password );
 
-	__snprintf( value, 11, "%lu", cfg_thread_count );
+	__snprintf( value, 21, "%lu", cfg_thread_count );
 	_SendMessageA( g_hWnd_thread_count, WM_SETTEXT, 0, ( LPARAM )value );
+
+	__snprintf( value, 21, "%llu", cfg_resource_cache_size );
+	_SendMessageA( g_hWnd_resource_cache_size, WM_SETTEXT, 0, ( LPARAM )value );
 
 	if ( cfg_certificate_type == 1 )
 	{
@@ -443,74 +465,77 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 			g_hWnd_chk_web_server = _CreateWindowW( WC_BUTTON, ST_Enable_web_server_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 0, 200, 20, hWnd, ( HMENU )BTN_WEB_SERVER, NULL, NULL );
 
-			g_hWnd_static_hoz1 = _CreateWindowW( WC_STATIC, NULL, SS_ETCHEDHORZ | WS_CHILD | WS_VISIBLE, 0, 25, rc.right, 5, hWnd, NULL, NULL, NULL );
+			g_hWnd_static_hoz1 = _CreateWindowW( WC_STATIC, NULL, SS_ETCHEDHORZ | WS_CHILD | WS_VISIBLE, 0, 25, rc.right - 10, 5, hWnd, NULL, NULL, NULL );
 
-			g_hWnd_chk_type_hostname = _CreateWindowW( WC_BUTTON, ST_Hostname_, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 0, 30, 75, 20, hWnd, ( HMENU )BTN_TYPE_HOST, NULL, NULL );
-			g_hWnd_chk_type_ip_address = _CreateWindowW( WC_BUTTON, ST_IP_address_, BS_AUTORADIOBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 77, 30, 75, 20, hWnd, ( HMENU )BTN_TYPE_IP_ADDRESS, NULL, NULL );
+			g_hWnd_chk_type_hostname = _CreateWindowW( WC_BUTTON, ST_Hostname_, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 0, 30, 85, 20, hWnd, ( HMENU )BTN_TYPE_HOST, NULL, NULL );
+			g_hWnd_chk_type_ip_address = _CreateWindowW( WC_BUTTON, ST_IP_address_, BS_AUTORADIOBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 85, 30, 85, 20, hWnd, ( HMENU )BTN_TYPE_IP_ADDRESS, NULL, NULL );
 
-			g_hWnd_hostname = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 50, 150, 20, hWnd, ( HMENU )EDIT_HOST, NULL, NULL );
-			g_hWnd_ip_address = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_IPADDRESS, NULL, WS_CHILD | WS_TABSTOP, 0, 50, 150, 20, hWnd, ( HMENU )EDIT_IP_ADDRESS, NULL, NULL );
-
-
-			g_hWnd_static_colon = _CreateWindowW( WC_STATIC, ST__, WS_CHILD | WS_VISIBLE, 154, 52, 75, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_hostname = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 50, 170, 20, hWnd, ( HMENU )EDIT_HOST, NULL, NULL );
+			g_hWnd_ip_address = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_IPADDRESS, NULL, WS_CHILD | WS_TABSTOP, 0, 50, 170, 20, hWnd, ( HMENU )EDIT_IP_ADDRESS, NULL, NULL );
 
 
-			g_hWnd_static_port = _CreateWindowW( WC_STATIC, ST_Port_, WS_CHILD | WS_VISIBLE, 160, 35, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_port = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 160, 50, 50, 20, hWnd, ( HMENU )EDIT_PORT, NULL, NULL );
+			g_hWnd_static_colon = _CreateWindowW( WC_STATIC, ST__, WS_CHILD | WS_VISIBLE, 174, 52, 75, 15, hWnd, NULL, NULL, NULL );
+
+
+			g_hWnd_static_port = _CreateWindowW( WC_STATIC, ST_Port_, WS_CHILD | WS_VISIBLE, 180, 35, 75, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_port = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 180, 50, 60, 20, hWnd, ( HMENU )EDIT_PORT, NULL, NULL );
 
 
 
 			g_hWnd_static_web_server_directory = _CreateWindowW( WC_STATIC, ST_Document_root_directory_, WS_CHILD | WS_VISIBLE, 0, 80, 150, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_web_server_directory = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 95, 150, 20, hWnd, ( HMENU )EDIT_SERVER_DIRECTORY, NULL, NULL );
-			g_hWnd_btn_web_server_directory = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 155, 95, 35, 20, hWnd, ( HMENU )BTN_SERVER_DIRECTORY, NULL, NULL );
+			g_hWnd_web_server_directory = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 95, 345, 20, hWnd, ( HMENU )EDIT_SERVER_DIRECTORY, NULL, NULL );
+			g_hWnd_btn_web_server_directory = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 350, 95, 35, 20, hWnd, ( HMENU )BTN_SERVER_DIRECTORY, NULL, NULL );
 
 
 			g_hWnd_chk_use_authentication = _CreateWindowW( WC_BUTTON, ST_Require_authentication_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 125, 200, 20, hWnd, ( HMENU )BTN_USE_AUTHENTICATION, NULL, NULL );
 			g_hWnd_static_authentication_username = _CreateWindowW( WC_STATIC, ST_Username_, WS_CHILD | WS_VISIBLE, 15, 145, 90, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_authentication_username = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 160, 90, 20, hWnd, ( HMENU )EDIT_AUTHENTICATION_USERNAME, NULL, NULL );
-			g_hWnd_static_authentication_password = _CreateWindowW( WC_STATIC, ST_Password_, WS_CHILD | WS_VISIBLE, 110, 145, 90, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_authentication_password = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_PASSWORD | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 110, 160, 90, 20, hWnd, ( HMENU )EDIT_AUTHENTICATION_PASSWORD, NULL, NULL );
+			g_hWnd_authentication_username = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 160, 150, 20, hWnd, ( HMENU )EDIT_AUTHENTICATION_USERNAME, NULL, NULL );
+			g_hWnd_static_authentication_password = _CreateWindowW( WC_STATIC, ST_Password_, WS_CHILD | WS_VISIBLE, 170, 145, 90, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_authentication_password = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_PASSWORD | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 170, 160, 150, 20, hWnd, ( HMENU )EDIT_AUTHENTICATION_PASSWORD, NULL, NULL );
 
 			g_hWnd_chk_verify_origin = _CreateWindowW( WC_BUTTON, ST_Verify_WebSocket_origin, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 190, 200, 20, hWnd, ( HMENU )BTN_VERIFY_ORIGIN, NULL, NULL );
-			g_hWnd_chk_auto_start = _CreateWindowW( WC_BUTTON, ST_Start_web_server_upon_startup, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 210, 200, 20, hWnd, ( HMENU )BTN_AUTO_START, NULL, NULL );
+			g_hWnd_chk_keep_alive = _CreateWindowW( WC_BUTTON, ST_Allow_Keep_Alive_requests, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 210, 200, 20, hWnd, ( HMENU )BTN_KEEP_ALIVE, NULL, NULL );
+			g_hWnd_chk_auto_start = _CreateWindowW( WC_BUTTON, ST_Start_web_server_upon_startup, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 230, 200, 20, hWnd, ( HMENU )BTN_AUTO_START, NULL, NULL );
 
 
-			g_hWnd_static_thread_count = _CreateWindowW( WC_STATIC, ST_Thread_count_, WS_CHILD | WS_VISIBLE, 0, 240, 90, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_thread_count = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 90, 237, 60, 20, hWnd, ( HMENU )EDIT_THREAD_COUNT, NULL, NULL );
+			g_hWnd_static_resource_cache_size = _CreateWindowW( WC_STATIC, ST_Resource_cache_size__bytes__, WS_CHILD | WS_VISIBLE, 0, 260, 175, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_resource_cache_size = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 275, 160, 20, hWnd, ( HMENU )EDIT_CACHE_SIZE, NULL, NULL );
+
+			g_hWnd_static_thread_count = _CreateWindowW( WC_STATIC, ST_Thread_pool_count_, WS_CHILD | WS_VISIBLE, 0, 305, 150, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_thread_count = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 320, 100, 20, hWnd, ( HMENU )EDIT_THREAD_COUNT, NULL, NULL );
 
 
+			g_hWnd_chk_enable_ssl = _CreateWindowW( WC_BUTTON, ST_Enable_SSL_TLS_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 350, 150, 20, hWnd, ( HMENU )BTN_ENABLE_SSL, NULL, NULL );
+
+			g_hWnd_static_hoz2 = _CreateWindowW( WC_STATIC, NULL, SS_ETCHEDHORZ | WS_CHILD | WS_VISIBLE, 0, 375, rc.right - 10, 5, hWnd, NULL, NULL, NULL );
+			
+
+			g_hWnd_chk_type_pkcs = _CreateWindowW( WC_BUTTON, ST_PKCS_NUM12_, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 0, 380, 90, 20, hWnd, ( HMENU )BTN_TYPE_PKCS, NULL, NULL );
+			g_hWnd_chk_type_pair = _CreateWindowW( WC_BUTTON, ST_Public_Private_key_pair_, BS_AUTORADIOBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 90, 380, 150, 20, hWnd, ( HMENU )BTN_TYPE_PAIR, NULL, NULL );
 
 
+			g_hWnd_static_certificate_pkcs_location = _CreateWindowW( WC_STATIC, ST_PKCS_NUM12_file_, WS_CHILD | WS_VISIBLE, 15, 405, 150, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_certificate_pkcs_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 420, 330, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_PKCS, NULL, NULL );
+			g_hWnd_btn_certificate_pkcs_location = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 350, 420, 35, 20, hWnd, ( HMENU )BTN_CERTIFICATE_PKCS, NULL, NULL );
 
-			g_hWnd_chk_enable_ssl = _CreateWindowW( WC_BUTTON, ST_Enable_SSL_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 250, 30, 150, 20, hWnd, ( HMENU )BTN_ENABLE_SSL, NULL, NULL );
-
-			g_hWnd_static_hoz2 = _CreateWindowW( WC_STATIC, NULL, SS_ETCHEDHORZ | WS_CHILD | WS_VISIBLE, 250, 55, rc.right - 250, 5, hWnd, NULL, NULL, NULL );
-
-			g_hWnd_chk_type_pkcs = _CreateWindowW( WC_BUTTON, ST_PKCS_NUM12_, BS_AUTORADIOBUTTON | WS_CHILD | WS_GROUP | WS_TABSTOP | WS_VISIBLE, 250, 60, 75, 20, hWnd, ( HMENU )BTN_TYPE_PKCS, NULL, NULL );
-			g_hWnd_chk_type_pair = _CreateWindowW( WC_BUTTON, ST_Public_Private_key_pair_, BS_AUTORADIOBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 325, 60, 150, 20, hWnd, ( HMENU )BTN_TYPE_PAIR, NULL, NULL );
-
-
-			g_hWnd_static_certificate_pkcs_location = _CreateWindowW( WC_STATIC, ST_PKCS_NUM12_file_, WS_CHILD | WS_VISIBLE, 265, 85, 150, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_certificate_pkcs_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 265, 100, 150, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_PKCS, NULL, NULL );
-			g_hWnd_btn_certificate_pkcs_location = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 420, 100, 35, 20, hWnd, ( HMENU )BTN_CERTIFICATE_PKCS, NULL, NULL );
-
-			g_hWnd_static_certificate_pkcs_password = _CreateWindowW( WC_STATIC, ST_PKCS_NUM12_password_, WS_CHILD | WS_VISIBLE, 265, 125, 150, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_certificate_pkcs_password = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_PASSWORD | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 265, 140, 150, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_PKCS_PASSWORD, NULL, NULL );
+			g_hWnd_static_certificate_pkcs_password = _CreateWindowW( WC_STATIC, ST_PKCS_NUM12_password_, WS_CHILD | WS_VISIBLE, 15, 445, 150, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_certificate_pkcs_password = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_PASSWORD | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 460, 150, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_PKCS_PASSWORD, NULL, NULL );
 
 
 			
 
-			g_hWnd_static_certificate_cer_location = _CreateWindowW( WC_STATIC, ST_Certificate_file_, WS_CHILD | WS_VISIBLE, 265, 85, 150, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_certificate_cer_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 265, 100, 150, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_CER, NULL, NULL );
-			g_hWnd_btn_certificate_cer_location = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 420, 100, 35, 20, hWnd, ( HMENU )BTN_CERTIFICATE_CER, NULL, NULL );
+			g_hWnd_static_certificate_cer_location = _CreateWindowW( WC_STATIC, ST_Certificate_file_, WS_CHILD | WS_VISIBLE, 15, 405, 150, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_certificate_cer_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 420, 330, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_CER, NULL, NULL );
+			g_hWnd_btn_certificate_cer_location = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 350, 420, 35, 20, hWnd, ( HMENU )BTN_CERTIFICATE_CER, NULL, NULL );
 
-			g_hWnd_static_certificate_key_location = _CreateWindowW( WC_STATIC, ST_Key_file_, WS_CHILD | WS_VISIBLE, 265, 125, 150, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_certificate_key_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 265, 140, 150, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_KEY, NULL, NULL );
-			g_hWnd_btn_certificate_key_location = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 420, 140, 35, 20, hWnd, ( HMENU )BTN_CERTIFICATE_KEY, NULL, NULL );
+			g_hWnd_static_certificate_key_location = _CreateWindowW( WC_STATIC, ST_Key_file_, WS_CHILD | WS_VISIBLE, 15, 445, 150, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_certificate_key_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 460, 330, 20, hWnd, ( HMENU )EDIT_CERTIFICATE_KEY, NULL, NULL );
+			g_hWnd_btn_certificate_key_location = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 350, 460, 35, 20, hWnd, ( HMENU )BTN_CERTIFICATE_KEY, NULL, NULL );
 
 
-			g_hWnd_static_ssl_version = _CreateWindowW( WC_STATIC, ST_SSL_version_, WS_CHILD | WS_VISIBLE, 250, 170, 150, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_ssl_version = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_COMBOBOX, NULL, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 250, 185, 100, 20, hWnd, ( HMENU )CB_SSL_VERSION, NULL, NULL );
+
+			g_hWnd_static_ssl_version = _CreateWindowW( WC_STATIC, ST_SSL_TLS_version_, WS_CHILD | WS_VISIBLE, 0, 490, 150, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_ssl_version = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_COMBOBOX, NULL, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 0, 505, 100, 20, hWnd, ( HMENU )CB_SSL_VERSION, NULL, NULL );
 			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_SSL_2_0 );
 			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_SSL_3_0 );
 			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_TLS_1_0 );
@@ -521,6 +546,20 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 			_SendMessageW( g_hWnd_hostname, EM_LIMITTEXT, 254, 0 );
 			_SendMessageW( g_hWnd_port, EM_LIMITTEXT, 5, 0 );
 			_SendMessageW( g_hWnd_thread_count, EM_LIMITTEXT, 10, 0 );
+			_SendMessageW( g_hWnd_resource_cache_size, EM_LIMITTEXT, 20, 0 );
+
+
+			web_server_tab_scroll_pos = 0;
+			web_server_tab_height = ( rc.bottom - rc.top ) + 255;
+
+			SCROLLINFO si;
+			si.cbSize = sizeof( SCROLLINFO );
+			si.fMask = SIF_ALL;
+			si.nMin = 0;
+			si.nMax = web_server_tab_height;
+			si.nPage = ( ( web_server_tab_height / 2 ) + ( ( web_server_tab_height % 2 ) != 0 ) );
+			si.nPos = 0;
+			_SetScrollInfo( hWnd, SB_VERT, &si, TRUE );
 
 			
 			_SendMessageW( g_hWnd_chk_web_server, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -551,6 +590,8 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 			_SendMessageW( g_hWnd_static_thread_count, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_thread_count, WM_SETFONT, ( WPARAM )hFont, 0 );
 
+			_SendMessageW( g_hWnd_static_resource_cache_size, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_resource_cache_size, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_chk_type_pkcs, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_type_pair, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -575,6 +616,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 			_SendMessageW( g_hWnd_chk_auto_start, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_verify_origin, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_chk_keep_alive, WM_SETFONT, ( WPARAM )hFont, 0 );
 			
 
 			// Stupid control likes to delete the font object. :-/
@@ -630,6 +672,68 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 		}
 		break;
 
+		case WM_MBUTTONUP:
+		case WM_LBUTTONUP:
+		case WM_RBUTTONUP:
+		{
+			_SetFocus( hWnd );
+
+			return 0;
+		}
+		break;
+
+		case WM_MOUSEWHEEL:
+		case WM_VSCROLL:
+		{
+			int delta = 0;
+
+			if ( msg == WM_VSCROLL )
+			{
+				// Only process the standard scroll bar.
+				if ( lParam != NULL )
+				{
+					return _DefWindowProcW( hWnd, msg, wParam, lParam );
+				}
+
+				switch ( LOWORD( wParam ) )
+				{
+					case SB_LINEUP: { delta = -10; } break;
+					case SB_LINEDOWN: { delta = 10; } break;
+					case SB_PAGEUP: { delta = -50; } break;
+					case SB_PAGEDOWN: { delta = 50; } break;
+					//case SB_THUMBPOSITION:
+					case SB_THUMBTRACK: { delta = ( int )HIWORD( wParam ) - web_server_tab_scroll_pos; } break;
+					default: { return 0; } break;
+				}
+			}
+			else if ( msg == WM_MOUSEWHEEL )
+			{
+				delta = -( GET_WHEEL_DELTA_WPARAM( wParam ) / WHEEL_DELTA ) * 20;
+			}
+
+			web_server_tab_scroll_pos += delta;
+
+			if ( web_server_tab_scroll_pos < 0 )
+			{
+				delta -= web_server_tab_scroll_pos;
+				web_server_tab_scroll_pos = 0;
+			}
+			else if ( web_server_tab_scroll_pos > ( ( web_server_tab_height / 2 ) + ( ( web_server_tab_height % 2 ) != 0 ) ) )
+			{
+				delta -= ( web_server_tab_scroll_pos - ( ( web_server_tab_height / 2 ) + ( ( web_server_tab_height % 2 ) != 0 ) ) );
+				web_server_tab_scroll_pos = ( ( web_server_tab_height / 2 ) + ( ( web_server_tab_height % 2 ) != 0 ) );
+			}
+
+			if ( delta != 0 )
+			{
+				_SetScrollPos( hWnd, SB_VERT, web_server_tab_scroll_pos, TRUE );
+				_ScrollWindow( hWnd, 0, -delta, NULL, NULL );
+			}
+
+			return 0;
+		}
+		break;
+
 		case WM_COMMAND:
 		{
 			switch( LOWORD( wParam ) )
@@ -667,7 +771,12 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 						if ( num > 65535 )
 						{
+							DWORD sel_start = 0;
+							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
+
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"65535" );
+
+							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
 
 						if ( state_changed != NULL )
@@ -684,18 +793,54 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
 						char value[ 11 ];
-						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 10, ( LPARAM )value );
+						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 11, ( LPARAM )value );
 						unsigned long num = _strtoul( value, NULL, 10 );
+
+						DWORD sel_start = 0;
 
 						if ( num > max_threads )
 						{
+							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
+
 							__snprintf( value, 11, "%lu", max_threads );
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )value );
+
+							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
 						else if ( num == 0 )
 						{
+							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
+
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"1" );
+
+							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
+
+						if ( state_changed != NULL )
+						{
+							*state_changed = true;
+							_EnableWindow( *g_hWnd_apply, TRUE );
+						}
+					}
+				}
+				break;
+
+				case EDIT_CACHE_SIZE:
+				{
+					if ( HIWORD( wParam ) == EN_UPDATE )
+					{
+						char value[ 21 ];
+						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 21, ( LPARAM )value );
+						unsigned long long num = strtoull( value );
+
+						DWORD sel_start = 0;
+						_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
+
+						// Reset the text. If our string is greater than ULLONG_MAX.
+						__snprintf( value, 21, "%llu", num );
+						_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )value );
+
+						_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 
 						if ( state_changed != NULL )
 						{
@@ -1102,6 +1247,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 				}
 				break;
 
+				case BTN_KEEP_ALIVE:
 				case BTN_VERIFY_ORIGIN:
 				case BTN_AUTO_START:
 				{

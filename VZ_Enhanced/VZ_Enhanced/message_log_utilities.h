@@ -38,7 +38,7 @@
 
 struct MESSAGE_LOG_INFO
 {
-	LARGE_INTEGER date_and_time;
+	ULARGE_INTEGER date_and_time;
 	wchar_t *w_date_and_time;
 	wchar_t *message;
 	wchar_t *w_level;

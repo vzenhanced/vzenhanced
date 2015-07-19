@@ -228,12 +228,7 @@ static SECURITY_STATUS ClientHandshakeLoop( SSL *ssl, bool fDoInitialRead )
 				}
 
 				cbData = _recv( ssl->s, ( char * )ssl->pbIoBuffer + ssl->cbIoBuffer, ssl->sbIoBuffer - ssl->cbIoBuffer, 0 );
-				if ( cbData == SOCKET_ERROR )
-				{
-					scRet = SEC_E_INTERNAL_ERROR;
-					break;
-				}
-				else if ( cbData == 0 )
+				if ( cbData == SOCKET_ERROR || cbData == 0 )
 				{
 					scRet = SEC_E_INTERNAL_ERROR;
 					break;
@@ -293,19 +288,22 @@ static SECURITY_STATUS ClientHandshakeLoop( SSL *ssl, bool fDoInitialRead )
 		// If success (or if the error was one of the special extended ones), send the contents of the output buffer to the server.
 		if ( scRet == SEC_E_OK || scRet == SEC_I_CONTINUE_NEEDED || FAILED( scRet ) && ( dwSSPIOutFlags & ISC_RET_EXTENDED_ERROR ) )
 		{
-			if ( OutBuffers[ 0 ].cbBuffer != 0 && OutBuffers[ 0 ].pvBuffer != NULL )
+			if ( OutBuffers[ 0 ].pvBuffer != NULL )
 			{
-				cbData = _send( ssl->s, ( char * )OutBuffers[ 0 ].pvBuffer, OutBuffers[ 0 ].cbBuffer, 0 );
-				if ( cbData == SOCKET_ERROR || cbData == 0 )
+				if ( OutBuffers[ 0 ].cbBuffer != 0 )
 				{
-					g_pSSPI->FreeContextBuffer( OutBuffers[ 0 ].pvBuffer );
-					g_pSSPI->DeleteSecurityContext( &ssl->hContext );
-					return SEC_E_INTERNAL_ERROR;
+					cbData = _send( ssl->s, ( char * )OutBuffers[ 0 ].pvBuffer, OutBuffers[ 0 ].cbBuffer, 0 );
+					if ( cbData == SOCKET_ERROR || cbData == 0 )
+					{
+						g_pSSPI->FreeContextBuffer( OutBuffers[ 0 ].pvBuffer );
+						g_pSSPI->DeleteSecurityContext( &ssl->hContext );
+						SecInvalidateHandle( &ssl->hContext );
+						return SEC_E_INTERNAL_ERROR;
+					}
 				}
 
 				// Free output buffer.
 				g_pSSPI->FreeContextBuffer( OutBuffers[ 0 ].pvBuffer );
-				OutBuffers[ 0 ].pvBuffer = NULL;
 			}
 		}
 
@@ -364,6 +362,7 @@ static SECURITY_STATUS ClientHandshakeLoop( SSL *ssl, bool fDoInitialRead )
 	if ( FAILED( scRet ) )
 	{
 		g_pSSPI->DeleteSecurityContext( &ssl->hContext );
+		SecInvalidateHandle( &ssl->hContext );
 	}
 
 	if ( ssl->cbIoBuffer == 0 )
@@ -432,19 +431,22 @@ int SSL_connect( SSL *ssl )
 	}
 
 	// Send response to server if there is one.
-	if ( OutBuffers[ 0 ].cbBuffer != 0 && OutBuffers[ 0 ].pvBuffer != NULL )
+	if ( OutBuffers[ 0 ].pvBuffer != NULL )
 	{
-		cbData = _send( ssl->s, (char * )OutBuffers[ 0 ].pvBuffer, OutBuffers[ 0 ].cbBuffer, 0 );
-		if ( cbData == SOCKET_ERROR || cbData == 0 )
+		if ( OutBuffers[ 0 ].cbBuffer != 0 )
 		{
-			g_pSSPI->FreeContextBuffer( OutBuffers[ 0 ].pvBuffer );
-			g_pSSPI->DeleteSecurityContext( &ssl->hContext );
-			return 0;
+			cbData = _send( ssl->s, (char * )OutBuffers[ 0 ].pvBuffer, OutBuffers[ 0 ].cbBuffer, 0 );
+			if ( cbData == SOCKET_ERROR || cbData == 0 )
+			{
+				g_pSSPI->FreeContextBuffer( OutBuffers[ 0 ].pvBuffer );
+				g_pSSPI->DeleteSecurityContext( &ssl->hContext );
+				SecInvalidateHandle( &ssl->hContext );
+				return 0;
+			}
 		}
 
 		// Free output buffer.
 		g_pSSPI->FreeContextBuffer( OutBuffers[ 0 ].pvBuffer );
-		OutBuffers[ 0 ].pvBuffer = NULL;
 	}
 
 	return ClientHandshakeLoop( ssl, true ) == SEC_E_OK;
@@ -519,14 +521,18 @@ int SSL_shutdown( SSL *ssl )
 	}
 
 	// Send the close notify message to the server.
-	if ( OutBuffers[ 0 ].pvBuffer != NULL && OutBuffers[ 0 ].cbBuffer != 0 )
+	if ( OutBuffers[ 0 ].pvBuffer != NULL )
 	{
-		_send( ssl->s, ( char * )OutBuffers[ 0 ].pvBuffer, OutBuffers[ 0 ].cbBuffer, 0 );
+		if ( OutBuffers[ 0 ].cbBuffer != 0 )
+		{
+			_send( ssl->s, ( char * )OutBuffers[ 0 ].pvBuffer, OutBuffers[ 0 ].cbBuffer, 0 );
+		}
 		g_pSSPI->FreeContextBuffer( OutBuffers[ 0 ].pvBuffer );
 	}
 
 	// Free the security context.
 	g_pSSPI->DeleteSecurityContext( &ssl->hContext );
+	SecInvalidateHandle( &ssl->hContext );
 
 	return Status;
 }
@@ -647,7 +653,7 @@ int SSL_read( SSL *ssl, char *buf, int num )
 			return 0;
 		}
 
-		if ( scRet != SEC_E_OK && scRet != SEC_I_RENEGOTIATE && scRet != SEC_I_CONTEXT_EXPIRED )
+		if ( scRet != SEC_E_OK && scRet != SEC_I_RENEGOTIATE )
 		{
 			return SOCKET_ERROR;
 		}
@@ -800,6 +806,7 @@ int SSL_write( SSL *ssl, const char *buf, int num )
 		if ( cbData == SOCKET_ERROR || cbData == 0 )
 		{
 			g_pSSPI->DeleteSecurityContext( &ssl->hContext );
+			SecInvalidateHandle( &ssl->hContext );
 			scRet = SEC_E_INTERNAL_ERROR;
 			break;
 		}

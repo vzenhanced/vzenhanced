@@ -20,6 +20,7 @@
 
 #include "file_operations.h"
 #include "utilities.h"
+#include "connection.h"
 #include "lite_ntdll.h"
 #include "lite_crypt32.h"
 
@@ -71,7 +72,7 @@ char read_config()
 		DWORD fz = GetFileSize( hFile_cfg, NULL );
 
 		// Our config file is going to be small. If it's something else, we're not going to read it.
-		if ( fz >= 22 && fz < 1024 )
+		if ( fz >= 31 && fz < 1024 )
 		{
 			char *cfg_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * fz + 1 );
 
@@ -104,6 +105,12 @@ char read_config()
 
 				_memcpy_s( &cfg_verify_origin, sizeof( bool ), next, sizeof( bool ) );
 				next += sizeof( bool );
+
+				_memcpy_s( &cfg_allow_keep_alive_requests, sizeof( bool ), next, sizeof( bool ) );
+				next += sizeof( bool );
+
+				_memcpy_s( &cfg_resource_cache_size, sizeof( unsigned long long ), next, sizeof( unsigned long long ) );
+				next += sizeof( unsigned long long );
 
 				_memcpy_s( &cfg_thread_count, sizeof( unsigned long ), next, sizeof( unsigned long ) );
 				next += sizeof( unsigned long );
@@ -348,7 +355,7 @@ char save_config()
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_cfg != INVALID_HANDLE_VALUE )
 	{
-		int size = ( sizeof( bool ) * 5 ) + ( sizeof( char ) * 7 ) + ( sizeof( unsigned short ) * 1 ) + ( sizeof( unsigned int ) * 2 );
+		int size = ( sizeof( bool ) * 6 ) + ( sizeof( char ) * 7 ) + ( sizeof( unsigned short ) * 1 ) + ( sizeof( unsigned int ) * 2 ) + ( sizeof( unsigned long long ) * 1 );
 		int pos = 0;
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
@@ -376,6 +383,12 @@ char save_config()
 
 		_memcpy_s( write_buf + pos, size - pos, &cfg_verify_origin, sizeof( bool ) );
 		pos += sizeof( bool );
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_allow_keep_alive_requests, sizeof( bool ) );
+		pos += sizeof( bool );
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_resource_cache_size, sizeof( unsigned long long ) );
+		pos += sizeof( unsigned long long );
 
 		_memcpy_s( write_buf + pos, size - pos, &cfg_thread_count, sizeof( unsigned long ) );
 		pos += sizeof( unsigned long );
@@ -542,39 +555,67 @@ char save_config()
 	return status;
 }
 
-void PreloadIndexFile()
+void PreloadIndexFile( dllrbt_tree *resource_cache, unsigned long long *resource_cache_size, unsigned long long maximum_resource_cache_size )
 {
-	if ( index_file_buf != NULL )
+	if ( resource_cache != NULL && resource_cache_size != NULL && maximum_resource_cache_size > 0 )
 	{
-		GlobalFree( index_file_buf );
-		index_file_buf = NULL;
-	}
-	index_file_buf_length = 0;
+		wchar_t file_path[ MAX_PATH ];
+		_memzero( file_path, MAX_PATH );
 
-	wchar_t file_path[ MAX_PATH ];
-	_memzero( file_path, MAX_PATH );
+		// First try to open an index that ends with ".html".
+		_wmemcpy_s( file_path, MAX_PATH, cfg_document_root_directory, g_document_root_directory_length );
+		_wmemcpy_s( file_path + g_document_root_directory_length, MAX_PATH - g_document_root_directory_length, L"\\index.html\0", 12 );
+		file_path[ g_document_root_directory_length + 11 ] = 0;	// Sanity.
 
-	_wmemcpy_s( file_path, MAX_PATH, cfg_document_root_directory, g_document_root_directory_length );
-	_wmemcpy_s( file_path + g_document_root_directory_length, MAX_PATH - g_document_root_directory_length, L"\\index.html\0", 12 );
-	file_path[ g_document_root_directory_length + 11 ] = 0;	// Sanity.
+		HANDLE hFile_index = CreateFile( file_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+		
+		// If the index file does not end with ".html", then see if it ends with ".htm".
+		if ( hFile_index == INVALID_HANDLE_VALUE )
+		{
+			file_path[ g_document_root_directory_length + 10 ] = 0;	// Set the 'l' to NULL.
+			hFile_index = CreateFile( file_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
+		}
 
-	HANDLE hFile_index = CreateFile( file_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	if ( hFile_index == INVALID_HANDLE_VALUE )
-	{
-		file_path[ g_document_root_directory_length + 10 ] = 0;
-		hFile_index = CreateFile( file_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL );
-	}
+		if ( hFile_index != INVALID_HANDLE_VALUE )
+		{
+			char *resource_buf = NULL;
+			DWORD bytes_read = 0;
 
-	if ( hFile_index != INVALID_HANDLE_VALUE )
-	{
-		DWORD read = 0;
+			DWORD file_size = GetFileSize( hFile_index, NULL );
 
-		index_file_buf_length = GetFileSize( hFile_index, NULL );
+			// Make sure our file can fit into the resource cache.
+			if ( file_size <= maximum_resource_cache_size )
+			{
+				// Make sure we have data to allocate and read.
+				if ( file_size > 0 )
+				{
+					resource_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * file_size );
 
-		index_file_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * index_file_buf_length );
+					ReadFile( hFile_index, resource_buf, file_size, &bytes_read, NULL );
+				}
 
-		ReadFile( hFile_index, index_file_buf, sizeof( char ) * index_file_buf_length, &read, NULL );
+				// Create our cache item to add to the tree.
+				RESOURCE_CACHE_ITEM *rci = ( RESOURCE_CACHE_ITEM * )GlobalAlloc( GMEM_FIXED, sizeof( RESOURCE_CACHE_ITEM ) );
+				rci->resource_path = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) );
+				rci->resource_path[ 0 ] = 0;	// Sanity.
+				rci->resource_data = resource_buf;
+				rci->resource_data_size = file_size;
 
-		CloseHandle( hFile_index );
+				// Insert the resource into the tree.
+				if ( dllrbt_insert( resource_cache, ( void * )rci->resource_path, ( void * )rci ) != DLLRBT_STATUS_OK )
+				{
+					// This shouldn't happen.
+					GlobalFree( rci->resource_data );
+					GlobalFree( rci->resource_path );
+					GlobalFree( rci );
+				}
+				else
+				{
+					*resource_cache_size += file_size;
+				}
+			}
+
+			CloseHandle( hFile_index );
+		}
 	}
 }

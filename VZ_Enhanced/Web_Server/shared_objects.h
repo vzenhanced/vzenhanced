@@ -55,7 +55,7 @@ struct displayinfo
 
 	callerinfo ci;
 
-	LARGE_INTEGER time;
+	ULARGE_INTEGER time;
 
 	unsigned int forward_cid_match_count;	// Number of forward cid matches.
 	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.

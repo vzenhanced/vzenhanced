@@ -30,12 +30,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.8"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.1.9"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.1.8"
+#define USER_AGENT			"VZ-Enhanced/1.0.1.9"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -45,7 +45,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1018
+#define CURRENT_VERSION		1019
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -3998,7 +3998,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 	bool reauthorize = false;
 
-	LARGE_INTEGER li_current, li_update, li_register;
+	ULARGE_INTEGER li_current, li_update, li_register;
 	SYSTEMTIME SystemTime, LastSystemTime;
 	FILETIME FileTime, LastFileTime;
 

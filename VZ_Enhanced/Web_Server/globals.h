@@ -53,9 +53,6 @@ extern HFONT hFont;
 
 extern int row_height;
 
-extern CRITICAL_SECTION cc_cs;
-extern CRITICAL_SECTION g_CriticalSection;
-
 extern "C" __declspec ( dllexport )
 extern CRITICAL_SECTION *list_cs;
 
@@ -101,6 +98,7 @@ extern unsigned char cfg_ssl_version;
 
 extern bool cfg_auto_start;
 extern bool cfg_verify_origin;
+extern bool cfg_allow_keep_alive_requests;
 extern bool cfg_enable_ssl;
 
 extern unsigned char cfg_certificate_type;
@@ -118,6 +116,7 @@ extern wchar_t *cfg_authentication_username;
 extern wchar_t *cfg_authentication_password;
 
 extern unsigned long cfg_thread_count;
+extern unsigned long long cfg_resource_cache_size;
 
 extern char *encoded_authentication;
 extern DWORD encoded_authentication_length;
@@ -125,9 +124,6 @@ extern DWORD encoded_authentication_length;
 extern int g_document_root_directory_length;
 
 extern bool use_ssl;	// Current connection state.
-
-extern char *index_file_buf;
-extern DWORD index_file_buf_length;
 
 extern unsigned long max_threads;
 

@@ -147,7 +147,7 @@ struct displayinfo
 
 	callerinfo ci;
 
-	LARGE_INTEGER time;
+	ULARGE_INTEGER time;
 
 	unsigned int forward_cid_match_count;	// Number of forward cid matches.
 	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.
@@ -783,6 +783,7 @@ struct POPUP_SETTINGS
 	LONG font_weight;
 	wchar_t *font_face;
 	wchar_t *line_text;
+	SHARED_SETTINGS *shared_settings;
 	unsigned char popup_justify;
 	char popup_line_order;
 	BYTE font_italic;

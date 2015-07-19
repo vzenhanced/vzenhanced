@@ -40,11 +40,11 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			_SetWindowPos( hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
 
 			DoublyLinkedList *ll = ( DoublyLinkedList * )_GetWindowLongW( hWnd, 0 );
-			if ( ll != NULL && ll->data != NULL && ll->shared != NULL )
+			if ( ll != NULL && ll->data != NULL && ( ( POPUP_SETTINGS * )ll->data )->shared_settings != NULL )
 			{
-				SHARED_SETTINGS *ss = ( SHARED_SETTINGS * )ll->shared;
+				SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )ll->data )->shared_settings;
 
-				if ( ss->popup_play_sound == true )
+				if ( shared_settings->popup_play_sound == true )
 				{
 					bool play = true;
 					#ifndef WINMM_USE_STATIC_LIB
@@ -56,11 +56,11 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 					if ( play == true )
 					{
-						_PlaySoundW( ss->popup_sound, NULL, SND_ASYNC | SND_FILENAME );
+						_PlaySoundW( shared_settings->popup_sound, NULL, SND_ASYNC | SND_FILENAME );
 					}
 				}
 
-				_SetTimer( hWnd, IDT_TIMER, ss->popup_time * 1000, ( TIMERPROC )TimerProc );
+				_SetTimer( hWnd, IDT_TIMER, shared_settings->popup_time * 1000, ( TIMERPROC )TimerProc );
 			}
 			else
 			{
@@ -87,13 +87,13 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			DoublyLinkedList *ll = ( DoublyLinkedList * )_GetWindowLongW( hWnd, 0 );
 
-			if ( ll != NULL && ll->shared != NULL )
+			if ( ll != NULL && ll->data != NULL && ( ( POPUP_SETTINGS * )ll->data )->shared_settings != NULL )
 			{
-				SHARED_SETTINGS *ss = ( SHARED_SETTINGS * )ll->shared;
+				SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )ll->data )->shared_settings;
 
-				if ( ss->popup_gradient == false )
+				if ( shared_settings->popup_gradient == false )
 				{
-					HBRUSH background = _CreateSolidBrush( ss->popup_background_color1 );
+					HBRUSH background = _CreateSolidBrush( shared_settings->popup_background_color1 );
 					_FillRect( hdcMem, &client_rc, background );
 					_DeleteObject( background );
 				}
@@ -103,16 +103,16 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					TRIVERTEX vertex[ 2 ];
 					vertex[ 0 ].x = 0;
 					vertex[ 0 ].y = 0;
-					vertex[ 0 ].Red = ( COLOR16 )GetRValue( ss->popup_background_color1 ) << 8;
-					vertex[ 0 ].Green = ( COLOR16 )GetGValue( ss->popup_background_color1 ) << 8;
-					vertex[ 0 ].Blue  = ( COLOR16 )GetBValue( ss->popup_background_color1 ) << 8;
+					vertex[ 0 ].Red = ( COLOR16 )GetRValue( shared_settings->popup_background_color1 ) << 8;
+					vertex[ 0 ].Green = ( COLOR16 )GetGValue( shared_settings->popup_background_color1 ) << 8;
+					vertex[ 0 ].Blue  = ( COLOR16 )GetBValue( shared_settings->popup_background_color1 ) << 8;
 					vertex[ 0 ].Alpha = 0x0000;
 
 					vertex[ 1 ].x = client_rc.right - client_rc.left;
 					vertex[ 1 ].y = client_rc.bottom - client_rc.top; 
-					vertex[ 1 ].Red = ( COLOR16 )GetRValue( ss->popup_background_color2 ) << 8;
-					vertex[ 1 ].Green = ( COLOR16 )GetGValue( ss->popup_background_color2 ) << 8;
-					vertex[ 1 ].Blue  = ( COLOR16 )GetBValue( ss->popup_background_color2 ) << 8;
+					vertex[ 1 ].Red = ( COLOR16 )GetRValue( shared_settings->popup_background_color2 ) << 8;
+					vertex[ 1 ].Green = ( COLOR16 )GetGValue( shared_settings->popup_background_color2 ) << 8;
+					vertex[ 1 ].Blue  = ( COLOR16 )GetBValue( shared_settings->popup_background_color2 ) << 8;
 					vertex[ 1 ].Alpha = 0x0000;
 
 					// Create a GRADIENT_RECT structure that references the TRIVERTEX vertices.
@@ -121,7 +121,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					gRc.LowerRight = 1;
 
 					// Draw a shaded rectangle. 
-					_GdiGradientFill( hdcMem, vertex, 2, &gRc, 1, ( ss->popup_gradient_direction == 1 ? GRADIENT_FILL_RECT_H : GRADIENT_FILL_RECT_V ) );
+					_GdiGradientFill( hdcMem, vertex, 2, &gRc, 1, ( shared_settings->popup_gradient_direction == 1 ? GRADIENT_FILL_RECT_H : GRADIENT_FILL_RECT_V ) );
 				}
 
 				// Transparent background for text.
@@ -323,10 +323,10 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			}
 
 			// We can free the shared memory from the first node.
-			if ( current_node != NULL && current_node->shared != NULL )
+			if ( current_node != NULL && current_node->data != NULL && ( ( POPUP_SETTINGS * )current_node->data )->shared_settings != NULL )
 			{
-				GlobalFree( ( ( SHARED_SETTINGS * )current_node->shared )->popup_sound );
-				GlobalFree( ( ( SHARED_SETTINGS * )current_node->shared ) );
+				GlobalFree( ( ( POPUP_SETTINGS * )current_node->data )->shared_settings->popup_sound );
+				GlobalFree( ( ( POPUP_SETTINGS * )current_node->data )->shared_settings );
 			}
 
 			while ( current_node != NULL )
@@ -337,7 +337,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				_DeleteObject( ( ( POPUP_SETTINGS * )del_node->data )->font );
 				GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->font_face );
 				GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->line_text );
-				GlobalFree( ( ( POPUP_SETTINGS * )del_node->data ) );
+				GlobalFree( ( POPUP_SETTINGS * )del_node->data );
 				GlobalFree( del_node );
 			}
 

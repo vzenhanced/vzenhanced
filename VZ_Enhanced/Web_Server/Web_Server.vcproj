@@ -193,6 +193,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\connection_resource.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\connection_websocket.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\dllrbt.cpp"
 				>
 			</File>
@@ -257,6 +265,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\readwritelock.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\ssl_server.cpp"
 				>
 			</File>
@@ -284,6 +296,14 @@
 			>
 			<File
 				RelativePath=".\connection.h"
+				>
+			</File>
+			<File
+				RelativePath=".\connection_resource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\connection_websocket.h"
 				>
 			</File>
 			<File
@@ -348,6 +368,10 @@
 			</File>
 			<File
 				RelativePath=".\menus.h"
+				>
+			</File>
+			<File
+				RelativePath=".\readwritelock.h"
 				>
 			</File>
 			<File

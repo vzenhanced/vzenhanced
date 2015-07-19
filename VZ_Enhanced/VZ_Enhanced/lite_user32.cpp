@@ -84,6 +84,7 @@
 	pReleaseDC				_ReleaseDC;
 	pRemoveMenu				_RemoveMenu;
 	pScreenToClient			_ScreenToClient;
+	pScrollWindow			_ScrollWindow;
 	pSendMessageA			_SendMessageA;
 	pSendMessageW			_SendMessageW;
 	pSendNotifyMessageW		_SendNotifyMessageW;
@@ -96,6 +97,8 @@
 	pSetMenu				_SetMenu;
 	pSetMenuItemInfoW		_SetMenuItemInfoW;
 	pSetRect				_SetRect;
+	pSetScrollInfo			_SetScrollInfo;
+	pSetScrollPos			_SetScrollPos
 	pSetTimer				_SetTimer;
 	pSetWindowLongW			_SetWindowLongW;
 	pSetWindowPos			_SetWindowPos;
@@ -186,6 +189,7 @@
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_ReleaseDC, "ReleaseDC" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_RemoveMenu, "RemoveMenu" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_ScreenToClient, "ScreenToClient" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_ScrollWindow, "ScrollWindow" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SendMessageA, "SendMessageA" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SendMessageW, "SendMessageW" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SendNotifyMessageW, "SendNotifyMessageW" ) )
@@ -198,6 +202,8 @@
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetMenu, "SetMenu" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetMenuItemInfoW, "SetMenuItemInfoW" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetRect, "SetRect" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetScrollInfo, "SetScrollInfo" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetScrollPos, "SetScrollPos" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetTimer, "SetTimer" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetWindowLongW, "SetWindowLongW" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_SetWindowPos, "SetWindowPos" ) )

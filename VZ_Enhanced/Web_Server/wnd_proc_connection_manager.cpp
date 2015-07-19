@@ -42,7 +42,7 @@ VOID CALLBACK TimerProc( HWND hWnd, UINT msg, UINT idTimer, DWORD dwTime )
 
 THREAD_RETURN close_connections( void *pArguments )
 {
-	DeleteCriticalSection( &cc_cs );
+	EnterCriticalSection( &close_connection_cs );
 
 	LVITEM lvi;
 	_memzero( &lvi, sizeof( LVITEM ) );
@@ -72,17 +72,20 @@ THREAD_RETURN close_connections( void *pArguments )
 		_SendMessageW( g_hWnd_connections, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 		CONNECTION_INFO *ci = ( CONNECTION_INFO * )lvi.lParam;
-		
-		if ( ci->psc != NULL )
+
+		// Make sure we're not already in the process of shutting down or closing the connection.
+		if ( ci->psc != NULL &&
+		   ( ci->psc->io_context.IOOperation != ClientIoShutdown && ci->psc->io_context.IOOperation != ClientIoClose ) &&
+		   ( ci->psc->io_context.NextIOOperation != ClientIoShutdown && ci->psc->io_context.NextIOOperation != ClientIoClose ) )
 		{
 			// Attempts a shutdown and then explicitly closes the connection (to force any stale connections to return from the completion port).
-			BeginClose( ci->psc );
+			BeginClose( ci->psc, ( use_ssl == true ? ClientIoShutdown : ClientIoClose ) );
 		}
 	}
 
 	GlobalFree( index_array );
 
-	DeleteCriticalSection( &cc_cs );
+	LeaveCriticalSection( &close_connection_cs );
 
 	_ExitThread( 0 );
 	return 0;

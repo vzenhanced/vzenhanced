@@ -28,28 +28,13 @@
 #include "doublylinkedlist.h"
 #include "ssl_server.h"
 
-//#define MAX_BUFF_SIZE		32768
-#define MAX_BUFF_SIZE		16384	// Maximum size of an SSL record.
-//#define MAX_BUFF_SIZE		8192
-//#define MAX_BUFF_SIZE		512
+#define MAX_BUFFER_SIZE				16384	// Maximum size of an SSL record is 16KB.
+#define MAX_RESOURCE_BUFFER_SIZE	524288	// 512KB buffer for our resource files.
 
-#define CON_TYPE_HTTP		0
-#define CON_TYPE_WEBSOCKET	1
+#define CON_TYPE_HTTP				0
+#define CON_TYPE_WEBSOCKET			1
 
-enum IO_OPERATION
-{
-    ClientIoAccept,
-	ClientIoHandshakeReply,
-	ClientIoHandshakeResponse,
-    ClientIoRead,
-	ClientIoWebSocket,
-	ClientIoShutdown,
-	ClientIoClose,
-	ClientIoReadMore,
-	ClientIoWrite
-};
-
-struct CONNECTION_INFO;
+#define UPDATE_BUFFER_POOL_SIZE		8
 
 enum OVERLAP_TYPE
 {
@@ -61,29 +46,85 @@ enum OVERLAP_TYPE
 	OVERLAP_FORWARD_CID_LIST,
 	OVERLAP_IGNORE_CID_LIST,
 	OVERLAP_UPDATE,
-	OVERLAP_CLOSE,
+	OVERLAP_CLOSE
+};
+
+enum CONNECTION_HEADER_TYPE
+{
+	CONNECTION_HEADER_NOT_SET,
+	CONNECTION_HEADER_CLOSE,
+	CONNECTION_HEADER_KEEP_ALIVE,
+	CONNECTION_HEADER_UPGRADE
+};
+
+enum STATUS_CODE
+{
+	STATUS_CODE_0,		// Not Set
+	STATUS_CODE_101,	// Switching Protocols
+	STATUS_CODE_200,	// OK
+	STATUS_CODE_400,	// Bad Request
+	STATUS_CODE_401,	// Unauthorized
+	STATUS_CODE_403,	// Forbidden
+	STATUS_CODE_404,	// Not Found
+	STATUS_CODE_500,	// Internal Server Error
+	STATUS_CODE_501		// Not Implemented
+};
+
+struct SOCKET_CONTEXT;
+
+struct RESOURCE_CACHE_ITEM
+{
+	char *resource_path;
+	char *resource_data;
+	DWORD resource_data_size;
+};
+
+struct UPDATE_BUFFER
+{
+	char			*buffer;
+	volatile LONG	count;
+};
+
+struct UPDATE_BUFFER_STATE
+{
+	WSAOVERLAPPED	overlapped;	// We can use this and the overlapped value in our connection thread to find this state information.
+
+	WSABUF			wsabuf;
+
+	volatile LONG	*count;		// Points to UPDATE_BUFFER::count
+
+	IO_OPERATION	IOOperation;
+	IO_OPERATION	NextIOOperation;
+
+	bool			in_use;
 };
 
 // Data to be associated for every I/O operation on a socket
 struct IO_CONTEXT
 {
-	char						buffer[ MAX_BUFF_SIZE ];
+	char						buffer[ MAX_BUFFER_SIZE ];
 
 	WSAOVERLAPPED				overlapped;
 	WSAOVERLAPPED				ping_overlapped;
-	WSAOVERLAPPED				update_overlapped;
 
-	WSABUF                      wsabuf;
+	WSABUF						wsabuf;
+	WSABUF						wsapingbuf;
 
-	SOCKET                      SocketAccept;
+	SOCKET						SocketAccept;
 
-	int                         nTotalBytes;
-	int                         nSentBytes;
+	DoublyLinkedList			*update_buffer_state;
+
+	volatile LONG				ref_count;		// We should try to keep this with at most 1 pending operation.
+	volatile LONG				ref_ping_count;
+	volatile LONG				ref_update_count;
+
 	int							nBufferOffset;
 
-	IO_OPERATION                IOOperation;
-	IO_OPERATION                LastIOOperation;
+	IO_OPERATION				IOOperation;
+	IO_OPERATION				NextIOOperation;
 
+	IO_OPERATION				PingIOOperation;
+	IO_OPERATION				PingNextIOOperation;
 };
 
 struct RESOURCE_DATA
@@ -91,6 +132,7 @@ struct RESOURCE_DATA
 	HANDLE						hFile_resource;
 
 	char						*resource_buf;
+	char						*websocket_upgrade_key;
 
 	DWORD						resource_buf_size;
 	DWORD						resource_buf_offset;
@@ -98,43 +140,13 @@ struct RESOURCE_DATA
 	DWORD						total_read;
 	DWORD						file_size;
 
+	STATUS_CODE					status_code;
+
+	unsigned char				connection_type;	// 0 = not set, 1 = close, 2 = keep-alive, 3 = upgrade
+	bool						is_authorized;
+	bool						use_chunked_transfer;
 	bool						use_cache;
-};
-
-// Data to be associated with every socket added to the IOCP
-struct SOCKET_CONTEXT
-{
-	IO_CONTEXT					*io_context;
-
-	RESOURCE_DATA				resource;
-
-	SSL							*ssl;
-
-	CONNECTION_INFO				*ci;		// lParam value for the Connection Manager.
-
-	DoublyLinkedList			*dll;
-
-	node_type					*ignore_node;
-	node_type					*forward_node;
-	node_type					*contact_node;
-	node_type					*call_node;
-	node_type					*ignore_cid_node;
-	node_type					*forward_cid_node;
-	DoublyLinkedList			*call_list;
-
-	DoublyLinkedList			*list_data;
-
-    LPFN_ACCEPTEX               fnAcceptEx;
-
-	SOCKET                      Socket;
-
-	unsigned char				timeout;
-	unsigned char				ping_sent;
-
-	unsigned char				connection_type;
-	char						ref_count;		// We should try to keep this with at most 1 pending operation.
-
-	OVERLAP_TYPE				list_type;
+	bool						has_valid_origin;
 };
 
 struct CONNECTION_INFO
@@ -154,6 +166,42 @@ struct CONNECTION_INFO
 	SOCKET_CONTEXT *psc;
 };
 
+// Data to be associated with every socket added to the IOCP
+struct SOCKET_CONTEXT
+{
+	IO_CONTEXT					io_context;
+
+	RESOURCE_DATA				resource;
+
+	CRITICAL_SECTION			write_cs;
+
+	SSL							*ssl;
+
+	CONNECTION_INFO				*ci;		// lParam value for the Connection Manager.
+
+	DoublyLinkedList			*context_node;		// Self reference to this context in the list of client contexts. Makes it easy to clean up the list.
+
+	node_type					*ignore_node;
+	node_type					*forward_node;
+	node_type					*contact_node;
+	node_type					*call_node;
+	node_type					*ignore_cid_node;
+	node_type					*forward_cid_node;
+	DoublyLinkedList			*call_list;
+
+	DoublyLinkedList			*list_data;
+
+    LPFN_ACCEPTEX               fnAcceptEx;
+
+	SOCKET                      Socket;
+
+	volatile LONG				timeout;
+	volatile LONG				ping_sent;
+
+	unsigned char				connection_type;
+
+	OVERLAP_TYPE				list_type;
+};
 
 bool CreateListenSocket();
 
@@ -168,7 +216,12 @@ void CloseClient( DoublyLinkedList **node, bool bGraceful );
 void FreeClientContexts();
 void FreeListenContext();
 
-SECURITY_STATUS WSAAPI SSL_WSASend( SOCKET_CONTEXT *socket_context, WSABUF *send_buf, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent );
+bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize );
+
+bool TrySend( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, IO_OPERATION next_operation );
+bool TryReceive( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, IO_OPERATION next_operation );
+
+SECURITY_STATUS WSAAPI SSL_WSASend( SOCKET_CONTEXT *socket_context, WSABUF *send_buf, SEND_BUFFER *sb, bool &sent );
 SECURITY_STATUS WSAAPI SSL_WSARecv( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent );
 SECURITY_STATUS WSAAPI SSL_WSAAccept( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent );
 SECURITY_STATUS SSL_WSAAccept_Reply( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent );
@@ -178,7 +231,10 @@ SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumbe
 
 THREAD_RETURN Server( LPVOID pArguments );
 
-void BeginClose( SOCKET_CONTEXT *socket_context, IO_OPERATION IOOperation = ClientIoClose/*ClientIoForceClose*/ );
+void BeginClose( SOCKET_CONTEXT *socket_context, IO_OPERATION IOOperation = ClientIoClose );
+
+SEND_BUFFER *GetAvailableSendBuffer( SOCKET_CONTEXT *socket_context );
+SEND_BUFFER *FindSendBuffer( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped );
 
 extern HANDLE g_hIOCP;
 
@@ -186,6 +242,20 @@ extern bool g_bEndServer;
 extern bool g_bRestart;	
 extern WSAEVENT g_hCleanupEvent[ 1 ];
 
-DWORD WINAPI SendCallLogUpdate( LPVOID pArg );
+extern CRITICAL_SECTION context_list_cs;		// Guard access to the global context list
+extern CRITICAL_SECTION close_connection_cs;	// Close connection critical section.
+
+extern LONG total_clients;
+extern DoublyLinkedList *client_context_list;
+
+extern char *g_domain;
+extern unsigned short g_port;
+
+extern bool use_authentication;
+extern bool verify_origin;
+extern bool allow_keep_alive_requests;
+
+extern wchar_t *document_root_directory;
+extern int document_root_directory_length;
 
 #endif

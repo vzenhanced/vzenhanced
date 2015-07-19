@@ -27,6 +27,7 @@
 #include <security.h>
 #include <schannel.h>
 
+#include "doublylinkedlist.h"
 #include "lite_ws2_32.h"
 
 #define SSL_STATE_SHUTDOWN		0
@@ -38,6 +39,22 @@
 #define SP_PROT_TLS1_2_SERVER		0x00000400
 #define SP_PROT_TLS1_2_CLIENT		0x00000800
 #define SP_PROT_TLS1_2				( SP_PROT_TLS1_2_SERVER | SP_PROT_TLS1_2_CLIENT )
+
+enum IO_OPERATION
+{
+	ClientIoAccept,
+	ClientIoHandshakeReply,
+	ClientIoHandshakeResponse,
+	ClientIoWrite,
+	ClientIoWriteRequestResource,
+	ClientIoWriteWebSocketLists,
+	ClientIoReadRequest,
+	ClientIoReadMoreRequest,
+	ClientIoReadWebSocketRequest,
+	ClientIoReadMoreWebSocketRequest,
+	ClientIoShutdown,
+	ClientIoClose
+};
 
 struct ACCEPT_DATA
 {
@@ -57,17 +74,25 @@ struct RECV_DATA
 	SECURITY_STATUS scRet;
 };
 
+struct SEND_BUFFER
+{
+	UCHAR			*pbDataBuffer;
+	WSABUF			*wsabuf;
+	OVERLAPPED		*overlapped;
+
+	IO_OPERATION	*IOOperation;
+	IO_OPERATION	*NextIOOperation;
+
+	bool			in_use;
+};
+
 struct SEND_DATA
 {
-	SecBuffer       Buffers[ 4 ];
+	SecPkgContext_StreamSizes	Sizes;
 
-	SecPkgContext_StreamSizes Sizes;
+	DoublyLinkedList			*send_buffer_pool;
 
-	PUCHAR			pbDataBuffer;
-
-	DWORD			cbMessage;
-
-	SECURITY_STATUS scRet;
+	bool						got_stream_sizes;
 };
 
 struct SHUTDOWN_DATA
@@ -82,20 +107,18 @@ struct SSL
 	RECV_DATA		rd;
 	SHUTDOWN_DATA	sdd;
 
-	CtxtHandle hContext;
+	CtxtHandle		hContext;
 
-	BYTE *pbRecDataBuf;
-	BYTE *pbIoBuffer;
+	BYTE			*pbRecDataBuf;
+	BYTE			*pbIoBuffer;
 
-	SOCKET s;
+	SOCKET			s;
 
-	//DWORD dwProtocol;
+	DWORD			cbRecDataBuf;
+	DWORD			sbRecDataBuf;
 
-	DWORD cbRecDataBuf;
-	DWORD sbRecDataBuf;
-
-	DWORD cbIoBuffer;
-	DWORD sbIoBuffer;
+	DWORD			cbIoBuffer;
+	DWORD			sbIoBuffer;
 };
 
 int SSL_library_init( void );

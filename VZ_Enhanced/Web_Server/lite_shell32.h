@@ -40,10 +40,10 @@
 
 	#define _StrChrA			StrChrA
 	#define _StrStrA			StrStrA
-	//#define _StrStrIA			StrStrIA
+	#define _StrStrIA			StrStrIA
 
 	//#define _StrCmpNA			StrCmpNA
-	//#define _StrCmpNIA			StrCmpNIA
+	#define _StrCmpNIA			StrCmpNIA
 
 	//#define _StrCmpNIW			StrCmpNIW
 
@@ -64,10 +64,10 @@
 
 	typedef PSTR ( WINAPI *pStrChrA )( PSTR pszStart, CHAR wMatch );
 	typedef PSTR ( WINAPI *pStrStrA )( PSTR pszFirst, PCSTR pszSrch );
-	//typedef PSTR ( WINAPI *pStrStrIA )( PSTR pszFirst, PCSTR pszSrch );
+	typedef PSTR ( WINAPI *pStrStrIA )( PSTR pszFirst, PCSTR pszSrch );
 
 	//typedef int ( WINAPI *pStrCmpNA )( PCSTR psz1, PCSTR psz2, int nChar );
-	//typedef int ( WINAPI *pStrCmpNIA )( PCSTR psz1, PCSTR psz2, int nChar );
+	typedef int ( WINAPI *pStrCmpNIA )( PCSTR psz1, PCSTR psz2, int nChar );
 
 	//typedef int ( WINAPI *pStrCmpNIW )( PCTSTR psz1, PCTSTR psz2, int nChar );
 
@@ -83,10 +83,10 @@
 
 	extern pStrChrA				_StrChrA;
 	extern pStrStrA				_StrStrA;
-	//extern pStrStrIA			_StrStrIA;
+	extern pStrStrIA			_StrStrIA;
 
 	//extern pStrCmpNA			_StrCmpNA;
-	//extern pStrCmpNIA			_StrCmpNIA;
+	extern pStrCmpNIA			_StrCmpNIA;
 
 	//extern pStrCmpNIW			_StrCmpNIW;
 

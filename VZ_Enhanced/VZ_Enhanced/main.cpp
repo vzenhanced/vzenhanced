@@ -718,6 +718,7 @@ CLEANUP:
 
 			di_node = di_node->next;
 
+			// del_di_node->data contained our displayinfo structs which we freed in wnd_proc_main's WM_DESTROY_ALT.
 			GlobalFree( del_di_node );
 		}
 

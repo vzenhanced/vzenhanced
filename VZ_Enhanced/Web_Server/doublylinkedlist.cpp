@@ -22,7 +22,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-DoublyLinkedList *DLL_CreateNode( void *data, void *shared )
+DoublyLinkedList *DLL_CreateNode( void *data )
 {
 	DoublyLinkedList *dll = ( DoublyLinkedList * )GlobalAlloc( GPTR, sizeof( DoublyLinkedList ) );
 	if ( dll != NULL )
@@ -30,7 +30,6 @@ DoublyLinkedList *DLL_CreateNode( void *data, void *shared )
 		dll->next = NULL;
 		dll->prev = NULL;
 		dll->data = data;
-		dll->shared = shared;
 	}
 
 	return dll;

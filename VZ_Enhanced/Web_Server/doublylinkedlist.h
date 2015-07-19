@@ -24,11 +24,10 @@ struct DoublyLinkedList
 	DoublyLinkedList *prev;
 	DoublyLinkedList *next;
 	void *data;
-	void *shared;
 };
 
 
-DoublyLinkedList *DLL_CreateNode( void *data, void *shared = 0 );
+DoublyLinkedList *DLL_CreateNode( void *data );
 
 void DLL_RemoveNode( DoublyLinkedList **head, DoublyLinkedList *node );
 void DLL_AddNode( DoublyLinkedList **head, DoublyLinkedList *node, int position );

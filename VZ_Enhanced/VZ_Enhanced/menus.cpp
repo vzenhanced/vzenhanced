@@ -1006,7 +1006,7 @@ void HandleRightClick( HWND hWnd )
 
 				//__int64 current_time = 0;
 				//_memcpy_s( ( void * )&current_time, sizeof( __int64 ), ( void * )&FileTime, sizeof( __int64 ) );
-				LARGE_INTEGER li;
+				ULARGE_INTEGER li;
 				li.LowPart = FileTime.dwLowDateTime;
 				li.HighPart = FileTime.dwHighDateTime;
 

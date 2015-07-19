@@ -2691,7 +2691,7 @@ char save_call_log_csv_file( wchar_t *file_path )
 					time_length = WideCharToMultiByte( CP_UTF8, 0, di->w_time, -1, utf8_time, time_length, NULL, NULL ) - 1;
 
 					// Convert the time into a 32bit Unix timestamp.
-					LARGE_INTEGER date;
+					ULARGE_INTEGER date;
 					date.HighPart = di->time.HighPart;
 					date.LowPart = di->time.LowPart;
 
