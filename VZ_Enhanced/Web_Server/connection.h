@@ -171,13 +171,13 @@ struct SOCKET_CONTEXT
 {
 	IO_CONTEXT					io_context;
 
+	CONNECTION_INFO				connection_info;	// lParam value for the Connection Manager.
+
 	RESOURCE_DATA				resource;
 
 	CRITICAL_SECTION			write_cs;
 
 	SSL							*ssl;
-
-	CONNECTION_INFO				*ci;		// lParam value for the Connection Manager.
 
 	DoublyLinkedList			*context_node;		// Self reference to this context in the list of client contexts. Makes it easy to clean up the list.
 

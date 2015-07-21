@@ -35,6 +35,9 @@
 
 #define FILETIME_TICKS_PER_SECOND	10000000
 
+#define _wcsicmp_s( a, b ) ( ( a == NULL && b == NULL ) ? 0 : ( a != NULL && b == NULL ) ? 1 : ( a == NULL && b != NULL ) ? -1 : lstrcmpiW( a, b ) )
+#define _stricmp_s( a, b ) ( ( a == NULL && b == NULL ) ? 0 : ( a != NULL && b == NULL ) ? 1 : ( a == NULL && b != NULL ) ? -1 : lstrcmpiA( a, b ) )
+
 #define SAFESTRA( s ) ( s != NULL ? s : "" )
 #define SAFESTR2A( s1, s2 ) ( s1 != NULL ? s1 : ( s2 != NULL ? s2 : "" ) )
 
@@ -43,6 +46,13 @@
 
 typedef bool ( WINAPI *pWebIgnoreIncomingCall )( displayinfo *di );
 typedef bool ( WINAPI *pWebForwardIncomingCall )( displayinfo *di, char *forward_to );
+
+struct sortinfo
+{
+	HWND hWnd;
+	int column;
+	unsigned char direction;
+};
 
 LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );

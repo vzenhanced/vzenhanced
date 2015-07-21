@@ -33,7 +33,7 @@ SRWLOCK_L g_srwlock;
 
 void ReadRequest( SOCKET_CONTEXT *socket_context, DWORD request_size )
 {
-	socket_context->ci->rx_bytes += request_size;
+	socket_context->connection_info.rx_bytes += request_size;
 
 	socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer + socket_context->io_context.nBufferOffset;
 	socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE - socket_context->io_context.nBufferOffset;

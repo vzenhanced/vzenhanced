@@ -66,67 +66,67 @@ unsigned short g_port = 80;
 
 void AddConnectionInfo( SOCKET_CONTEXT *socket_context )
 {
-	CONNECTION_INFO *ci = ( CONNECTION_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( CONNECTION_INFO ) );
-	ci->rx_bytes = 0;
-	ci->tx_bytes = 0;
-	ci->psc = socket_context;
+	if ( socket_context != NULL )
+	{
+		socket_context->connection_info.rx_bytes = 0;
+		socket_context->connection_info.tx_bytes = 0;
+		socket_context->connection_info.psc = socket_context;
 
-	// Remote
-	struct sockaddr_in addr;
-	_memzero( &addr, sizeof( sockaddr_in ) );
+		// Remote
+		struct sockaddr_in addr;
+		_memzero( &addr, sizeof( sockaddr_in ) );
 
-	socklen_t len = sizeof( sockaddr_in );
-	_getpeername( socket_context->Socket, ( struct sockaddr * )&addr, &len );
+		socklen_t len = sizeof( sockaddr_in );
+		_getpeername( socket_context->Socket, ( struct sockaddr * )&addr, &len );
 
-	addr.sin_family = AF_INET;
+		addr.sin_family = AF_INET;
 
-	USHORT port = _ntohs( addr.sin_port );
-	addr.sin_port = 0;
+		USHORT port = _ntohs( addr.sin_port );
+		addr.sin_port = 0;
 
-	DWORD ip_length = sizeof( ci->r_ip );
-	_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, ci->r_ip, &ip_length );
+		DWORD ip_length = sizeof(socket_context->connection_info.r_ip );
+		_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, socket_context->connection_info.r_ip, &ip_length );
 
-	__snwprintf( ci->r_port, sizeof( ci->r_port ), L"%hu", port );
+		__snwprintf( socket_context->connection_info.r_port, sizeof( socket_context->connection_info.r_port ), L"%hu", port );
 
-	_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&ci->r_host_name, NI_MAXHOST, NULL, 0, 0 );
+		_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&socket_context->connection_info.r_host_name, NI_MAXHOST, NULL, 0, 0 );
 
-	// Local
-	_memzero( &addr, sizeof( sockaddr_in ) );
+		// Local
+		_memzero( &addr, sizeof( sockaddr_in ) );
 
-	len = sizeof( sockaddr_in );
-	_getsockname( socket_context->Socket, ( struct sockaddr * )&addr, &len );
+		len = sizeof( sockaddr_in );
+		_getsockname( socket_context->Socket, ( struct sockaddr * )&addr, &len );
 
-	port = _ntohs( addr.sin_port );
-	addr.sin_port = 0;
+		port = _ntohs( addr.sin_port );
+		addr.sin_port = 0;
 
-	ip_length = sizeof( ci->l_ip );
-	_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, ci->l_ip, &ip_length );
+		ip_length = sizeof( socket_context->connection_info.l_ip );
+		_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, socket_context->connection_info.l_ip, &ip_length );
 
-	__snwprintf( ci->l_port, sizeof( ci->l_port ), L"%hu", port );
+		__snwprintf( socket_context->connection_info.l_port, sizeof( socket_context->connection_info.l_port ), L"%hu", port );
 
-	_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&ci->l_host_name, NI_MAXHOST, NULL, 0, 0 );
+		_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&socket_context->connection_info.l_host_name, NI_MAXHOST, NULL, 0, 0 );
 
-	socket_context->ci = ci;
-
-	LVITEM lvi;
-	_memzero( &lvi, sizeof( LVITEM ) );
-	lvi.mask = LVIF_PARAM; // Our listview items will display the text contained the lParam value.
-	lvi.iSubItem = 0;
-	lvi.iItem = _SendMessageW( g_hWnd_connections, LVM_GETITEMCOUNT, 0, 0 );
-	lvi.lParam = ( LPARAM )ci;	// lParam = our contactinfo structure from the connection thread.
-	_SendMessageW( g_hWnd_connections, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+		LVITEM lvi;
+		_memzero( &lvi, sizeof( LVITEM ) );
+		lvi.mask = LVIF_PARAM; // Our listview items will display the text contained the lParam value.
+		lvi.iSubItem = 0;
+		lvi.iItem = _SendMessageW( g_hWnd_connections, LVM_GETITEMCOUNT, 0, 0 );
+		lvi.lParam = ( LPARAM )&socket_context->connection_info;	// lParam = our contactinfo structure from the connection thread.
+		_SendMessageW( g_hWnd_connections, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
+	}
 }
 
 void RemoveConnectionInfo( SOCKET_CONTEXT *socket_context )
 {
-	if ( socket_context != NULL && socket_context->ci != NULL )
+	if ( socket_context != NULL )
 	{
 		skip_connections_draw = true;
 
 		LVFINDINFO lvfi;
 		_memzero( &lvfi, sizeof( LVFINDINFO ) );
 		lvfi.flags = LVFI_PARAM;
-		lvfi.lParam = ( LPARAM )socket_context->ci;
+		lvfi.lParam = ( LPARAM )&socket_context->connection_info;
 
 		int index = _SendMessageW( g_hWnd_connections, LVM_FINDITEM, -1, ( LPARAM )&lvfi );
 
@@ -134,9 +134,6 @@ void RemoveConnectionInfo( SOCKET_CONTEXT *socket_context )
 		{
 			_SendMessageW( g_hWnd_connections, LVM_DELETEITEM, index, 0 );
 		}
-
-		GlobalFree( socket_context->ci );
-		socket_context->ci = NULL;
 
 		skip_connections_draw = false;
 	}
@@ -1126,7 +1123,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 			{
 				// We process data from the client and write our reply.
 
-				socket_context->ci->rx_bytes += dwIoSize;
+				socket_context->connection_info.rx_bytes += dwIoSize;
 
 				socket_context->ssl->cbIoBuffer += dwIoSize;
 
@@ -1212,7 +1209,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 			case ClientIoWrite:
 			{
-				socket_context->ci->tx_bytes += dwIoSize;
+				socket_context->connection_info.tx_bytes += dwIoSize;
 
 				if ( dwIoSize < wsabuf->len )
 				{

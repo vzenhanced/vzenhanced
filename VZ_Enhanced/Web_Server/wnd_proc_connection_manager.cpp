@@ -91,6 +91,37 @@ THREAD_RETURN close_connections( void *pArguments )
 	return 0;
 }
 
+// Sort function for columns.
+int CALLBACK CMCompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
+{
+	sortinfo *si = ( sortinfo * )lParamSort;
+
+	if ( si->hWnd == g_hWnd_connections )
+	{
+		CONNECTION_INFO *ci1 = ( CONNECTION_INFO * )( ( si->direction == 1 ) ? lParam1 : lParam2 );
+		CONNECTION_INFO *ci2 = ( CONNECTION_INFO * )( ( si->direction == 1 ) ? lParam2 : lParam1 );
+
+		switch ( si->column )
+		{
+			case 1: { return ( show_host_name == true ? _wcsicmp_s( ci1->l_host_name, ci2->l_host_name ) : _wcsicmp_s( ci1->l_ip, ci2->l_ip ) ); } break;
+			case 2: { return _wcsicmp_s( ci1->l_port, ci2->l_port ); } break;
+
+			case 3: { return ( show_host_name == true ? _wcsicmp_s( ci1->r_host_name, ci2->r_host_name ) : _wcsicmp_s( ci1->r_ip, ci2->r_ip ) ); } break;
+			case 4: { return _wcsicmp_s( ci1->r_port, ci2->r_port ); } break;
+
+			case 5: { return ( ci1->tx_bytes > ci2->tx_bytes ); } break;
+			case 6: { return ( ci1->rx_bytes > ci2->rx_bytes ); } break;
+
+			default:
+			{
+				return 0;
+			}
+			break;
+		}	
+	}
+
+	return 0;
+}
 
 LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
@@ -223,6 +254,65 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 			// Get our listview codes.
 			switch ( ( ( LPNMHDR )lParam )->code )
 			{
+				case LVN_COLUMNCLICK:
+				{
+					NMLISTVIEW *nmlv = ( NMLISTVIEW * )lParam;
+
+					LVCOLUMN lvc;
+					_memzero( &lvc, sizeof( LVCOLUMN ) );
+					lvc.mask = LVCF_FMT | LVCF_ORDER;
+					_SendMessageW( nmlv->hdr.hwndFrom, LVM_GETCOLUMN, nmlv->iSubItem, ( LPARAM )&lvc );
+
+					sortinfo si;
+					si.column = lvc.iOrder;
+					si.hWnd = nmlv->hdr.hwndFrom;
+
+					if ( HDF_SORTUP & lvc.fmt )	// Column is sorted upward.
+					{
+						si.direction = 0;	// Now sort down.
+
+						// Sort down
+						lvc.fmt = lvc.fmt & ( ~HDF_SORTUP ) | HDF_SORTDOWN;
+						_SendMessageW( nmlv->hdr.hwndFrom, LVM_SETCOLUMN, ( WPARAM )nmlv->iSubItem, ( LPARAM )&lvc );
+
+						_SendMessageW( nmlv->hdr.hwndFrom, LVM_SORTITEMS, ( WPARAM )&si, ( LPARAM )( PFNLVCOMPARE )CMCompareFunc );
+					}
+					else if ( HDF_SORTDOWN & lvc.fmt )	// Column is sorted downward.
+					{
+						si.direction = 1;	// Now sort up.
+
+						// Sort up
+						lvc.fmt = lvc.fmt & ( ~HDF_SORTDOWN ) | HDF_SORTUP;
+						_SendMessageW( nmlv->hdr.hwndFrom, LVM_SETCOLUMN, nmlv->iSubItem, ( LPARAM )&lvc );
+
+						_SendMessageW( nmlv->hdr.hwndFrom, LVM_SORTITEMS, ( WPARAM )&si, ( LPARAM )( PFNLVCOMPARE )CMCompareFunc );
+					}
+					else	// Column has no sorting set.
+					{
+						// Remove the sort format for all columns.
+						for ( unsigned char i = 0; i < 7; ++i )
+						{
+							// Get the current format
+							_SendMessageW( nmlv->hdr.hwndFrom, LVM_GETCOLUMN, i, ( LPARAM )&lvc );
+							// Remove sort up and sort down
+							lvc.fmt = lvc.fmt & ( ~HDF_SORTUP ) & ( ~HDF_SORTDOWN );
+							_SendMessageW( nmlv->hdr.hwndFrom, LVM_SETCOLUMN, i, ( LPARAM )&lvc );
+						}
+
+						// Read current the format from the clicked column
+						_SendMessageW( nmlv->hdr.hwndFrom, LVM_GETCOLUMN, nmlv->iSubItem, ( LPARAM )&lvc );
+
+						si.direction = 0;	// Start the sort going down.
+
+						// Sort down to start.
+						lvc.fmt = lvc.fmt | HDF_SORTDOWN;
+						_SendMessageW( nmlv->hdr.hwndFrom, LVM_SETCOLUMN, nmlv->iSubItem, ( LPARAM )&lvc );
+
+						_SendMessageW( nmlv->hdr.hwndFrom, LVM_SORTITEMS, ( WPARAM )&si, ( LPARAM )( PFNLVCOMPARE )CMCompareFunc );
+					}
+				}
+				break;
+
 				case NM_RCLICK:
 				{
 					NMITEMACTIVATE *nmitem = ( NMITEMACTIVATE * )lParam;
@@ -307,14 +397,12 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 				// This will keep track of the current colunn's left position.
 				int last_left = 0;
 
-				int column_count = 7;
-
 				LVCOLUMN lvc;
 				_memzero( &lvc, sizeof( LVCOLUMN ) );
 				lvc.mask = LVCF_WIDTH;
 
 				// Loop through all the columns
-				for ( int i = 0; i < column_count; ++i )
+				for ( int i = 0; i < 7; ++i )
 				{
 					// Save the appropriate text in our buffer for the current column.
 					switch ( i )
@@ -331,25 +419,6 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 						{
 							if ( show_host_name == false )
 							{
-								buf = ci->l_ip;
-							}
-							else
-							{
-								buf = ci->l_host_name;
-							}
-						}
-						break;
-
-						case 2:
-						{
-							buf = ci->l_port;
-						}
-						break;
-
-						case 3:
-						{
-							if ( show_host_name == false )
-							{
 								buf = ci->r_ip;
 							}
 							else
@@ -359,9 +428,28 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 						}
 						break;
 
-						case 4:
+						case 2:
 						{
 							buf = ci->r_port;
+						}
+						break;
+
+						case 3:
+						{
+							if ( show_host_name == false )
+							{
+								buf = ci->l_ip;
+							}
+							else
+							{
+								buf = ci->l_host_name;
+							}
+						}
+						break;
+
+						case 4:
+						{
+							buf = ci->l_port;
 						}
 						break;
 

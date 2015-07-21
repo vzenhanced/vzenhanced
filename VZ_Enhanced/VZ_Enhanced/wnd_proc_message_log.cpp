@@ -385,14 +385,12 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 				// This will keep track of the current colunn's left position.
 				int last_left = 0;
 
-				int column_count = 4;
-
 				LVCOLUMN lvc;
 				_memzero( &lvc, sizeof( LVCOLUMN ) );
 				lvc.mask = LVCF_WIDTH;
 
 				// Loop through all the columns
-				for ( int i = 0; i < column_count; ++i )
+				for ( int i = 0; i < 4; ++i )
 				{
 					// Save the appropriate text in our buffer for the current column.
 					switch ( i )

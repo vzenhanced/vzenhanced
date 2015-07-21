@@ -405,6 +405,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\htdocs\favicon.ico"
+				>
+			</File>
+			<File
 				RelativePath=".\htdocs\index.html"
 				>
 			</File>

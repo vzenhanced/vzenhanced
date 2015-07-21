@@ -28,7 +28,7 @@
 	pStrStrA				_StrStrA;
 	pStrStrIA				_StrStrIA;
 
-	//pStrCmpNA				_StrCmpNA;
+	pStrCmpNA				_StrCmpNA;
 	pStrCmpNIA				_StrCmpNIA;
 
 	//pStrCmpNIW				_StrCmpNIW;
@@ -65,7 +65,7 @@
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_shell32, ( void ** )&_StrStrA, "StrStrA" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_shell32, ( void ** )&_StrStrIA, "StrStrIA" ) )
 
-		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_shell32, ( void ** )&_StrCmpNA, "StrCmpNA" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_shell32, ( void ** )&_StrCmpNA, "StrCmpNA" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_shell32, ( void ** )&_StrCmpNIA, "StrCmpNIA" ) )
 
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_shell32, ( void ** )&_StrCmpNIW, "StrCmpNIW" ) )
