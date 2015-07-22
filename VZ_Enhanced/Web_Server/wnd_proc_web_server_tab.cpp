@@ -833,7 +833,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 21, ( LPARAM )value );
 						unsigned long long num = strtoull( value );
 
-						if ( num == ULLONG_MAX && _StrCmpNA( value, "18446744073709551615", 20 ) != 0 )
+						if ( num == ULLONG_MAX && lstrcmpA( value, "18446744073709551615" ) != 0 )
 						{
 							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );

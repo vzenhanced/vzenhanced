@@ -465,12 +465,13 @@ char *GetFileName( char *path )
 
 char *GetMIMEByFileName( char *filename )
 {
-	static char *mime_type[ 10 ] = { "application/javascript; charset=UTF-8",
+	static char *mime_type[ 11 ] = { "application/javascript; charset=UTF-8",
 									"application/x-shockwave-flash",
 									"image/bmp",
 									"image/gif",
 									"image/jpeg",
 									"image/png",
+									"image/x-icon",
 									"text/css",
 									"text/html; charset=UTF-8",
 									"audio/mpeg",
@@ -479,7 +480,7 @@ char *GetMIMEByFileName( char *filename )
 	{
 		if ( filename[ 0 ] == NULL )
 		{
-			return mime_type[ 7 ];
+			return mime_type[ 8 ];
 		}
 		else
 		{
@@ -489,15 +490,15 @@ char *GetMIMEByFileName( char *filename )
 			{
 				if ( lstrcmpiA( extension, "html" ) == 0 )
 				{
-					return mime_type[ 7 ];
+					return mime_type[ 8 ];
 				}
 				else if ( lstrcmpiA( extension, "htm" ) == 0 )
 				{
-					return mime_type[ 7 ];
+					return mime_type[ 8 ];
 				}
 				else if ( lstrcmpiA( extension, "css" ) == 0 )
 				{
-					return mime_type[ 6 ];
+					return mime_type[ 7 ];
 				}
 				else if ( lstrcmpiA( extension, "js" ) == 0 )
 				{
@@ -519,6 +520,10 @@ char *GetMIMEByFileName( char *filename )
 				{
 					return mime_type[ 4 ];
 				}
+				else if ( lstrcmpiA( extension, "ico" ) == 0 )
+				{
+					return mime_type[ 6 ];
+				}
 				else if ( lstrcmpiA( extension, "swf" ) == 0 )
 				{
 					return mime_type[ 1 ];
@@ -529,11 +534,11 @@ char *GetMIMEByFileName( char *filename )
 				}
 				else if ( lstrcmpiA( extension, "mp3" ) == 0 )
 				{
-					return mime_type[ 8 ];
+					return mime_type[ 9 ];
 				}
 				else if ( lstrcmpiA( extension, "ogg" ) == 0 )
 				{
-					return mime_type[ 9 ];
+					return mime_type[ 10 ];
 				}
 				else if ( lstrcmpiA( extension, "jpe" ) == 0 )
 				{
