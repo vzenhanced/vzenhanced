@@ -1213,11 +1213,11 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 				if ( dwIoSize < wsabuf->len )
 				{
-					// We do a regular WSASend here since that's what we last did in SSL_WSASend.
+					// We do a regular WSASend here since that's what we last did in SSL_WSASend. socket_context->Socket == socket_context->ssl->s.
 					InterlockedIncrement( ref_count );
 					wsabuf->buf += dwIoSize;
 					wsabuf->len -= dwIoSize;
-					int nRet = _WSASend( socket_context->ssl->s, wsabuf, 1, NULL, dwFlags, overlapped, NULL );
+					int nRet = _WSASend( socket_context->Socket, wsabuf, 1, NULL, dwFlags, overlapped, NULL );
 					if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 					{
 						InterlockedDecrement( ref_count );
