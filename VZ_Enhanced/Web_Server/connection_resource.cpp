@@ -847,9 +847,7 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 					{
 						socket_context->resource.connection_type = CONNECTION_HEADER_KEEP_ALIVE;
 					}
-
-					// If we found the keep-alive value, then there shouldn't be a close. Wouldn't make sense.
-					if ( socket_context->resource.connection_type == CONNECTION_HEADER_KEEP_ALIVE )
+					else // If we found the keep-alive value, then there shouldn't be a close. Wouldn't make sense.
 					{
 						connection_type = _StrStrIA( connection_header, "close" );
 						if ( connection_type != NULL )
