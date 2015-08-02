@@ -35,66 +35,85 @@ void ReadRequest( SOCKET_CONTEXT *socket_context, DWORD request_size )
 {
 	socket_context->connection_info.rx_bytes += request_size;
 
-	socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer + socket_context->io_context.nBufferOffset;
-	socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE - socket_context->io_context.nBufferOffset;
+	DWORD total_bytes_decrypted = 0;
+	DWORD bytes_decrypted = request_size;
+	bool read_more_data = false;
 
-	if ( use_ssl == true && DecodeRecv( socket_context, request_size ) == false )
+	while ( true )
 	{
-		socket_context->io_context.nBufferOffset = 0;
-		return;
-	}
-
-	socket_context->io_context.nBufferOffset += request_size;
-
-	// Make sure the header is complete (ends with "\r\n\r\n").
-	if ( socket_context->io_context.nBufferOffset >= 4 &&
-		 socket_context->io_context.wsabuf.buf[ request_size - 4 ] == '\r' &&
-		 socket_context->io_context.wsabuf.buf[ request_size - 3 ] == '\n' &&
-		 socket_context->io_context.wsabuf.buf[ request_size - 2 ] == '\r' &&
-		 socket_context->io_context.wsabuf.buf[ request_size - 1 ] == '\n' )
-	{
-		// Set to the size of the request.
-		socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
-		socket_context->io_context.wsabuf.len = ( socket_context->io_context.nBufferOffset < MAX_BUFFER_SIZE ) ? socket_context->io_context.nBufferOffset : ( MAX_BUFFER_SIZE - 1 );
-
-		socket_context->io_context.wsabuf.buf[ socket_context->io_context.wsabuf.len ] = 0;	// Sanity.
-
-		socket_context->io_context.nBufferOffset = 0;
-
-		SendResource( socket_context );
-	}
-	else	// We need to read more data. The header is incomplete.
-	{
-		// We can't hold any more of the request in the buffer.
-		if ( MAX_BUFFER_SIZE - socket_context->io_context.nBufferOffset == 0 )
+		if ( use_ssl == true )
 		{
-			socket_context->io_context.nBufferOffset = 0;
-
-			// Reset.
-			socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
-			socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
-
-			int reply_buf_length = __snprintf( socket_context->io_context.wsabuf.buf, MAX_BUFFER_SIZE,
-									"HTTP/1.1 413 Request Entity Too Large\r\n" \
-									"Content-Type: text/html\r\n" \
-									"Content-Length: 134\r\n" \
-									"Connection: close\r\n\r\n" \
-									"<!DOCTYPE html><html><head><title>413 Request Entity Too Large</title></head><body><h1>413 Request Entity Too Large</h1></body></html>" );
-
-			bool ret = TrySend( socket_context, &( socket_context->io_context.overlapped ), ( use_ssl == true ? ClientIoShutdown : ClientIoClose ) );
-			if ( ret == false )
+			// We'll need to copy the decrypted data to our wsabuf.
+			if ( read_more_data == true )
 			{
-				BeginClose( socket_context );
+				bytes_decrypted = socket_context->ssl->cbIoBuffer;
+			}
+
+			// If there's more decrypted data to read, then we'll loop around and copy it to our wsabuf.
+			SECURITY_STATUS scRet = DecryptRecv( socket_context, bytes_decrypted, read_more_data );
+
+			// If we get any status other then the following, then we'll bail.
+			// It's possible to get bytes_decrypted > 0 when scRet == SEC_E_INCOMPLETE_MESSAGE.
+			// In this case, we'll process what was decrypted and if it's good, then we'll ignore the incomplete message.
+			// If there's no bytes_decrypted, then we'll just end up reading more data like normal as a consequence of the code below.
+			if ( scRet != SEC_E_OK && scRet != SEC_I_CONTINUE_NEEDED && scRet != SEC_E_INCOMPLETE_MESSAGE )
+			{
+				break;
 			}
 		}
-		else	// If more data can be stored in the buffer, then request it.
-		{
-			bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadRequest );
-			if ( ret == false )
-			{
-				socket_context->io_context.nBufferOffset = 0;
 
-				BeginClose( socket_context );
+		// If we've had to request more data, then determine the total amount we have in our buffer.
+		total_bytes_decrypted = bytes_decrypted + ( socket_context->io_context.wsabuf.buf - socket_context->io_context.buffer );
+
+		// Make sure the header is complete (ends with "\r\n\r\n").
+		if ( total_bytes_decrypted >= 4 &&
+			 socket_context->io_context.buffer[ total_bytes_decrypted - 4 ] == '\r' &&
+			 socket_context->io_context.buffer[ total_bytes_decrypted - 3 ] == '\n' &&
+			 socket_context->io_context.buffer[ total_bytes_decrypted - 2 ] == '\r' &&
+			 socket_context->io_context.buffer[ total_bytes_decrypted - 1 ] == '\n' )
+		{
+			socket_context->io_context.wsabuf.len = total_bytes_decrypted;
+			socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+			socket_context->io_context.wsabuf.buf[ total_bytes_decrypted ] = 0;	// Sanity.
+
+			SendResource( socket_context );
+
+			break;
+		}
+		else
+		{
+			// We can't hold any more of the request in the buffer.
+			if ( MAX_BUFFER_SIZE - total_bytes_decrypted == 0 )
+			{
+				socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+				socket_context->io_context.wsabuf.len = __snprintf( socket_context->io_context.wsabuf.buf, MAX_BUFFER_SIZE,
+										"HTTP/1.1 413 Request Entity Too Large\r\n" \
+										"Content-Type: text/html\r\n" \
+										"Content-Length: 134\r\n" \
+										"Connection: close\r\n\r\n" \
+										"<!DOCTYPE html><html><head><title>413 Request Entity Too Large</title></head><body><h1>413 Request Entity Too Large</h1></body></html>" );
+
+				bool ret = TrySend( socket_context, &( socket_context->io_context.overlapped ), ( use_ssl == true ? ClientIoShutdown : ClientIoClose ) );
+				if ( ret == false )
+				{
+					BeginClose( socket_context );
+				}
+
+				break;
+			}
+			else if ( read_more_data == false )	// If more data can be stored in the buffer, then request it.
+			{
+				// Adjust our buffer to decrypt/copy more data.
+				socket_context->io_context.wsabuf.len -= bytes_decrypted;
+				socket_context->io_context.wsabuf.buf += bytes_decrypted;
+
+				bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadRequest );
+				if ( ret == false )
+				{
+					BeginClose( socket_context );
+				}
+
+				break;
 			}
 		}
 	}
@@ -134,7 +153,7 @@ void SendRedirect( SOCKET_CONTEXT *socket_context )
 		}
 	}
 
-	int reply_buf_length = __snprintf( socket_context->io_context.wsabuf.buf, MAX_BUFFER_SIZE,
+	socket_context->io_context.wsabuf.len = __snprintf( socket_context->io_context.wsabuf.buf, MAX_BUFFER_SIZE,
 				"HTTP/1.1 301 Moved Permanently\r\n" \
 				"Location: https://%s:%hu%s\r\n"
 				"Content-Type: text/html\r\n" \
@@ -154,8 +173,6 @@ void SendRedirect( SOCKET_CONTEXT *socket_context )
 	socket_context->io_context.NextIOOperation = ClientIoClose;	// This is closed because the SSL connection was never established. An SSL shutdown would just fail.
 
 	InterlockedIncrement( &socket_context->io_context.ref_count );
-
-	socket_context->io_context.wsabuf.len = reply_buf_length;
 
 	int nRet = _WSASend( socket_context->Socket, &( socket_context->io_context.wsabuf ), 1, NULL, dwFlags, &( socket_context->io_context.overlapped ), NULL );
 	if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
@@ -338,7 +355,6 @@ SEND_RESPONSE:
 				}
 
 				// Write our data.
-				//_memcpy_s( socket_context->io_context.wsabuf.buf + reply_buf_length, MAX_BUFFER_SIZE - reply_buf_length, ( socket_context->resource.use_cache == true ? index_file_buf : socket_context->resource.resource_buf ) + socket_context->resource.resource_buf_offset, rem );
 				_memcpy_s( socket_context->io_context.wsabuf.buf + reply_buf_length, MAX_BUFFER_SIZE - reply_buf_length, socket_context->resource.resource_buf + socket_context->resource.resource_buf_offset, rem );
 
 				reply_buf_length += rem;

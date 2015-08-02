@@ -102,7 +102,7 @@ struct UPDATE_BUFFER_STATE
 // Data to be associated for every I/O operation on a socket
 struct IO_CONTEXT
 {
-	char						buffer[ MAX_BUFFER_SIZE ];
+	char						buffer[ MAX_BUFFER_SIZE + 1 ];
 
 	WSAOVERLAPPED				overlapped;
 	WSAOVERLAPPED				ping_overlapped;
@@ -110,15 +110,11 @@ struct IO_CONTEXT
 	WSABUF						wsabuf;
 	WSABUF						wsapingbuf;
 
-	SOCKET						SocketAccept;
-
 	DoublyLinkedList			*update_buffer_state;
 
 	volatile LONG				ref_count;		// We should try to keep this with at most 1 pending operation.
 	volatile LONG				ref_ping_count;
 	volatile LONG				ref_update_count;
-
-	int							nBufferOffset;
 
 	IO_OPERATION				IOOperation;
 	IO_OPERATION				NextIOOperation;
@@ -191,8 +187,6 @@ struct SOCKET_CONTEXT
 
 	DoublyLinkedList			*list_data;
 
-    LPFN_ACCEPTEX               fnAcceptEx;
-
 	SOCKET                      Socket;
 
 	volatile LONG				timeout;
@@ -216,7 +210,7 @@ void CloseClient( DoublyLinkedList **node, bool bGraceful );
 void FreeClientContexts();
 void FreeListenContext();
 
-bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize );
+SECURITY_STATUS DecryptRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize, bool &extra_data );
 
 bool TrySend( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, IO_OPERATION next_operation );
 bool TryReceive( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, IO_OPERATION next_operation );
@@ -227,7 +221,7 @@ SECURITY_STATUS WSAAPI SSL_WSAAccept( SOCKET_CONTEXT *socket_context, LPWSAOVERL
 SECURITY_STATUS SSL_WSAAccept_Reply( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent );
 SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent );
 SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, bool &sent );
-SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumberOfBytesDecoded );
+SECURITY_STATUS SSL_WSARecv_Decrypt( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumberOfBytesDecrypted );
 
 THREAD_RETURN Server( LPVOID pArguments );
 

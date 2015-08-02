@@ -191,38 +191,61 @@ void ReadWebSocketRequest( SOCKET_CONTEXT *socket_context, DWORD request_size )
 {
 	socket_context->connection_info.rx_bytes += request_size;
 
-	socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer + socket_context->io_context.nBufferOffset;
-	socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE - socket_context->io_context.nBufferOffset;
+	DWORD total_bytes_decrypted = 0;
+	DWORD bytes_decrypted = request_size;
+	bool read_more_data = false;
 
-	if ( use_ssl == true && DecodeRecv( socket_context, request_size ) == false )
+	while ( true )
 	{
-		socket_context->io_context.nBufferOffset = 0;
-		return;
-	}
-
-	socket_context->io_context.nBufferOffset += request_size;
-
-	// Make sure we have enough to decode a websocket frame. (At least 2 bytes).
-	if ( socket_context->io_context.nBufferOffset >= 2 )
-	{
-		// Set to the size of the payload.
-		socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
-		socket_context->io_context.wsabuf.len = ( socket_context->io_context.nBufferOffset < MAX_BUFFER_SIZE ) ? socket_context->io_context.nBufferOffset : ( MAX_BUFFER_SIZE - 1 );
-
-		socket_context->io_context.wsabuf.buf[ socket_context->io_context.wsabuf.len ] = 0;	// Sanity.
-
-		socket_context->io_context.nBufferOffset = 0;
-
-		ParseWebsocketInfo( socket_context );
-	}
-	else	// We need to read more data. The websocket frame is incomplete. Occurs on TSL 1.0 and below for browsers that handle the BEAST attack.
-	{
-		bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest );
-		if ( ret == false )
+		if ( use_ssl == true )
 		{
-			socket_context->io_context.nBufferOffset = 0;
+			// We'll need to copy the decrypted data to our wsabuf.
+			if ( read_more_data == true )
+			{
+				bytes_decrypted = socket_context->ssl->cbIoBuffer;
+			}
 
-			BeginClose( socket_context );
+			// If there's more decrypted data to read, then we'll loop around and copy it to our wsabuf.
+			SECURITY_STATUS scRet = DecryptRecv( socket_context, bytes_decrypted, read_more_data );
+
+			// If we get any status other then the following, then we'll bail.
+			// It's possible to get bytes_decrypted > 0 when scRet == SEC_E_INCOMPLETE_MESSAGE.
+			// In this case, we'll process what was decrypted and if it's good, then we'll ignore the incomplete message.
+			// If there's no bytes_decrypted, then we'll just end up reading more data like normal as a consequence of the code below.
+			if ( scRet != SEC_E_OK && scRet != SEC_I_CONTINUE_NEEDED && scRet != SEC_E_INCOMPLETE_MESSAGE )
+			{
+				break;
+			}
+		}
+
+		// If we've had to request more data, then determine the total amount we have in our buffer.
+		total_bytes_decrypted = bytes_decrypted + ( socket_context->io_context.wsabuf.buf - socket_context->io_context.buffer );
+
+		// Make sure we have enough to decode a websocket frame. (At least 2 bytes).
+		if ( total_bytes_decrypted >= 2 )
+		{
+			// Set to the size of the payload.
+			socket_context->io_context.wsabuf.len = total_bytes_decrypted;
+			socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+			socket_context->io_context.wsabuf.buf[ total_bytes_decrypted ] = 0;	// Sanity.
+
+			ParseWebsocketInfo( socket_context );
+
+			break;
+		}
+		else if ( read_more_data == false )	// We need to read more data. The websocket frame is incomplete. Occurs on TSL 1.0 and below for browsers that handle the BEAST attack.
+		{
+			// Adjust our buffer to decrypt/copy more data.
+			socket_context->io_context.wsabuf.len -= bytes_decrypted;
+			socket_context->io_context.wsabuf.buf += bytes_decrypted;
+
+			bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest );
+			if ( ret == false )
+			{
+				BeginClose( socket_context );
+			}
+
+			break;
 		}
 	}
 }
@@ -479,6 +502,9 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 				// If there's no more nodes after this, then post a read, otherwise continue to write from the nodes.
 				if ( dll->next == NULL )
 				{
+					socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+					socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
+
 					ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest );
 				}
 				else

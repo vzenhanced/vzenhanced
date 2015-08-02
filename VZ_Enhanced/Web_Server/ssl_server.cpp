@@ -815,9 +815,9 @@ SECURITY_STATUS SSL_WSAShutdown( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED
 	return scRet;
 }
 
-SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumberOfBytesDecoded )
+SECURITY_STATUS SSL_WSARecv_Decrypt( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumberOfBytesDecrypted )
 {
-	lpNumberOfBytesDecoded = 0;
+	lpNumberOfBytesDecrypted = 0;
 	SecBufferDesc Message;
 	SecBuffer *pDataBuffer;
 	SecBuffer *pExtraBuffer;
@@ -832,24 +832,25 @@ SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumbe
 		// Handle any remaining data in the recv buffer.
 		if ( lpBuffers->buf != NULL && lpBuffers->len > 0 && ssl->cbRecDataBuf > 0 )
 		{
-			lpNumberOfBytesDecoded = min( ( DWORD )lpBuffers->len, ssl->cbRecDataBuf );
-			_memcpy_s( lpBuffers->buf, lpBuffers->len, ssl->pbRecDataBuf, lpNumberOfBytesDecoded );
+			lpNumberOfBytesDecrypted = min( ( DWORD )lpBuffers->len, ssl->cbRecDataBuf );
+			_memcpy_s( lpBuffers->buf, lpBuffers->len, ssl->pbRecDataBuf, lpNumberOfBytesDecrypted );
 
-			DWORD rbytes = ssl->cbRecDataBuf - lpNumberOfBytesDecoded;
-			_memmove( ssl->pbRecDataBuf, ( ( char * )ssl->pbRecDataBuf ) + lpNumberOfBytesDecoded, rbytes );
+			DWORD rbytes = ssl->cbRecDataBuf - lpNumberOfBytesDecrypted;
+			if ( rbytes > 0 )
+			{
+				_memmove( ssl->pbRecDataBuf, ( ( char * )ssl->pbRecDataBuf ) + lpNumberOfBytesDecrypted, rbytes );
+			}
+			else
+			{
+				ssl->rd.scRet = SEC_E_OK;
+			}
 			ssl->cbRecDataBuf = rbytes;
 		}
-
-		ssl->cbIoBuffer = ssl->cbRecDataBuf;
-
-		ssl->rd.scRet = SEC_E_OK;
 
 		return ssl->rd.scRet;
 	}
 
 	_memzero( ssl->rd.Buffers, sizeof( SecBuffer ) * 4 );
-
-	ssl->cbIoBuffer = lpBuffers->len;
 
 	// Attempt to decrypt the received data.
 	ssl->rd.Buffers[ 0 ].pvBuffer = ssl->pbIoBuffer;
@@ -909,11 +910,11 @@ SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumbe
 	// Return decrypted data.
 	if ( pDataBuffer != NULL )
 	{
-		lpNumberOfBytesDecoded = min( ( DWORD )lpBuffers->len, pDataBuffer->cbBuffer );
-		_memcpy_s( lpBuffers->buf, lpBuffers->len, pDataBuffer->pvBuffer, lpNumberOfBytesDecoded );
+		lpNumberOfBytesDecrypted = min( ( DWORD )lpBuffers->len, pDataBuffer->cbBuffer );
+		_memcpy_s( lpBuffers->buf, lpBuffers->len, pDataBuffer->pvBuffer, lpNumberOfBytesDecrypted );
 
 		// Remaining bytes.
-		DWORD rbytes = pDataBuffer->cbBuffer - lpNumberOfBytesDecoded;
+		DWORD rbytes = pDataBuffer->cbBuffer - lpNumberOfBytesDecrypted;
 		if ( rbytes > 0 )
 		{
 			if ( ssl->sbRecDataBuf < rbytes ) 
@@ -930,7 +931,7 @@ SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumbe
 				}
 			}
 	
-			_memcpy_s( ssl->pbRecDataBuf, ssl->sbRecDataBuf, ( char * )pDataBuffer->pvBuffer + lpNumberOfBytesDecoded, rbytes );
+			_memcpy_s( ssl->pbRecDataBuf, ssl->sbRecDataBuf, ( char * )pDataBuffer->pvBuffer + lpNumberOfBytesDecrypted, rbytes );
 			ssl->cbRecDataBuf = rbytes;
 
 			ssl->rd.scRet = SEC_I_CONTINUE_NEEDED;
@@ -948,7 +949,7 @@ SECURITY_STATUS SSL_WSARecv_Decode( SSL *ssl, LPWSABUF lpBuffers, DWORD &lpNumbe
 		ssl->cbIoBuffer = 0;
 	}
 
-	/*if ( pDataBuffer != NULL && lpNumberOfBytesDecoded != 0 )
+	/*if ( pDataBuffer != NULL && lpNumberOfBytesDecrypted != 0 )
 	{
 		return ssl->rd.scRet;
 	}

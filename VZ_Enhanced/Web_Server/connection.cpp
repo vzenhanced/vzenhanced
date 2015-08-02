@@ -38,6 +38,8 @@ bool g_bRestart = true;				// set to TRUE to CTRL-BRK
 HANDLE g_hIOCP = INVALID_HANDLE_VALUE;
 SOCKET g_sdListen = INVALID_SOCKET;
 
+LPFN_ACCEPTEX fpAcceptEx = NULL;
+
 WSAEVENT g_hCleanupEvent[ 1 ];
 
 LONG total_clients = 0;
@@ -245,9 +247,6 @@ bool TryReceive( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped
 
 	bool sent = true;
 
-	socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer + socket_context->io_context.nBufferOffset;
-	socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE - socket_context->io_context.nBufferOffset;
-
 	InterlockedIncrement( &socket_context->io_context.ref_count );
 
 	socket_context->io_context.IOOperation = next_operation;
@@ -277,11 +276,13 @@ bool TryReceive( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped
 	return sent;
 }
 
-bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize )
+SECURITY_STATUS DecryptRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize, bool &extra_data )
 {
-	WSABUF wsa_decode;
+	SECURITY_STATUS scRet = SEC_E_INTERNAL_ERROR;
 
-	DWORD bytes_decoded = 0;
+	WSABUF wsa_decrypt;
+
+	DWORD bytes_decrypted = 0;
 
 	if ( socket_context->ssl->rd.scRet == SEC_E_INCOMPLETE_MESSAGE )
 	{
@@ -293,63 +294,51 @@ bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize )
 	}
 
 	dwIoSize = 0;
+	extra_data = false;
 
-	wsa_decode.buf = socket_context->io_context.wsabuf.buf + socket_context->io_context.nBufferOffset;
-	wsa_decode.len = socket_context->ssl->cbIoBuffer;
+	wsa_decrypt = socket_context->io_context.wsabuf;
 
 	// Decode our message.
 	while ( socket_context->ssl->pbIoBuffer != NULL && socket_context->ssl->cbIoBuffer > 0 )
 	{
-		SECURITY_STATUS sRet = SSL_WSARecv_Decode( socket_context->ssl, &wsa_decode, bytes_decoded );
+		scRet = SSL_WSARecv_Decrypt( socket_context->ssl, &wsa_decrypt, bytes_decrypted );
 
-		switch ( sRet )
+		dwIoSize += bytes_decrypted;
+
+		wsa_decrypt.buf += bytes_decrypted;
+		wsa_decrypt.len -= bytes_decrypted;
+
+		switch ( scRet )
 		{
-			// We've successfully decoded a portion of the message.
+			// We've successfully decoded a portion of the buffer.
 			case SEC_E_OK:
+			{
+				// Decode more records if there are any.
+				continue;
+			}
+			break;
+
+			// The message was decrypted, but not all of it was copied to our wsabuf.
+			// There may also be incomplete records left to decrypt.
+			// DecryptRecv must be called again after processing wsabuf.
 			case SEC_I_CONTINUE_NEEDED:
 			{
-				if ( bytes_decoded <= 0 )
-				{
-					bytes_decoded = 0;
-					socket_context->ssl->cbIoBuffer = 0;
-				}
+				extra_data = true;
 
-				dwIoSize += bytes_decoded;
-
-				wsa_decode.buf += bytes_decoded;
-
-				if ( sRet == SEC_E_OK )
-				{
-					wsa_decode.len = socket_context->ssl->cbIoBuffer;
-				}
-				else	// Set the length to the remaining data.
-				{
-					wsa_decode.len = socket_context->ssl->cbRecDataBuf;
-					socket_context->ssl->cbIoBuffer = socket_context->ssl->cbRecDataBuf;
-				}
+				return scRet;
 			}
 			break;
 
 			// The message was incomplete. Request more data from the client.
 			case SEC_E_INCOMPLETE_MESSAGE:
 			{
-				socket_context->ssl->cbIoBuffer = 0;
-
-				bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), socket_context->io_context.IOOperation );
-				if ( ret == false )
-				{
-					BeginClose( socket_context );
-				}
-
-				return false;
+				return scRet;
 			}
 			break;
 
 			// Client wants us to perform another handshake.
 			case SEC_I_RENEGOTIATE:
 			{
-				socket_context->ssl->cbIoBuffer = 0;
-
 				bool sent = false;
 				socket_context->io_context.IOOperation = ClientIoHandshakeReply;
 				InterlockedIncrement( &socket_context->io_context.ref_count );
@@ -360,7 +349,7 @@ bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize )
 					InterlockedDecrement( &socket_context->io_context.ref_count );
 				}
 
-				return false;
+				return scRet;
 			}
 			break;
 
@@ -370,9 +359,9 @@ bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize )
 			{
 				socket_context->ssl->cbIoBuffer = 0;
 
-				BeginClose( socket_context );
+				BeginClose( socket_context, ClientIoShutdown );
 
-				return false;
+				return scRet;
 			}
 			break;
 		}
@@ -380,7 +369,7 @@ bool DecodeRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize )
 
 	socket_context->ssl->cbIoBuffer = 0;
 
-	return true;
+	return scRet;
 }
 
 void BeginClose( SOCKET_CONTEXT *socket_context, IO_OPERATION IOOperation )
@@ -800,6 +789,9 @@ bool CreateListenSocket()
 {
 	bool ret = false;
 
+	DWORD bytes = 0;
+	GUID acceptex_guid = WSAID_ACCEPTEX;	// GUID to Microsoft specific extensions
+
 	struct addrinfoW hints;
 	struct addrinfoW *addrlocal = NULL;
 
@@ -880,6 +872,18 @@ bool CreateListenSocket()
 		goto CLEANUP;
 	}
 
+	// We need only do this once.
+	if ( fpAcceptEx == NULL )
+	{
+		// Load the AcceptEx extension function from the provider for this socket.
+		nRet = _WSAIoctl( g_sdListen, SIO_GET_EXTENSION_FUNCTION_POINTER, &acceptex_guid, sizeof( acceptex_guid ), &fpAcceptEx, sizeof( fpAcceptEx ), &bytes, NULL, NULL );
+		if ( nRet == SOCKET_ERROR )
+		{
+			ret = false;
+			goto CLEANUP;
+		}
+	}
+
 	ret = true;
 
 CLEANUP:
@@ -896,10 +900,6 @@ bool CreateAcceptSocket()
 {
 	int nRet = 0;
 	DWORD dwRecvNumBytes = 0;
-	DWORD bytes = 0;
-
-	// GUID to Microsoft specific extensions
-	GUID acceptex_guid = WSAID_ACCEPTEX;
 
 	SOCKET_CONTEXT *listen_socket_context = NULL;
 
@@ -907,38 +907,22 @@ bool CreateAcceptSocket()
 	if ( listen_context == NULL )
 	{
 		listen_context = UpdateCompletionPort( g_sdListen, ClientIoAccept, true );
-		if ( listen_context == NULL /*|| listen_context->data == NULL*/ )
+		if ( listen_context == NULL )
 		{
 			return false;
 		}
-
-		listen_socket_context = ( SOCKET_CONTEXT * )listen_context->data;
-
-        // Load the AcceptEx extension function from the provider for this socket.
-        nRet = _WSAIoctl( g_sdListen, SIO_GET_EXTENSION_FUNCTION_POINTER, &acceptex_guid, sizeof( acceptex_guid ), &listen_socket_context->fnAcceptEx, sizeof( listen_socket_context->fnAcceptEx ), &bytes, NULL, NULL );
-        if ( nRet == SOCKET_ERROR )
-        {
-            return false;
-        }
-	}
-	else
-	{
-		/*if ( listen_context->data == NULL )
-		{
-			return false;
-		}*/
-
-		listen_socket_context = ( SOCKET_CONTEXT * )listen_context->data;
 	}
 
-	listen_socket_context->io_context.SocketAccept = CreateSocket();
-	if ( listen_socket_context->io_context.SocketAccept == INVALID_SOCKET )
+	listen_socket_context = ( SOCKET_CONTEXT * )listen_context->data;
+
+	listen_socket_context->Socket = CreateSocket();
+	if ( listen_socket_context->Socket == INVALID_SOCKET )
 	{
 		return false;
 	}
 
 	// Accept a connection without waiting for any data. (dwReceiveDataLength = 0)
-	nRet = listen_socket_context->fnAcceptEx( g_sdListen, listen_socket_context->io_context.SocketAccept, ( LPVOID )( listen_socket_context->io_context.buffer ), 0, sizeof( SOCKADDR_STORAGE ) + 16, sizeof( SOCKADDR_STORAGE ) + 16, &dwRecvNumBytes, &( listen_socket_context->io_context.overlapped ) );
+	nRet = fpAcceptEx( g_sdListen, listen_socket_context->Socket, ( LPVOID )( listen_socket_context->io_context.buffer ), 0, sizeof( SOCKADDR_STORAGE ) + 16, sizeof( SOCKADDR_STORAGE ) + 16, &dwRecvNumBytes, &( listen_socket_context->io_context.overlapped ) );
 	if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 	{
 		return false;
@@ -1047,7 +1031,8 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 			case ClientIoAccept:
 			{
 				// Allow the accept socket to inherit the properties of the listen socket.
-				int nRet = _setsockopt( socket_context->io_context.SocketAccept, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, ( char * )&g_sdListen, sizeof( g_sdListen ) );
+				// The socket_context here is actually from listen_context->data.
+				int nRet = _setsockopt( socket_context->Socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, ( char * )&g_sdListen, sizeof( g_sdListen ) );
 				if ( nRet == SOCKET_ERROR )
 				{
 					_WSASetEvent( g_hCleanupEvent[ 0 ] );
@@ -1055,7 +1040,8 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					return 0;
 				}
 
-				DoublyLinkedList *accept_dll = UpdateCompletionPort( socket_context->io_context.SocketAccept, ClientIoAccept, false );
+				// Create a new socket context with the inherited socket.
+				DoublyLinkedList *accept_dll = UpdateCompletionPort( socket_context->Socket, ClientIoAccept, false );
 
 				if ( accept_dll != NULL && accept_dll->data != NULL )
 				{
@@ -1148,6 +1134,9 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					}
 					else
 					{
+						socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+						socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
+
 						// Read the request from the client.
 						bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), *io_operation );
 						if ( ret == false )
@@ -1192,6 +1181,9 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					}
 					else
 					{
+						socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+						socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
+
 						// Read the request from the client.
 						bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), *io_operation );
 						if ( ret == false )
@@ -1288,6 +1280,9 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 			case ClientIoReadMoreRequest:
 			{
+				socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+				socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
+
 				bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadRequest );
 				if ( ret == false )
 				{
@@ -1308,6 +1303,9 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 			case ClientIoReadMoreWebSocketRequest:
 			{
+				socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
+				socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
+
 				bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest );
 				if ( ret == false )
 				{
@@ -1503,12 +1501,6 @@ void CloseClient( DoublyLinkedList **context_node, bool bGraceful )
 			_closesocket( socket_context->Socket );
 			socket_context->Socket = INVALID_SOCKET;
 
-			if ( socket_context->io_context.SocketAccept != INVALID_SOCKET )
-			{
-				_closesocket( socket_context->io_context.SocketAccept );
-				socket_context->io_context.SocketAccept = INVALID_SOCKET;
-			}
-
 			// Go through our update buffer states to see if any where in use before we closed the client.
 			// If it is, then decrement its equivalent update buffer pool index.
 
@@ -1605,11 +1597,11 @@ void FreeListenContext()
 
 		if ( socket_context != NULL )
 		{
-			if ( socket_context->io_context.SocketAccept != INVALID_SOCKET )
+			if ( socket_context->Socket != INVALID_SOCKET )
 			{
-				_shutdown( socket_context->io_context.SocketAccept, SD_BOTH );
-				_closesocket( socket_context->io_context.SocketAccept );
-				socket_context->io_context.SocketAccept = INVALID_SOCKET;
+				_shutdown( socket_context->Socket, SD_BOTH );
+				_closesocket( socket_context->Socket );
+				socket_context->Socket = INVALID_SOCKET;
 			}
 
 			GlobalFree( socket_context );
