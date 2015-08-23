@@ -173,9 +173,9 @@ struct SOCKET_CONTEXT
 
 	CRITICAL_SECTION			write_cs;
 
-	SSL							*ssl;
+	DoublyLinkedList			context_node;		// Self reference to this context in the list of client contexts. Makes it easy to clean up the list.
 
-	DoublyLinkedList			*context_node;		// Self reference to this context in the list of client contexts. Makes it easy to clean up the list.
+	SSL							*ssl;
 
 	node_type					*ignore_node;
 	node_type					*forward_node;
@@ -192,9 +192,9 @@ struct SOCKET_CONTEXT
 	volatile LONG				timeout;
 	volatile LONG				ping_sent;
 
-	unsigned char				connection_type;
-
 	OVERLAP_TYPE				list_type;
+
+	unsigned char				connection_type;
 };
 
 bool CreateListenSocket();
@@ -203,9 +203,9 @@ bool CreateAcceptSocket();
 
 DWORD WINAPI Connection( LPVOID WorkContext );
 
-DoublyLinkedList *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool bIsListen );
+SOCKET_CONTEXT *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool bIsListen );
 
-void CloseClient( DoublyLinkedList **node, bool bGraceful );
+void CloseClient( SOCKET_CONTEXT *socket_context, bool bGraceful );
 
 void FreeClientContexts();
 void FreeListenContext();

@@ -59,13 +59,17 @@ void DLL_RemoveNode( DoublyLinkedList **head, DoublyLinkedList *node )
 				*head = NULL;
 			}
 		}
-		else if ( node->next == NULL )	// Node is the tail.
+		else if ( node->next == NULL )	// Node is a tail.
 		{
 			if ( node->prev != NULL )	// This should always be the case so long as node != head.
 			{
 				if ( node->prev != *head )	// Make sure the node's previous value is not the head.
 				{
-					( *head )->prev = node->prev;	// Set the new tail.
+					if ( ( *head )->prev == node )	// Make sure the head list actually contains the node we're removing.
+					{
+						( *head )->prev = node->prev;	// Set the new tail.
+					}
+
 					node->prev->next = NULL;
 				}
 				else	// All that exists now is the head.
@@ -73,10 +77,6 @@ void DLL_RemoveNode( DoublyLinkedList **head, DoublyLinkedList *node )
 					( *head )->next = NULL;
 					( *head )->prev = NULL;
 				}
-			}
-			else	// Node must have been the head. This shouldn't occur.
-			{
-				*head = NULL;
 			}
 		}
 		else if ( node->next != NULL && node->prev != NULL )	// Node is between two other nodes.

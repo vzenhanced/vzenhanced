@@ -44,7 +44,7 @@ WSAEVENT g_hCleanupEvent[ 1 ];
 
 LONG total_clients = 0;
 DoublyLinkedList *client_context_list = NULL;
-DoublyLinkedList *listen_context = NULL;
+SOCKET_CONTEXT *listen_context = NULL;
 
 CRITICAL_SECTION context_list_cs;		// Guard access to the global context list
 CRITICAL_SECTION close_connection_cs;	// Close connection critical section.
@@ -378,7 +378,7 @@ void BeginClose( SOCKET_CONTEXT *socket_context, IO_OPERATION IOOperation )
 	{
 		InterlockedIncrement( &socket_context->io_context.ref_count );
 		socket_context->io_context.IOOperation = IOOperation;
-		PostQueuedCompletionStatus( g_hIOCP, 0, ( ULONG_PTR )socket_context->context_node, &( socket_context->io_context.overlapped ) );
+		PostQueuedCompletionStatus( g_hIOCP, 0, ( ULONG_PTR )socket_context, &( socket_context->io_context.overlapped ) );
 	}
 }
 
@@ -901,8 +901,6 @@ bool CreateAcceptSocket()
 	int nRet = 0;
 	DWORD dwRecvNumBytes = 0;
 
-	SOCKET_CONTEXT *listen_socket_context = NULL;
-
 	// The listening socket context uses the SocketAccept member to store the socket for client connection. 
 	if ( listen_context == NULL )
 	{
@@ -913,16 +911,14 @@ bool CreateAcceptSocket()
 		}
 	}
 
-	listen_socket_context = ( SOCKET_CONTEXT * )listen_context->data;
-
-	listen_socket_context->Socket = CreateSocket();
-	if ( listen_socket_context->Socket == INVALID_SOCKET )
+	listen_context->Socket = CreateSocket();
+	if ( listen_context->Socket == INVALID_SOCKET )
 	{
 		return false;
 	}
 
 	// Accept a connection without waiting for any data. (dwReceiveDataLength = 0)
-	nRet = fpAcceptEx( g_sdListen, listen_socket_context->Socket, ( LPVOID )( listen_socket_context->io_context.buffer ), 0, sizeof( SOCKADDR_STORAGE ) + 16, sizeof( SOCKADDR_STORAGE ) + 16, &dwRecvNumBytes, &( listen_socket_context->io_context.overlapped ) );
+	nRet = fpAcceptEx( g_sdListen, listen_context->Socket, ( LPVOID )( listen_context->io_context.buffer ), 0, sizeof( SOCKADDR_STORAGE ) + 16, sizeof( SOCKADDR_STORAGE ) + 16, &dwRecvNumBytes, &( listen_context->io_context.overlapped ) );
 	if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 	{
 		return false;
@@ -938,11 +934,9 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 	BOOL bSuccess = FALSE;
 	WSAOVERLAPPED *overlapped = NULL;
 	SOCKET_CONTEXT *socket_context = NULL;
-	SOCKET_CONTEXT *accept_socket_context = NULL;
 	DWORD dwFlags = 0;
 	DWORD dwIoSize = 0;
 
-	DoublyLinkedList *context_node = NULL;
 	volatile LONG *ref_count = NULL;
 	WSABUF *wsabuf = NULL;
 	IO_OPERATION *io_operation = NULL;
@@ -953,22 +947,13 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 	while ( true )
 	{
 		// Service io completion packets
-		bSuccess = GetQueuedCompletionStatus( hIOCP, &dwIoSize, ( PDWORD_PTR )&context_node, ( LPOVERLAPPED * )&overlapped, INFINITE );
+		bSuccess = GetQueuedCompletionStatus( hIOCP, &dwIoSize, ( PDWORD_PTR )&socket_context, ( LPOVERLAPPED * )&overlapped, INFINITE );
 
 		if ( g_bEndServer == true )
 		{
 			break;
 		}
 
-		if ( context_node == NULL )
-		{
-			continue;
-		}
-
-		socket_context = ( SOCKET_CONTEXT * )context_node->data;
-
-		// This shouldn't happen.
-		// We could clean up the context node here, but we don't know how many times it's been posted in the completion port.
 		if ( socket_context == NULL )
 		{
 			continue;
@@ -1041,13 +1026,8 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 				}
 
 				// Create a new socket context with the inherited socket.
-				DoublyLinkedList *accept_dll = UpdateCompletionPort( socket_context->Socket, ClientIoAccept, false );
-
-				if ( accept_dll != NULL && accept_dll->data != NULL )
-				{
-					accept_socket_context = ( SOCKET_CONTEXT * )accept_dll->data;
-				}
-				else
+				socket_context = UpdateCompletionPort( socket_context->Socket, ClientIoAccept, false );
+				if ( socket_context == NULL )
 				{
 					_WSASetEvent( g_hCleanupEvent[ 0 ] );
 					ExitThread( 0 );
@@ -1056,17 +1036,17 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 				bool sent = true;
 
-				InterlockedIncrement( &accept_socket_context->io_context.ref_count );
+				InterlockedIncrement( &socket_context->io_context.ref_count );
 				
 				if ( use_ssl == true )
 				{
-					accept_socket_context->io_context.IOOperation = ClientIoHandshakeReply;
-					SSL_WSAAccept( accept_socket_context, &( accept_socket_context->io_context.overlapped ), sent );
+					socket_context->io_context.IOOperation = ClientIoHandshakeReply;
+					SSL_WSAAccept( socket_context, &( socket_context->io_context.overlapped ), sent );
 				}
 				else
 				{
-					accept_socket_context->io_context.IOOperation = ClientIoReadRequest;
-					nRet = _WSARecv( accept_socket_context->Socket, &accept_socket_context->io_context.wsabuf, 1, NULL, &dwFlags, &( accept_socket_context->io_context.overlapped ), NULL );
+					socket_context->io_context.IOOperation = ClientIoReadRequest;
+					nRet = _WSARecv( socket_context->Socket, &socket_context->io_context.wsabuf, 1, NULL, &dwFlags, &( socket_context->io_context.overlapped ), NULL );
 					if ( nRet == SOCKET_ERROR && ( _WSAGetLastError() != ERROR_IO_PENDING ) )
 					{
 						sent = false;
@@ -1075,8 +1055,8 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 				if ( sent == false )
 				{
-					InterlockedDecrement( &accept_socket_context->io_context.ref_count );
-					BeginClose( accept_socket_context );
+					InterlockedDecrement( &socket_context->io_context.ref_count );
+					BeginClose( socket_context );
 				}
 
 				// Check to see if we need to enter the critical section to create the polling thread.
@@ -1240,7 +1220,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 						wsabuf->len = MAX_BUFFER_SIZE;
 
 						InterlockedIncrement( ref_count );
-						PostQueuedCompletionStatus( hIOCP, 1, ( ULONG_PTR )context_node, overlapped );
+						PostQueuedCompletionStatus( hIOCP, 1, ( ULONG_PTR )socket_context, overlapped );
 					}
 					else if ( overlapped != &( socket_context->io_context.ping_overlapped ) )	// Update overlaps.
 					{
@@ -1336,14 +1316,14 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					{
 						*io_operation = ClientIoClose;
 						InterlockedIncrement( ref_count );
-						PostQueuedCompletionStatus( hIOCP, 0, ( ULONG_PTR )context_node, &( socket_context->io_context.overlapped ) );
+						PostQueuedCompletionStatus( hIOCP, 0, ( ULONG_PTR )socket_context, &( socket_context->io_context.overlapped ) );
 					}
 				}
 				else
 				{
 					*io_operation = ClientIoClose;
 					InterlockedIncrement( ref_count );
-					PostQueuedCompletionStatus( hIOCP, 0, ( ULONG_PTR )context_node, &( socket_context->io_context.overlapped ) );
+					PostQueuedCompletionStatus( hIOCP, 0, ( ULONG_PTR )socket_context, &( socket_context->io_context.overlapped ) );
 				}
 			}
 			break;
@@ -1363,7 +1343,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 				}
 				else	// Done when no other IO operation is pending.
 				{
-					CloseClient( &context_node, false );
+					CloseClient( socket_context, false );
 				}
 			}
 			break;
@@ -1376,10 +1356,8 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 // Allocate a context structures for the socket and add the socket to the IOCP.
 // Additionally, add the context structure to the global list of context structures.
-DoublyLinkedList *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool bIsListen )
+SOCKET_CONTEXT *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool bIsListen )
 {
-	DoublyLinkedList *context_node = NULL;
-
 	SOCKET_CONTEXT *socket_context = ( SOCKET_CONTEXT * )GlobalAlloc( GPTR, sizeof( SOCKET_CONTEXT ) );
 	if ( socket_context )
 	{
@@ -1419,12 +1397,10 @@ DoublyLinkedList *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool b
 
 		InitializeCriticalSection( &socket_context->write_cs );
 
-		context_node = DLL_CreateNode( ( void * )socket_context );
-
-		g_hIOCP = CreateIoCompletionPort( ( HANDLE )sd, g_hIOCP, ( DWORD_PTR )context_node, 0 );
+		g_hIOCP = CreateIoCompletionPort( ( HANDLE )sd, g_hIOCP, ( DWORD_PTR )socket_context, 0 );
 		if ( g_hIOCP == NULL )
 		{
-			if ( use_ssl == true )
+			if ( socket_context->ssl != NULL )
 			{
 				SSL_free( socket_context->ssl );
 				socket_context->ssl = NULL;
@@ -1432,16 +1408,13 @@ DoublyLinkedList *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool b
 
 			GlobalFree( socket_context );
 			socket_context = NULL;
-
-			GlobalFree( context_node );
-			context_node = NULL;
 		}
 		else
 		{
 			// Add all socket contexts (except the listening one) to our linked list.
 			if ( bIsListen == false )
 			{
-				socket_context->context_node = context_node;
+				socket_context->context_node.data = socket_context;
 
 				EnterCriticalSection( &context_list_cs );
 
@@ -1454,25 +1427,23 @@ DoublyLinkedList *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool b
 
 				++total_clients;
 
-				DLL_AddNode( &client_context_list, context_node, 0 );
+				DLL_AddNode( &client_context_list, &socket_context->context_node, 0 );
 
 				LeaveCriticalSection( &context_list_cs );
 			}
 		}
 	}
 
-	return context_node;
+	return socket_context;
 }
 
-void CloseClient( DoublyLinkedList **context_node, bool bGraceful )
+void CloseClient( SOCKET_CONTEXT *socket_context, bool bGraceful )
 {
-	if ( *context_node != NULL )
+	if ( socket_context != NULL )
 	{
-		SOCKET_CONTEXT *socket_context = ( SOCKET_CONTEXT * )( *context_node )->data;
-
 		EnterCriticalSection( &context_list_cs );
 
-		DLL_RemoveNode( &client_context_list, *context_node );
+		DLL_RemoveNode( &client_context_list, &socket_context->context_node );
 
 		--total_clients;
 
@@ -1485,84 +1456,77 @@ void CloseClient( DoublyLinkedList **context_node, bool bGraceful )
 
 		LeaveCriticalSection( &context_list_cs );
 
-		if ( socket_context != NULL )
+		if ( bGraceful == false )
 		{
-			if ( bGraceful == false )
-			{
-				// Force the subsequent closesocket to be abortive.
-				LINGER  lingerStruct;
+			// Force the subsequent closesocket to be abortive.
+			LINGER  lingerStruct;
 
-				lingerStruct.l_onoff = 1;
-				lingerStruct.l_linger = 0;
-				_setsockopt( socket_context->Socket, SOL_SOCKET, SO_LINGER, ( char * )&lingerStruct, sizeof( lingerStruct ) );
-			}
-
-			_shutdown( socket_context->Socket, SD_BOTH );
-			_closesocket( socket_context->Socket );
-			socket_context->Socket = INVALID_SOCKET;
-
-			// Go through our update buffer states to see if any where in use before we closed the client.
-			// If it is, then decrement its equivalent update buffer pool index.
-
-			while ( socket_context->io_context.update_buffer_state != NULL )
-			{
-				DoublyLinkedList *del_node = socket_context->io_context.update_buffer_state;
-				socket_context->io_context.update_buffer_state = socket_context->io_context.update_buffer_state->next;
-
-				if ( ( ( UPDATE_BUFFER_STATE * )del_node->data )->in_use )
-				{
-					InterlockedDecrement( ( ( UPDATE_BUFFER_STATE * )del_node->data )->count );
-				}
-
-				GlobalFree( ( UPDATE_BUFFER * )del_node->data );
-				GlobalFree( del_node );
-			}
-
-			if ( use_ssl == true )
-			{
-				SSL_free( socket_context->ssl );
-				socket_context->ssl = NULL;
-			}
-
-			if ( socket_context->resource.resource_buf != NULL )
-			{
-				if ( socket_context->resource.use_cache == false )
-				{
-					GlobalFree( socket_context->resource.resource_buf );
-				}
-				socket_context->resource.resource_buf = NULL;
-			}
-
-			if ( socket_context->resource.websocket_upgrade_key != NULL )
-			{
-				GlobalFree( socket_context->resource.websocket_upgrade_key );
-				socket_context->resource.websocket_upgrade_key = NULL;
-			}
-
-			if ( socket_context->resource.hFile_resource != INVALID_HANDLE_VALUE )
-			{
-				CloseHandle( socket_context->resource.hFile_resource );
-				socket_context->resource.hFile_resource = INVALID_HANDLE_VALUE;
-			}
-
-			while ( socket_context->list_data != NULL )
-			{
-				DoublyLinkedList *del_node = socket_context->list_data;
-				socket_context->list_data = socket_context->list_data->next;
-
-				GlobalFree( ( ( PAYLOAD_INFO * )del_node->data )->payload_value );
-				GlobalFree( ( PAYLOAD_INFO * )del_node->data );
-				GlobalFree( del_node );
-			}
-
-			DeleteCriticalSection( &socket_context->write_cs );
-
-			GlobalFree( socket_context );
-			socket_context = NULL;
+			lingerStruct.l_onoff = 1;
+			lingerStruct.l_linger = 0;
+			_setsockopt( socket_context->Socket, SOL_SOCKET, SO_LINGER, ( char * )&lingerStruct, sizeof( lingerStruct ) );
 		}
 
-		GlobalFree( *context_node );
-		*context_node = NULL;
+		_shutdown( socket_context->Socket, SD_BOTH );
+		_closesocket( socket_context->Socket );
+		socket_context->Socket = INVALID_SOCKET;
+
+		// Go through our update buffer states to see if any were in use before we closed the client.
+		// If it is, then decrement its equivalent update buffer pool index.
+
+		while ( socket_context->io_context.update_buffer_state != NULL )
+		{
+			DoublyLinkedList *del_node = socket_context->io_context.update_buffer_state;
+			socket_context->io_context.update_buffer_state = socket_context->io_context.update_buffer_state->next;
+
+			if ( ( ( UPDATE_BUFFER_STATE * )del_node->data )->in_use )
+			{
+				InterlockedDecrement( ( ( UPDATE_BUFFER_STATE * )del_node->data )->count );
+			}
+
+			GlobalFree( ( UPDATE_BUFFER * )del_node->data );
+			GlobalFree( del_node );
+		}
+
+		if ( socket_context->ssl != NULL )
+		{
+			SSL_free( socket_context->ssl );
+			socket_context->ssl = NULL;
+		}
+
+		if ( socket_context->resource.resource_buf != NULL )
+		{
+			if ( socket_context->resource.use_cache == false )
+			{
+				GlobalFree( socket_context->resource.resource_buf );
+			}
+			socket_context->resource.resource_buf = NULL;
+		}
+
+		if ( socket_context->resource.websocket_upgrade_key != NULL )
+		{
+			GlobalFree( socket_context->resource.websocket_upgrade_key );
+			socket_context->resource.websocket_upgrade_key = NULL;
+		}
+
+		if ( socket_context->resource.hFile_resource != INVALID_HANDLE_VALUE )
+		{
+			CloseHandle( socket_context->resource.hFile_resource );
+			socket_context->resource.hFile_resource = INVALID_HANDLE_VALUE;
+		}
+
+		while ( socket_context->list_data != NULL )
+		{
+			DoublyLinkedList *del_node = socket_context->list_data;
+			socket_context->list_data = socket_context->list_data->next;
+
+			GlobalFree( ( ( PAYLOAD_INFO * )del_node->data )->payload_value );
+			GlobalFree( ( PAYLOAD_INFO * )del_node->data );
+			GlobalFree( del_node );
+		}
+
+		DeleteCriticalSection( &socket_context->write_cs );
+
+		GlobalFree( socket_context );
 	}
 
 	return;    
@@ -1579,7 +1543,7 @@ void FreeClientContexts()
 		del_context_node = context_node;
 		context_node = context_node->next;
 
-		CloseClient( &del_context_node, false );
+		CloseClient( ( SOCKET_CONTEXT * )del_context_node->data, false );
 	}
 
 	client_context_list = NULL;
@@ -1593,19 +1557,11 @@ void FreeListenContext()
 {
 	if ( listen_context != NULL )
 	{
-		SOCKET_CONTEXT *socket_context = ( SOCKET_CONTEXT * )listen_context->data;
-
-		if ( socket_context != NULL )
+		if ( listen_context->Socket != INVALID_SOCKET )
 		{
-			if ( socket_context->Socket != INVALID_SOCKET )
-			{
-				_shutdown( socket_context->Socket, SD_BOTH );
-				_closesocket( socket_context->Socket );
-				socket_context->Socket = INVALID_SOCKET;
-			}
-
-			GlobalFree( socket_context );
-			socket_context = NULL;
+			_shutdown( listen_context->Socket, SD_BOTH );
+			_closesocket( listen_context->Socket );
+			listen_context->Socket = INVALID_SOCKET;
 		}
 
 		GlobalFree( listen_context );
