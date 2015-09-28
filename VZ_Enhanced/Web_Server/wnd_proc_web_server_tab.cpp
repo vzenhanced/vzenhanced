@@ -208,10 +208,12 @@ void SaveWebServerSettings()
 		GlobalFree( cfg_certificate_pkcs_file_name );
 	}
 
-	int certificate_pkcs_file_name_length = lstrlenW( certificate_pkcs_file_name );
+	/*int certificate_pkcs_file_name_length = lstrlenW( certificate_pkcs_file_name );
 	cfg_certificate_pkcs_file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( certificate_pkcs_file_name_length + 1 ) );
-	_memcpy_s( cfg_certificate_pkcs_file_name, sizeof( wchar_t ) * ( certificate_pkcs_file_name_length + 1 ), certificate_pkcs_file_name, sizeof( wchar_t ) * certificate_pkcs_file_name_length );
-	*( cfg_certificate_pkcs_file_name + certificate_pkcs_file_name_length ) = 0;	// Sanity.
+	_wmemcpy_s( cfg_certificate_pkcs_file_name, certificate_pkcs_file_name_length + 1, certificate_pkcs_file_name, certificate_pkcs_file_name_length );
+	*( cfg_certificate_pkcs_file_name + certificate_pkcs_file_name_length ) = 0;	// Sanity.*/
+
+	cfg_certificate_pkcs_file_name = GlobalStrDupW( certificate_pkcs_file_name );
 
 	unsigned int certificate_pkcs_password_length = _SendMessageW( g_hWnd_certificate_pkcs_password, WM_GETTEXTLENGTH, 0, 0 );
 	if ( cfg_certificate_pkcs_password != NULL )
@@ -226,30 +228,36 @@ void SaveWebServerSettings()
 		GlobalFree( cfg_certificate_cer_file_name );
 	}
 
-	int certificate_cer_file_name_length = lstrlenW( certificate_cer_file_name );
+	/*int certificate_cer_file_name_length = lstrlenW( certificate_cer_file_name );
 	cfg_certificate_cer_file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( certificate_cer_file_name_length + 1 ) );
-	_memcpy_s( cfg_certificate_cer_file_name, sizeof( wchar_t ) * ( certificate_cer_file_name_length + 1 ), certificate_cer_file_name, sizeof( wchar_t ) * certificate_cer_file_name_length );
-	*( cfg_certificate_cer_file_name + certificate_cer_file_name_length ) = 0;	// Sanity.
+	_wmemcpy_s( cfg_certificate_cer_file_name, certificate_cer_file_name_length + 1, certificate_cer_file_name, certificate_cer_file_name_length );
+	*( cfg_certificate_cer_file_name + certificate_cer_file_name_length ) = 0;	// Sanity.*/
+
+	cfg_certificate_cer_file_name = GlobalStrDupW( certificate_cer_file_name );
 
 	if ( cfg_certificate_key_file_name != NULL )
 	{
 		GlobalFree( cfg_certificate_key_file_name );
 	}
 
-	int certificate_key_file_name_length = lstrlenW( certificate_key_file_name );
+	/*int certificate_key_file_name_length = lstrlenW( certificate_key_file_name );
 	cfg_certificate_key_file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( certificate_key_file_name_length + 1 ) );
-	_memcpy_s( cfg_certificate_key_file_name, sizeof( wchar_t ) * ( certificate_key_file_name_length + 1 ), certificate_key_file_name, sizeof( wchar_t ) * certificate_key_file_name_length );
-	*( cfg_certificate_key_file_name + certificate_key_file_name_length ) = 0;	// Sanity.
+	_wmemcpy_s( cfg_certificate_key_file_name, certificate_key_file_name_length + 1, certificate_key_file_name, certificate_key_file_name_length );
+	*( cfg_certificate_key_file_name + certificate_key_file_name_length ) = 0;	// Sanity.*/
+
+	cfg_certificate_key_file_name = GlobalStrDupW( certificate_key_file_name );
 
 	if ( cfg_document_root_directory != NULL )
 	{
 		GlobalFree( cfg_document_root_directory );
 	}
 
-	g_document_root_directory_length = lstrlenW( t_document_root_directory );
+	/*g_document_root_directory_length = lstrlenW( t_document_root_directory );
 	cfg_document_root_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( g_document_root_directory_length + 1 ) );
-	_memcpy_s( cfg_document_root_directory, sizeof( wchar_t ) * ( g_document_root_directory_length + 1 ), t_document_root_directory, sizeof( wchar_t ) * g_document_root_directory_length );
-	*( cfg_document_root_directory + g_document_root_directory_length ) = 0;	// Sanity.
+	_wmemcpy_s( cfg_document_root_directory, g_document_root_directory_length + 1, t_document_root_directory, g_document_root_directory_length );
+	*( cfg_document_root_directory + g_document_root_directory_length ) = 0;	// Sanity.*/
+
+	cfg_document_root_directory = GlobalStrDupW( t_document_root_directory );
 
 	cfg_ssl_version = ( unsigned char )_SendMessageW( g_hWnd_ssl_version, CB_GETCURSEL, 0, 0 );
 
@@ -502,8 +510,15 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 			g_hWnd_resource_cache_size = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 275, 160, 20, hWnd, ( HMENU )EDIT_CACHE_SIZE, NULL, NULL );
 
 			g_hWnd_static_thread_count = _CreateWindowW( WC_STATIC, ST_Thread_pool_count_, WS_CHILD | WS_VISIBLE, 0, 305, 150, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_thread_count = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 320, 100, 20, hWnd, ( HMENU )EDIT_THREAD_COUNT, NULL, NULL );
+			g_hWnd_thread_count = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 320, 85, 20, hWnd, ( HMENU )EDIT_THREAD_COUNT, NULL, NULL );
 
+			// Keep this unattached. Looks ugly inside the text box.
+			HWND hWnd_ud_thread_count = _CreateWindowW( UPDOWN_CLASS, NULL, /*UDS_ALIGNRIGHT |*/ UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_SETBUDDYINT | WS_CHILD | WS_VISIBLE, 85, 319, 100, 22, hWnd, NULL, NULL, NULL );
+
+			_SendMessageW( hWnd_ud_thread_count, UDM_SETBUDDY, ( WPARAM )g_hWnd_thread_count, 0 );
+            _SendMessageW( hWnd_ud_thread_count, UDM_SETBASE, 10, 0 );
+			_SendMessageW( hWnd_ud_thread_count, UDM_SETRANGE32, 1, max_threads );
+			_SendMessageW( hWnd_ud_thread_count, UDM_SETPOS, 0, cfg_thread_count );
 
 			g_hWnd_chk_enable_ssl = _CreateWindowW( WC_BUTTON, ST_Enable_SSL_TLS_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 350, 150, 20, hWnd, ( HMENU )BTN_ENABLE_SSL, NULL, NULL );
 
@@ -630,34 +645,42 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 			if ( cfg_certificate_pkcs_file_name != NULL )
 			{
-				int certificate_pkcs_file_name_length = lstrlenW( cfg_certificate_pkcs_file_name );
+				/*int certificate_pkcs_file_name_length = lstrlenW( cfg_certificate_pkcs_file_name );
 				certificate_pkcs_file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( certificate_pkcs_file_name_length + 1 ) );
-				_memcpy_s( certificate_pkcs_file_name, sizeof( wchar_t ) * ( certificate_pkcs_file_name_length + 1 ), cfg_certificate_pkcs_file_name, sizeof( wchar_t ) * certificate_pkcs_file_name_length );
-				*( certificate_pkcs_file_name + certificate_pkcs_file_name_length ) = 0;	// Sanity.
+				_wmemcpy_s( certificate_pkcs_file_name, certificate_pkcs_file_name_length + 1, cfg_certificate_pkcs_file_name, certificate_pkcs_file_name_length );
+				*( certificate_pkcs_file_name + certificate_pkcs_file_name_length ) = 0;	// Sanity.*/
+
+				certificate_pkcs_file_name = GlobalStrDupW( cfg_certificate_pkcs_file_name );
 			}
 
 			if ( cfg_certificate_cer_file_name != NULL )
 			{
-				int certificate_cer_file_name_length = lstrlenW( cfg_certificate_cer_file_name );
+				/*int certificate_cer_file_name_length = lstrlenW( cfg_certificate_cer_file_name );
 				certificate_cer_file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( certificate_cer_file_name_length + 1 ) );
-				_memcpy_s( certificate_cer_file_name, sizeof( wchar_t ) * ( certificate_cer_file_name_length + 1 ), cfg_certificate_cer_file_name, sizeof( wchar_t ) * certificate_cer_file_name_length );
-				*( certificate_cer_file_name + certificate_cer_file_name_length ) = 0;	// Sanity.
+				_wmemcpy_s( certificate_cer_file_name, certificate_cer_file_name_length + 1, cfg_certificate_cer_file_name, certificate_cer_file_name_length );
+				*( certificate_cer_file_name + certificate_cer_file_name_length ) = 0;	// Sanity.*/
+
+				certificate_cer_file_name = GlobalStrDupW( cfg_certificate_cer_file_name );
 			}
 
 			if ( cfg_certificate_key_file_name != NULL )
 			{
-				int certificate_key_file_name_length = lstrlenW( cfg_certificate_key_file_name );
+				/*int certificate_key_file_name_length = lstrlenW( cfg_certificate_key_file_name );
 				certificate_key_file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( certificate_key_file_name_length + 1 ) );
-				_memcpy_s( certificate_key_file_name, sizeof( wchar_t ) * ( certificate_key_file_name_length + 1 ), cfg_certificate_key_file_name, sizeof( wchar_t ) * certificate_key_file_name_length );
-				*( certificate_key_file_name + certificate_key_file_name_length ) = 0;	// Sanity.
+				_wmemcpy_s( certificate_key_file_name, certificate_key_file_name_length + 1, cfg_certificate_key_file_name, certificate_key_file_name_length );
+				*( certificate_key_file_name + certificate_key_file_name_length ) = 0;	// Sanity.*/
+
+				certificate_key_file_name = GlobalStrDupW( cfg_certificate_key_file_name );
 			}
 
 			if ( cfg_document_root_directory != NULL )
 			{
-				int document_root_directory_length = lstrlenW( cfg_document_root_directory );
+				/*int document_root_directory_length = lstrlenW( cfg_document_root_directory );
 				t_document_root_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( document_root_directory_length + 1 ) );
-				_memcpy_s( t_document_root_directory, sizeof( wchar_t ) * ( document_root_directory_length + 1 ), cfg_document_root_directory, sizeof( wchar_t ) * document_root_directory_length );
-				*( t_document_root_directory + document_root_directory_length ) = 0;	// Sanity.
+				_wmemcpy_s( t_document_root_directory, document_root_directory_length + 1, cfg_document_root_directory, document_root_directory_length );
+				*( t_document_root_directory + document_root_directory_length ) = 0;	// Sanity.*/
+
+				t_document_root_directory = GlobalStrDupW( cfg_document_root_directory );
 			}
 
 			Set_Window_Settings();
@@ -1039,7 +1062,21 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 					_memzero( &bi, sizeof( BROWSEINFO ) );
 					bi.hwndOwner = hWnd;
 					bi.lpszTitle = ST_Select_the_root_directory;
-					bi.ulFlags = BIF_EDITBOX | BIF_VALIDATE;
+					bi.ulFlags = BIF_EDITBOX | BIF_NEWDIALOGSTYLE | BIF_VALIDATE;
+
+					bool destroy = true;
+					#ifndef OLE32_USE_STATIC_LIB
+						if ( ole32_state == OLE32_STATE_SHUTDOWN )
+						{
+							destroy = InitializeOle32();
+						}
+					#endif
+
+					if ( destroy == true )
+					{
+						// OleInitialize calls CoInitializeEx
+						_OleInitialize( NULL );
+					}
 
 					LPITEMIDLIST lpiidl = _SHBrowseForFolderW( &bi );
 					if ( lpiidl )
@@ -1072,14 +1109,6 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 							GlobalFree( directory );
 						}
 
-						bool destroy = true;
-						#ifndef OLE32_USE_STATIC_LIB
-							if ( ole32_state == OLE32_STATE_SHUTDOWN )
-							{
-								destroy = InitializeOle32();
-							}
-						#endif
-
 						if ( destroy == true )
 						{
 							_CoTaskMemFree( lpiidl );
@@ -1088,6 +1117,11 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 						{
 							_MessageBoxW( NULL, L"Item ID List was not freed.", L"Web Server", 0 );
 						}
+					}
+
+					if ( destroy == true )
+					{
+						_OleUninitialize();
 					}
 				}
 				break;

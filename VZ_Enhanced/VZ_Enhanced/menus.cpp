@@ -551,8 +551,8 @@ void CreateMenus()
 	// TRAY MENU (for right click)
 	mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
 	mii.fType = MFT_STRING;
-	mii.dwTypeData = ST_Open_Caller_ID;
-	mii.cch = 14;
+	mii.dwTypeData = ST_Open_VZ_Enhanced;
+	mii.cch = 16;
 	mii.wID = MENU_RESTORE;
 	mii.fState = MFS_DEFAULT | MFS_ENABLED;
 	_InsertMenuItemW( g_hMenuSub_tray, 0, TRUE, &mii );

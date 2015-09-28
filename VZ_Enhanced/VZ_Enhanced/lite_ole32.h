@@ -31,34 +31,34 @@
 
 	//__pragma( comment( lib, "ole32.lib" ) )
 
-	#define _CoTaskMemFree	CoTaskMemFree
+	//#define _CoTaskMemFree	CoTaskMemFree
 
-	#define _OleInitialize	OleInitialize
-	#define _OleUninitialize	OleUninitialize
+	//#define _OleInitialize	OleInitialize
+	//#define _OleUninitialize	OleUninitialize
 
-	//#define _CoInitializeEx	CoInitializeEx
-	//#define _CoUninitialize	CoUninitialize
+	#define _CoInitializeEx	CoInitializeEx
+	#define _CoUninitialize	CoUninitialize
 
 #else
 
 	#define OLE32_STATE_SHUTDOWN	0
 	#define OLE32_STATE_RUNNING		1
 
-	typedef void ( WINAPI *pCoTaskMemFree )( LPVOID pv );
+	//typedef void ( WINAPI *pCoTaskMemFree )( LPVOID pv );
 
-	typedef HRESULT ( WINAPI *pOleInitialize )( LPVOID pvReserved );
-	typedef void ( WINAPI *pOleUninitialize )( void );
+	//typedef HRESULT ( WINAPI *pOleInitialize )( LPVOID pvReserved );
+	//typedef void ( WINAPI *pOleUninitialize )( void );
 
-	//typedef HRESULT ( WINAPI *pCoInitializeEx )( LPVOID pvReserved, DWORD dwCoInit );
-	//typedef void ( WINAPI *pCoUninitialize )( void );
+	typedef HRESULT ( WINAPI *pCoInitializeEx )( LPVOID pvReserved, DWORD dwCoInit );
+	typedef void ( WINAPI *pCoUninitialize )( void );
 
-	extern pCoTaskMemFree	_CoTaskMemFree;
+	//extern pCoTaskMemFree	_CoTaskMemFree;
 
-	extern pOleInitialize	_OleInitialize;
-	extern pOleUninitialize	_OleUninitialize;
+	//extern pOleInitialize	_OleInitialize;
+	//extern pOleUninitialize	_OleUninitialize;
 
-	//extern pCoInitializeEx	_CoInitializeEx;
-	//extern pCoUninitialize	_CoUninitialize;
+	extern pCoInitializeEx	_CoInitializeEx;
+	extern pCoUninitialize	_CoUninitialize;
 
 	extern unsigned char ole32_state;
 

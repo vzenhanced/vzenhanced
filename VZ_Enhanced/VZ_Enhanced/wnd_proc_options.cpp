@@ -979,6 +979,11 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 			// Keep this unattached. Looks ugly inside the text box.
 			g_hWnd_ud_timeout = _CreateWindowW( UPDOWN_CLASS, NULL, /*UDS_ALIGNRIGHT |*/ UDS_ARROWKEYS | UDS_NOTHOUSANDS | UDS_SETBUDDYINT | WS_CHILD | WS_VISIBLE, 60, 139, 50, 22, hWnd, NULL, NULL, NULL );
 
+			_SendMessageW( g_hWnd_timeout, EM_LIMITTEXT, 3, 0 );
+			_SendMessageW( g_hWnd_ud_timeout, UDM_SETBUDDY, ( WPARAM )g_hWnd_timeout, 0 );
+            _SendMessageW( g_hWnd_ud_timeout, UDM_SETBASE, 10, 0 );
+			_SendMessageW( g_hWnd_ud_timeout, UDM_SETRANGE32, 60, 300 );
+
 			g_hWnd_static_ssl_version = _CreateWindowW( WC_STATIC, ST_SSL_TLS_version_, WS_CHILD | WS_VISIBLE, 0, 175, 150, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_ssl_version = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_COMBOBOX, NULL, CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 0, 190, 100, 20, hWnd, ( HMENU )CB_SSL_VERSION, NULL, NULL );
 			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_SSL_2_0 );
@@ -988,11 +993,6 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 			_SendMessageW( g_hWnd_ssl_version, CB_ADDSTRING, 0, ( LPARAM )ST_TLS_1_2 );
 
 			g_hWnd_chk_check_for_updates = _CreateWindowW( WC_BUTTON, ST_Check_for_updates_upon_startup, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 225, 200, 20, hWnd, ( HMENU )BTN_CHECK_FOR_UPDATES, NULL, NULL );
-
-			_SendMessageW( g_hWnd_timeout, EM_LIMITTEXT, 3, 0 );
-			_SendMessageW( g_hWnd_ud_timeout, UDM_SETBUDDY, ( WPARAM )g_hWnd_timeout, 0 );
-            _SendMessageW( g_hWnd_ud_timeout, UDM_SETBASE, 10, 0 );
-			_SendMessageW( g_hWnd_ud_timeout, UDM_SETRANGE32, 60, 300 );
 
 			_SendMessageW( g_hWnd_chk_auto_login, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_chk_reconnect, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -2742,35 +2742,26 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 			g_hWnd_options_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, WC_TABCONTROL, NULL, WS_CHILD | WS_CLIPCHILDREN | WS_TABSTOP | WS_VISIBLE, 10, 10, rc.right - 20, rc.bottom - 50, hWnd, NULL, NULL, NULL );
 
-			g_hWnd_general_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"general_tab", NULL, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
-			g_hWnd_connection_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"connection_tab", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
-			g_hWnd_popup_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"popup_tab", NULL, WS_CHILD | WS_VSCROLL | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
-
-			if ( web_server_state == WEB_SERVER_STATE_RUNNING )
-			{
-				g_hWnd_web_server_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"web_server_tab", NULL, WS_CHILD | WS_VSCROLL | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 100, g_hWnd_options_tab, NULL, NULL, NULL );
-			}
-
 			TCITEM ti;
 			_memzero( &ti, sizeof( TCITEM ) );
 			ti.mask = TCIF_PARAM | TCIF_TEXT;	// The tab will have text and an lParam value.
 
 			ti.pszText = ( LPWSTR )ST_General;
-			ti.lParam = ( LPARAM )g_hWnd_general_tab;
+			ti.lParam = ( LPARAM )&g_hWnd_general_tab;
 			_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 0, ( LPARAM )&ti );	// Insert a new tab at the end.
 
 			ti.pszText = ( LPWSTR )ST_Connection;
-			ti.lParam = ( LPARAM )g_hWnd_connection_tab;
+			ti.lParam = ( LPARAM )&g_hWnd_connection_tab;
 			_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
 
 			ti.pszText = ( LPWSTR )ST_Popup;
-			ti.lParam = ( LPARAM )g_hWnd_popup_tab;
+			ti.lParam = ( LPARAM )&g_hWnd_popup_tab;
 			_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 2, ( LPARAM )&ti );	// Insert a new tab at the end.
 
 			if ( web_server_state == WEB_SERVER_STATE_RUNNING )
 			{
 				ti.pszText = ( LPWSTR )L"Web Server";
-				ti.lParam = ( LPARAM )g_hWnd_web_server_tab;
+				ti.lParam = ( LPARAM )&g_hWnd_web_server_tab;
 				_SendMessageW( g_hWnd_options_tab, TCM_INSERTITEM, 3, ( LPARAM )&ti );	// Insert a new tab at the end.
 			}
 
@@ -2779,6 +2770,21 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			g_hWnd_apply = _CreateWindowW( WC_BUTTON, ST_Apply, WS_CHILD | WS_DISABLED | WS_TABSTOP | WS_VISIBLE, rc.right - 90, rc.bottom - 32, 80, 23, hWnd, ( HMENU )BTN_APPLY, NULL, NULL );
 
 			_SendMessageW( g_hWnd_options_tab, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			// Set the tab control's font so we can get the correct tab height to adjust its children.
+			RECT rc_tab;
+			_GetClientRect( g_hWnd_options_tab, &rc );
+
+			_SendMessageW( g_hWnd_options_tab, TCM_GETITEMRECT, 0, ( LPARAM )&rc_tab );
+
+			g_hWnd_general_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"general_tab", NULL, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, ( rc_tab.bottom + rc_tab.top ) + 12, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 24 ), g_hWnd_options_tab, NULL, NULL, NULL );
+			g_hWnd_connection_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"connection_tab", NULL, WS_CHILD | WS_TABSTOP, 15, ( rc_tab.bottom + rc_tab.top ) + 12, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 24 ), g_hWnd_options_tab, NULL, NULL, NULL );
+			g_hWnd_popup_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"popup_tab", NULL, WS_CHILD | WS_VSCROLL | WS_TABSTOP, 15, ( rc_tab.bottom + rc_tab.top ) + 12, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 24 ), g_hWnd_options_tab, NULL, NULL, NULL );
+
+			if ( web_server_state == WEB_SERVER_STATE_RUNNING )
+			{
+				g_hWnd_web_server_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, L"web_server_tab", NULL, WS_CHILD | WS_VSCROLL | WS_TABSTOP, 15, ( rc_tab.bottom + rc_tab.top ) + 12, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 24 ), g_hWnd_options_tab, NULL, NULL, NULL );
+			}
 
 			_SendMessageW( g_hWnd_ok, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_cancel, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -2819,16 +2825,16 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( index != -1 )
 					{
 						_SendMessageW( nmhdr->hwndFrom, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-						if ( ( HWND )( tie.lParam ) == g_hWnd_web_server_tab )
+						if ( ( HWND * )tie.lParam == &g_hWnd_web_server_tab )
 						{
 							if ( web_server_state == WEB_SERVER_STATE_RUNNING )
 							{
-								_ShowWindow( ( HWND )( tie.lParam ), SW_HIDE );
+								_ShowWindow( *( ( HWND * )tie.lParam ), SW_HIDE );
 							}
 						}
 						else
 						{
-							_ShowWindow( ( HWND )( tie.lParam ), SW_HIDE );
+							_ShowWindow( *( ( HWND * )tie.lParam ), SW_HIDE );
 						}
 					}
 
@@ -2853,19 +2859,19 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( index != -1 )
 					{
 						_SendMessageW( nmhdr->hwndFrom, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-						if ( ( HWND )( tie.lParam ) == g_hWnd_web_server_tab )
+						if ( ( HWND * )tie.lParam == &g_hWnd_web_server_tab )
 						{
 							if ( web_server_state == WEB_SERVER_STATE_RUNNING )
 							{
-								_ShowWindow( ( HWND )( tie.lParam ), SW_SHOW );
+								_ShowWindow( *( ( HWND * )tie.lParam ), SW_SHOW );
 							}
 						}
 						else
 						{
-							_ShowWindow( ( HWND )( tie.lParam ), SW_SHOW );
+							_ShowWindow( *( ( HWND * )tie.lParam ), SW_SHOW );
 						}
 
-						_SetFocus( ( HWND )( tie.lParam ) );
+						_SetFocus( *( ( HWND * )tie.lParam ) );
 					}
 
 					return FALSE;

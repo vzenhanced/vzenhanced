@@ -456,35 +456,41 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 			g_hWnd_column_tab = _CreateWindowExW( WS_EX_CONTROLPARENT, WC_TABCONTROL, NULL, WS_CHILD | WS_CLIPCHILDREN | WS_TABSTOP | WS_VISIBLE, 10, 10, rc.right - 20, rc.bottom - 50, hWnd, NULL, NULL, NULL );
 
-			g_hWnd_calllog_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"calllog_columns", NULL, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
-			g_hWnd_contactlist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"contactlist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
-			g_hWnd_forwardlist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"forwardlist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
-			g_hWnd_ignorelist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"ignorelist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, 35, rc.right - 50, rc.bottom - 95, g_hWnd_column_tab, NULL, NULL, NULL );
-
 			TCITEM ti;
 			_memzero( &ti, sizeof( TCITEM ) );
 			ti.mask = TCIF_PARAM | TCIF_TEXT;	// The tab will have text and an lParam value.
 			ti.pszText = ( LPWSTR )ST_Call_Log;
-			ti.lParam = ( LPARAM )g_hWnd_calllog_columns;
+			ti.lParam = ( LPARAM )&g_hWnd_calllog_columns;
 			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 0, ( LPARAM )&ti );	// Insert a new tab at the end.
 
 			ti.pszText = ( LPWSTR )ST_Contact_List;
-			ti.lParam = ( LPARAM )g_hWnd_contactlist_columns;
+			ti.lParam = ( LPARAM )&g_hWnd_contactlist_columns;
 			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
 
 			ti.pszText = ( LPWSTR )ST_Forward_Lists;
-			ti.lParam = ( LPARAM )g_hWnd_forwardlist_columns;
+			ti.lParam = ( LPARAM )&g_hWnd_forwardlist_columns;
 			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 2, ( LPARAM )&ti );	// Insert a new tab at the end.
 
 			ti.pszText = ( LPWSTR )ST_Ignore_Lists;
-			ti.lParam = ( LPARAM )g_hWnd_ignorelist_columns;
+			ti.lParam = ( LPARAM )&g_hWnd_ignorelist_columns;
 			_SendMessageW( g_hWnd_column_tab, TCM_INSERTITEM, 3, ( LPARAM )&ti );	// Insert a new tab at the end.
-			
+
 			HWND g_hWnd_ok_columns = _CreateWindowW( WC_BUTTON, ST_OK, BS_DEFPUSHBUTTON | WS_CHILD | WS_TABSTOP | WS_VISIBLE, rc.right - 260, rc.bottom - 32, 80, 23, hWnd, ( HMENU )BTN_SAVE_COLUMNS, NULL, NULL );
 			HWND g_hWnd_cancel_columns = _CreateWindowW( WC_BUTTON, ST_Cancel, WS_CHILD | WS_TABSTOP | WS_VISIBLE, rc.right - 175, rc.bottom - 32, 80, 23, hWnd, ( HMENU )BTN_CANCEL_COLUMNS, NULL, NULL );
 			g_hWnd_apply_columns = _CreateWindowW( WC_BUTTON, ST_Apply, WS_CHILD | WS_DISABLED | WS_TABSTOP | WS_VISIBLE, rc.right - 90, rc.bottom - 32, 80, 23, hWnd, ( HMENU )BTN_APPLY_COLUMNS, NULL, NULL );
 
-			_SendMessageW( g_hWnd_column_tab, WM_SETFONT, ( WPARAM )hFont, 0 );		
+			_SendMessageW( g_hWnd_column_tab, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			// Set the tab control's font so we can get the correct tab height to adjust its children.
+			RECT rc_tab;
+			_GetClientRect( g_hWnd_column_tab, &rc );
+
+			_SendMessageW( g_hWnd_column_tab, TCM_GETITEMRECT, 0, ( LPARAM )&rc_tab );
+
+			g_hWnd_calllog_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"calllog_columns", NULL, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 15, ( rc_tab.bottom + rc_tab.top ) + 10, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 20 ), g_hWnd_column_tab, NULL, NULL, NULL );
+			g_hWnd_contactlist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"contactlist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, ( rc_tab.bottom + rc_tab.top ) + 10, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 20 ), g_hWnd_column_tab, NULL, NULL, NULL );
+			g_hWnd_forwardlist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"forwardlist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, ( rc_tab.bottom + rc_tab.top ) + 10, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 20 ), g_hWnd_column_tab, NULL, NULL, NULL );
+			g_hWnd_ignorelist_columns = _CreateWindowExW( WS_EX_CONTROLPARENT, L"ignorelist_columns", NULL, WS_CHILD | WS_TABSTOP, 15, ( rc_tab.bottom + rc_tab.top ) + 10, rc.right - 30, rc.bottom - ( ( rc_tab.bottom + rc_tab.top ) + 20 ), g_hWnd_column_tab, NULL, NULL, NULL );
 
 			_SendMessageW( g_hWnd_ok_columns, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_cancel_columns, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -683,7 +689,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					LVCOLUMN lvc;
 					_memzero( &lvc, sizeof( LVCOLUMN ) );
-					lvc.mask = LVCF_WIDTH | LVCF_TEXT | LVCF_ORDER; 
+					lvc.mask = LVCF_WIDTH | LVCF_TEXT | LVCF_ORDER;
 
 					for ( char i = 0; i < NUM_COLUMNS1; ++i )
 					{
@@ -701,7 +707,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 									{
 										if ( *call_log_columns[ j ] != -1 )
 										{
-											( *( call_log_columns[ j ] ) )++;
+											++( *( call_log_columns[ j ] ) );
 										}
 									}
 								}
@@ -755,7 +761,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 									{
 										if ( *contact_list_columns[ j ] != -1 )
 										{
-											( *( contact_list_columns[ j ] ) )++;
+											++( *( contact_list_columns[ j ] ) );
 										}
 									}
 								}
@@ -815,7 +821,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 									{
 										if ( *forward_list_columns[ j ] != -1 )
 										{
-											( *( forward_list_columns[ j ] ) )++;
+											++( *( forward_list_columns[ j ] ) );
 										}
 									}
 								}
@@ -862,7 +868,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 									{
 										if ( *ignore_list_columns[ j ] != -1 )
 										{
-											( *( ignore_list_columns[ j ] ) )++;
+											++( *( ignore_list_columns[ j ] ) );
 										}
 									}
 								}
@@ -908,7 +914,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 									{
 										if ( *forward_cid_list_columns[ j ] != -1 )
 										{
-											( *( forward_cid_list_columns[ j ] ) )++;
+											++( *( forward_cid_list_columns[ j ] ) );
 										}
 									}
 								}
@@ -957,7 +963,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 									{
 										if ( *ignore_cid_list_columns[ j ] != -1 )
 										{
-											( *( ignore_cid_list_columns[ j ] ) )++;
+											++( *( ignore_cid_list_columns[ j ] ) );
 										}
 									}
 								}
@@ -1021,7 +1027,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 								case 0:
 								{
-									index = 0;	
+									index = 0;
 								}
 								break;
 							}
@@ -1067,7 +1073,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 								case 0:
 								{
-									index = 0;	
+									index = 0;
 								}
 								break;
 							}
@@ -1101,7 +1107,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 								case 0:
 								{
-									index = 0;	
+									index = 0;
 								}
 								break;
 							}
@@ -1134,7 +1140,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 								case 0:
 								{
-									index = 0;	
+									index = 0;
 								}
 								break;
 							}
@@ -1170,7 +1176,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 								case 0:
 								{
-									index = 0;	
+									index = 0;
 								}
 								break;
 							}
@@ -1205,7 +1211,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 								case 0:
 								{
-									index = 0;	
+									index = 0;
 								}
 								break;
 							}
@@ -1261,7 +1267,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( index != -1 )
 					{
 						_SendMessageW( nmhdr->hwndFrom, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-						_ShowWindow( ( HWND )( tie.lParam ), SW_HIDE );
+						_ShowWindow( *( ( HWND * )tie.lParam ), SW_HIDE );
 					}
 
 					return FALSE;
@@ -1285,7 +1291,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					if ( index != -1 )
 					{
 						_SendMessageW( nmhdr->hwndFrom, TCM_GETITEM, index, ( LPARAM )&tie );	// Get the selected tab's information
-						_ShowWindow( ( HWND )( tie.lParam ), SW_SHOW );
+						_ShowWindow( *( ( HWND * )tie.lParam ), SW_SHOW );
 					}
 
 					return FALSE;

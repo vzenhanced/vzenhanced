@@ -31,6 +31,7 @@
 #include "lite_comdlg32.h"
 #include "lite_gdi32.h"
 #include "lite_comctl32.h"
+#include "lite_ole32.h"
 
 #include "web_server.h"
 
@@ -293,7 +294,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	wcex.hCursor        = _LoadCursorW( NULL, IDC_ARROW );
 	wcex.hbrBackground  = ( HBRUSH )( COLOR_WINDOW );
 	wcex.lpszMenuName   = NULL;
-	wcex.hIconSm        = _LoadIconW( wcex.hInstance, MAKEINTRESOURCE( IDI_APPLICATION ) );
+	wcex.hIconSm        = NULL;
 
 
 	wcex.lpfnWndProc    = MainWndProc;
@@ -787,6 +788,9 @@ CLEANUP:
 	#endif
 	#ifndef COMCTL32_USE_STATIC_LIB
 		UnInitializeComCtl32();
+	#endif
+	#ifndef OLE32_USE_STATIC_LIB
+		UnInitializeOle32();
 	#endif
 
 	// Start up loaded DLLs

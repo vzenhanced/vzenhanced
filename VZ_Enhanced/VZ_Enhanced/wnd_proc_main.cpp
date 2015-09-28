@@ -29,6 +29,7 @@
 
 #include "lite_gdi32.h"
 #include "lite_comdlg32.h"
+#include "lite_ole32.h"
 
 #include "web_server.h"
 
@@ -1590,7 +1591,25 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							contactinfo *ci = ( contactinfo * )lvi.lParam;
 							if ( ci != NULL && ci->web_page != NULL )
 							{
+								bool destroy = true;
+								#ifndef OLE32_USE_STATIC_LIB
+									if ( ole32_state == OLE32_STATE_SHUTDOWN )
+									{
+										destroy = InitializeOle32();
+									}
+								#endif
+
+								if ( destroy == true )
+								{
+									_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
+								}
+
 								_ShellExecuteW( NULL, L"open", ci->web_page, NULL, NULL, SW_SHOWNORMAL );
+
+								if ( destroy == true )
+								{
+									_CoUninitialize();
+								}
 							}
 						}
 					}
@@ -1638,7 +1657,25 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							case MENU_SEARCH_WITH_10: { __snwprintf( url, 128, L"http://www.whycall.me/%S.html", SAFESTRA( phone_number ) ); } break;
 						}
 
+						bool destroy = true;
+						#ifndef OLE32_USE_STATIC_LIB
+							if ( ole32_state == OLE32_STATE_SHUTDOWN )
+							{
+								destroy = InitializeOle32();
+							}
+						#endif
+
+						if ( destroy == true )
+						{
+							_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
+						}
+
 						_ShellExecuteW( NULL, L"open", url, NULL, NULL, SW_SHOWNORMAL );
+
+						if ( destroy == true )
+						{
+							_CoUninitialize();
+						}
 
 						GlobalFree( url );
 					}
@@ -1664,7 +1701,25 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								_wmemcpy_s( mailto + 7, email_address_length + 1, ci->email_address, email_address_length );
 								mailto[ email_address_length + 7 ] = 0;	// Sanity.
 
+								bool destroy = true;
+								#ifndef OLE32_USE_STATIC_LIB
+									if ( ole32_state == OLE32_STATE_SHUTDOWN )
+									{
+										destroy = InitializeOle32();
+									}
+								#endif
+
+								if ( destroy == true )
+								{
+									_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
+								}
+
 								_ShellExecuteW( NULL, L"open", mailto, NULL, NULL, SW_SHOWNORMAL );
+
+								if ( destroy == true )
+								{
+									_CoUninitialize();
+								}
 
 								GlobalFree( mailto );
 							}
@@ -2324,7 +2379,25 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_VZ_ENHANCED_HOME_PAGE:
 					{
+						bool destroy = true;
+						#ifndef OLE32_USE_STATIC_LIB
+							if ( ole32_state == OLE32_STATE_SHUTDOWN )
+							{
+								destroy = InitializeOle32();
+							}
+						#endif
+
+						if ( destroy == true )
+						{
+							_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
+						}
+
 						_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
+
+						if ( destroy == true )
+						{
+							_CoUninitialize();
+						}
 					}
 					break;
 
@@ -2357,7 +2430,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.1\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.2\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -2531,11 +2604,11 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				case HDN_ENDTRACK:
 				{
 					NMHEADER *nmh = ( NMHEADER * )lParam;
+					HWND hWnd_parent = _GetParent( nmh->hdr.hwndFrom );
 
 					int index = nmh->iItem;
 
-					HWND parent = _GetParent( nmh->hdr.hwndFrom );
-					if ( parent == g_hWnd_call_log )
+					if ( hWnd_parent == g_hWnd_call_log )
 					{
 						index = GetVirtualIndexFromColumnIndex( index, call_log_columns, NUM_COLUMNS1 );
 
@@ -2544,7 +2617,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							*call_log_columns_width[ index ] = nmh->pitem->cxy;
 						}
 					}
-					else if ( parent == g_hWnd_contact_list )
+					else if ( hWnd_parent == g_hWnd_contact_list )
 					{
 						index = GetVirtualIndexFromColumnIndex( index, contact_list_columns, NUM_COLUMNS2 );
 
@@ -2553,7 +2626,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							*contact_list_columns_width[ index ] = nmh->pitem->cxy;
 						}
 					}
-					else if ( parent == g_hWnd_forward_list )
+					else if ( hWnd_parent == g_hWnd_forward_list )
 					{
 						index = GetVirtualIndexFromColumnIndex( index, forward_list_columns, NUM_COLUMNS3 );
 
@@ -2562,7 +2635,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							*forward_list_columns_width[ index ] = nmh->pitem->cxy;
 						}
 					}
-					else if ( parent == g_hWnd_ignore_list )
+					else if ( hWnd_parent == g_hWnd_ignore_list )
 					{
 						index = GetVirtualIndexFromColumnIndex( index, ignore_list_columns, NUM_COLUMNS4 );
 
@@ -2571,7 +2644,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							*ignore_list_columns_width[ index ] = nmh->pitem->cxy;
 						}
 					}
-					else if ( parent == g_hWnd_forward_cid_list )
+					else if ( hWnd_parent == g_hWnd_forward_cid_list )
 					{
 						index = GetVirtualIndexFromColumnIndex( index, forward_cid_list_columns, NUM_COLUMNS5 );
 
@@ -2580,7 +2653,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							*forward_cid_list_columns_width[ index ] = nmh->pitem->cxy;
 						}
 					}
-					else if ( parent == g_hWnd_ignore_cid_list )
+					else if ( hWnd_parent == g_hWnd_ignore_cid_list )
 					{
 						index = GetVirtualIndexFromColumnIndex( index, ignore_cid_list_columns, NUM_COLUMNS6 );
 
@@ -2781,14 +2854,50 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			{
 				if ( _MessageBoxW( hWnd, ST_PROMPT_update_check_failed, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
 				{
+					bool destroy = true;
+					#ifndef OLE32_USE_STATIC_LIB
+						if ( ole32_state == OLE32_STATE_SHUTDOWN )
+						{
+							destroy = InitializeOle32();
+						}
+					#endif
+
+					if ( destroy == true )
+					{
+						_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
+					}
+
 					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
+
+					if ( destroy == true )
+					{
+						_CoUninitialize();
+					}
 				}
 			}
 			else if ( wParam == 3 )
 			{
 				if ( _MessageBoxW( hWnd, ST_PROMPT_download_failed, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
 				{
+					bool destroy = true;
+					#ifndef OLE32_USE_STATIC_LIB
+						if ( ole32_state == OLE32_STATE_SHUTDOWN )
+						{
+							destroy = InitializeOle32();
+						}
+					#endif
+
+					if ( destroy == true )
+					{
+						_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
+					}
+
 					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
+
+					if ( destroy == true )
+					{
+						_CoUninitialize();
+					}
 				}
 			}
 		}
@@ -3075,9 +3184,8 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			lvi.mask = LVIF_PARAM;
 
 			// Go through each item, and free their lParam values.
-			for ( int i = 0; i < num_items; ++i )
+			for ( lvi.iItem = 0; lvi.iItem < num_items; ++lvi.iItem )
 			{
-				lvi.iItem = i;
 				_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 				displayinfo *di = ( displayinfo * )lvi.lParam;

@@ -156,7 +156,7 @@ wchar_t *menu_string_table[] =
 	L"Import...",
 	L"Import Contacts...",
 	L"Log In...",
-	L"Open Caller ID",
+	L"Open VZ Enhanced",
 	L"Open Web Page",
 	L"Options...",
 	L"Remove from Forward Caller ID Name List",

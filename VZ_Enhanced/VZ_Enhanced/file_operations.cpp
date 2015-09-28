@@ -2245,7 +2245,7 @@ char read_call_log_history( wchar_t *file_path )
 
 		bool ignored = false;
 		bool forwarded = false;
-		LONGLONG time = 0;
+		ULONGLONG time = 0;
 		char *caller_id = NULL;
 		char *call_from = NULL;
 		char *call_to = NULL;
@@ -2275,7 +2275,7 @@ char read_call_log_history( wchar_t *file_path )
 				history_buf[ read ] = 0;	// Guarantee a NULL terminated buffer.
 
 				// Make sure that we have at least part of the entry. 5 = 5 NULL strings. This is the minimum size an entry could be.
-				if ( read < ( ( sizeof( bool ) * 2 ) + sizeof( LONGLONG ) + 5 ) )
+				if ( read < ( ( sizeof( bool ) * 2 ) + sizeof( ULONGLONG ) + 5 ) )
 				{
 					break;
 				}
@@ -2321,10 +2321,10 @@ char read_call_log_history( wchar_t *file_path )
 					p += sizeof( bool );
 
 					// Call time
-					offset += sizeof( LONGLONG );
+					offset += sizeof( ULONGLONG );
 					if ( offset >= read ) { goto CLEANUP; }
-					_memcpy_s( &time, sizeof( LONGLONG ), p, sizeof( LONGLONG ) );
-					p += sizeof( LONGLONG );
+					_memcpy_s( &time, sizeof( ULONGLONG ), p, sizeof( ULONGLONG ) );
+					p += sizeof( ULONGLONG );
 
 					// Caller ID
 					int string_length = lstrlenA( p ) + 1;
@@ -2551,9 +2551,8 @@ char save_call_log_history( wchar_t *file_path )
 		_memzero( &lvi, sizeof( LVITEM ) );
 		lvi.mask = LVIF_PARAM;
 
-		for ( int i = 0; i < item_count; ++i )
+		for ( lvi.iItem = 0; lvi.iItem < item_count; ++lvi.iItem )
 		{
-			lvi.iItem = i;
 			_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 			displayinfo *di = ( displayinfo * )lvi.lParam;
@@ -2566,7 +2565,7 @@ char save_call_log_history( wchar_t *file_path )
 			int reference_id_length = lstrlenA( di->ci.call_reference_id ) + 1;
 
 			// See if the next entry can fit in the buffer. If it can't, then we dump the buffer.
-			if ( ( signed )( pos + phone_number_length1 + phone_number_length2 + phone_number_length3 + caller_id_length + reference_id_length + sizeof( LONGLONG ) + ( sizeof( bool ) * 2 ) ) > size )
+			if ( ( signed )( pos + phone_number_length1 + phone_number_length2 + phone_number_length3 + caller_id_length + reference_id_length + sizeof( ULONGLONG ) + ( sizeof( bool ) * 2 ) ) > size )
 			{
 				// Dump the buffer.
 				WriteFile( hFile_call_log, write_buf, pos, &write, NULL );
@@ -2579,8 +2578,8 @@ char save_call_log_history( wchar_t *file_path )
 			_memcpy_s( write_buf + pos, size - pos, &di->ci.forwarded, sizeof( bool ) );
 			pos += sizeof( bool );
 
-			_memcpy_s( write_buf + pos, size - pos, &di->time.QuadPart, sizeof( LONGLONG ) );
-			pos += sizeof( LONGLONG );
+			_memcpy_s( write_buf + pos, size - pos, &di->time.QuadPart, sizeof( ULONGLONG ) );
+			pos += sizeof( ULONGLONG );
 
 			_memcpy_s( write_buf + pos, size - pos, di->ci.caller_id, caller_id_length );
 			pos += caller_id_length;

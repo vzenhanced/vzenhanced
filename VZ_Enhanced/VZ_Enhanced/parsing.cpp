@@ -44,7 +44,7 @@ char *strnchr( const char *s, int c, int n )
 		{
 			return ( ( char * )s );
 		}
-		s++;
+		++s;
 	}
 	
 	return NULL;
@@ -355,7 +355,7 @@ bool ParseURL( char *url, char **host, char **resource )
 
 	// Save the host.
 	*host = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( host_length + 1 ) );
-	_memcpy_s( *host, sizeof( char ) * ( host_length + 1 ), str_pos_start, host_length + 1 );
+	_memcpy_s( *host, host_length + 1, str_pos_start, host_length );
 	*( *host + host_length ) = 0;	// Sanity
 
 	// Save the resource.
@@ -493,7 +493,7 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 				int host_length = domain_end - domain_start;
 
 				*host = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( host_length + 1 ) );
-				_memcpy_s( *host, sizeof( char ) * ( host_length + 1 ), domain_start, host_length + 1 );
+				_memcpy_s( *host, host_length + 1, domain_start, host_length );
 				*( *host + host_length ) = 0;	// Sanity
 
 				domain_start += host_length;
@@ -501,7 +501,7 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 				int resource_length = action_end - domain_start;
 
 				*resource = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( resource_length + 1 ) );
-				_memcpy_s( *resource, sizeof( char ) * ( resource_length + 1 ), domain_start, resource_length + 1 );
+				_memcpy_s( *resource, resource_length + 1, domain_start, resource_length );
 				*( *resource + resource_length ) = 0;	// Sanity
 
 				break;
@@ -802,7 +802,7 @@ bool ParseXApplicationErrorCode( char *decoded_buffer, char **error_code )
 	int error_code_length = str_pos_end - str_pos_start;
 
 	*error_code = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( error_code_length + 1 ) );
-	_memcpy_s( *error_code, sizeof( char ) * ( error_code_length + 1 ), str_pos_start, error_code_length + 1 );
+	_memcpy_s( *error_code, error_code_length + 1, str_pos_start, error_code_length );
 	*( *error_code + error_code_length ) = 0;	// Sanity
 
 	*( end_of_header + 2 ) = '\r';	// Restore the end of header.
@@ -843,7 +843,7 @@ bool ParseRedirect( char *decoded_buffer, char **host, char **resource )
 	int host_length = str_pos_end - str_pos_start;
 
 	*host = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( host_length + 1 ) );
-	_memcpy_s( *host, sizeof( char ) * ( host_length + 1 ), str_pos_start, host_length + 1 );
+	_memcpy_s( *host, host_length + 1, str_pos_start, host_length );
 	*( *host + host_length ) = 0;	// Sanity
 
 	str_pos_start += host_length;
@@ -869,7 +869,7 @@ bool ParseRedirect( char *decoded_buffer, char **host, char **resource )
 	int resource_length = str_pos_end - str_pos_start;
 
 	*resource = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( resource_length + 1 ) );
-	_memcpy_s( *resource, sizeof( char ) * ( resource_length + 1 ), str_pos_start, resource_length + 1 );
+	_memcpy_s( *resource, resource_length + 1, str_pos_start, resource_length );
 	*( *resource + resource_length ) = 0;	// Sanity
 
 	*( end_of_header + 2 ) = '\r';	// Restore the end of header.
@@ -1364,7 +1364,7 @@ StackTree *GetElementValue( StackTree *tree, char *element_name, int element_nam
 					if ( element_value != NULL && return_element_value == true )
 					{
 						*element_value = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( value_length + 1 ) );
-						_memcpy_s( *element_value, sizeof( char ) * ( value_length + 1 ), element_start, value_length + 1 );
+						_memcpy_s( *element_value, value_length + 1, element_start, value_length );
 						*( *element_value + value_length ) = 0;	// Sanity
 					}
 
@@ -1482,7 +1482,7 @@ StackTree *GetElementAttributeValue( StackTree *tree, char *element_name, int el
 						if ( attribute_value != NULL && return_attribute_value == true )
 						{
 							*attribute_value = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( attribute_length + 1 ) );
-							_memcpy_s( *attribute_value, sizeof( char ) * ( attribute_length + 1 ), find_attribute, attribute_length + 1 );
+							_memcpy_s( *attribute_value, attribute_length + 1, find_attribute, attribute_length );
 							*( *attribute_value + attribute_length ) = 0;	// Sanity
 						}
 

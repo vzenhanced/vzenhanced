@@ -1466,9 +1466,12 @@ void CloseClient( SOCKET_CONTEXT *socket_context, bool bGraceful )
 			_setsockopt( socket_context->Socket, SOL_SOCKET, SO_LINGER, ( char * )&lingerStruct, sizeof( lingerStruct ) );
 		}
 
-		_shutdown( socket_context->Socket, SD_BOTH );
-		_closesocket( socket_context->Socket );
-		socket_context->Socket = INVALID_SOCKET;
+		if ( socket_context->Socket != INVALID_SOCKET )
+		{
+			_shutdown( socket_context->Socket, SD_BOTH );
+			_closesocket( socket_context->Socket );
+			socket_context->Socket = INVALID_SOCKET;
+		}
 
 		// Go through our update buffer states to see if any were in use before we closed the client.
 		// If it is, then decrement its equivalent update buffer pool index.

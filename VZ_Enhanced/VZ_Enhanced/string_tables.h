@@ -334,7 +334,7 @@ extern wchar_t *menu_string_table[];
 #define ST_Import___							menu_string_table[ 104 ]
 #define ST_Import_Contacts___					menu_string_table[ 105 ]
 #define ST_Log_In___							menu_string_table[ 106 ]
-#define ST_Open_Caller_ID						menu_string_table[ 107 ]
+#define ST_Open_VZ_Enhanced						menu_string_table[ 107 ]
 #define ST_Open_Web_Page						menu_string_table[ 108 ]
 #define ST_Options___							menu_string_table[ 109 ]
 #define ST_Remove_from_Forward_Caller_ID_Name_List	menu_string_table[ 110 ]

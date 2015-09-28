@@ -21,13 +21,13 @@
 
 #ifndef OLE32_USE_STATIC_LIB
 
-	pCoTaskMemFree	_CoTaskMemFree;
+	//pCoTaskMemFree	_CoTaskMemFree;
 
-	pOleInitialize	_OleInitialize;
-	pOleUninitialize	_OleUninitialize;
+	//pOleInitialize	_OleInitialize;
+	//pOleUninitialize	_OleUninitialize;
 
-	//pCoInitializeEx	_CoInitializeEx;
-	//pCoUninitialize	_CoUninitialize;
+	pCoInitializeEx	_CoInitializeEx;
+	pCoUninitialize	_CoUninitialize;
 
 	HMODULE hModule_ole32 = NULL;
 
@@ -47,13 +47,13 @@
 			return false;
 		}
 
-		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_CoTaskMemFree, "CoTaskMemFree" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_CoTaskMemFree, "CoTaskMemFree" ) )
 
-		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_OleInitialize, "OleInitialize" ) )
-		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_OleUninitialize, "OleUninitialize" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_OleInitialize, "OleInitialize" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_OleUninitialize, "OleUninitialize" ) )
 
-		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_CoInitializeEx, "CoInitializeEx" ) )
-		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_CoUninitialize, "CoUninitialize" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_CoInitializeEx, "CoInitializeEx" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ole32, ( void ** )&_CoUninitialize, "CoUninitialize" ) )
 
 		ole32_state = OLE32_STATE_RUNNING;
 

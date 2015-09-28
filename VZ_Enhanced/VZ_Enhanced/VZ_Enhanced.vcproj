@@ -237,6 +237,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\lite_ole32.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\lite_shell32.cpp"
 				>
 			</File>
@@ -400,6 +404,10 @@
 			</File>
 			<File
 				RelativePath=".\lite_ntdll.h"
+				>
+			</File>
+			<File
+				RelativePath=".\lite_ole32.h"
 				>
 			</File>
 			<File

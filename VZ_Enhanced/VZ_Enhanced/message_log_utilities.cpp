@@ -121,9 +121,8 @@ void cleanup_message_log()
 	lvi.mask = LVIF_PARAM;
 
 	// Go through each item, and free their lParam values.
-	for ( int i = 0; i < num_items; ++i )
+	for ( lvi.iItem = 0; lvi.iItem < num_items; ++lvi.iItem )
 	{
-		lvi.iItem = i;
 		_SendMessageW( g_hWnd_message_log_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 		MESSAGE_LOG_INFO *mli = ( MESSAGE_LOG_INFO * )lvi.lParam;
@@ -538,7 +537,7 @@ void save_message_log_csv_file( wchar_t *file_path )
 		lvi.mask = LVIF_PARAM;
 
 		// Go through each item, and free their lParam values.
-		for ( int i = 0; i < num_items; ++i )
+		for ( lvi.iItem = 0; lvi.iItem < num_items; ++lvi.iItem )
 		{
 			// Stop processing and exit the thread.
 			/*if ( kill_ml_worker_thread_flag == true )
@@ -546,7 +545,6 @@ void save_message_log_csv_file( wchar_t *file_path )
 				break;
 			}*/
 
-			lvi.iItem = i;
 			_SendMessageW( g_hWnd_message_log_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 			MESSAGE_LOG_INFO *mli = ( MESSAGE_LOG_INFO * )lvi.lParam;

@@ -285,6 +285,22 @@ char read_config()
 
 					next += string_length;
 				}
+				
+				// Set the default values for bad configuration values.
+
+				if ( cfg_thread_count > max_threads )
+				{
+					cfg_thread_count = max( ( max_threads / 2 ), 1 );
+				}
+				else if ( cfg_thread_count == 0 )
+				{
+					cfg_thread_count = 1;
+				}
+				
+				if ( cfg_ssl_version > 4 )
+				{
+					cfg_ssl_version = 4;	// TLS 1.2.
+				}
 			}
 			else
 			{
@@ -330,15 +346,6 @@ char read_config()
 		{
 			CreateDirectoryW( cfg_document_root_directory, NULL );
 		}
-	}
-
-	if ( cfg_thread_count > max_threads )
-	{
-		cfg_thread_count = max( ( max_threads / 2 ), 1 );
-	}
-	else if ( cfg_thread_count == 0 )
-	{
-		cfg_thread_count = 1;
 	}
 
 	return status;

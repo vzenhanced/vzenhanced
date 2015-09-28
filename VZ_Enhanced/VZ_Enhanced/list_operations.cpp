@@ -1262,9 +1262,8 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 				_EnableWindow( g_hWnd_ignore_list, FALSE );
 
 				// Start from the end and work backwards.
-				for ( int i = item_count - 1; i >= 0; --i )
+				for ( lvi.iItem = item_count - 1; lvi.iItem >= 0; --lvi.iItem )
 				{
-					lvi.iItem = i;
 					_SendMessageW( g_hWnd_ignore_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 					ignoreinfo *ii = ( ignoreinfo * )lvi.lParam;
@@ -1273,7 +1272,7 @@ THREAD_RETURN update_ignore_list( void *pArguments )
 					{
 						free_ignoreinfo( &ii );
 
-						_SendMessageW( g_hWnd_ignore_list, LVM_DELETEITEM, i, 0 );
+						_SendMessageW( g_hWnd_ignore_list, LVM_DELETEITEM, lvi.iItem, 0 );
 					}
 				}
 
@@ -1845,9 +1844,8 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 				_EnableWindow( g_hWnd_ignore_cid_list, FALSE );
 
 				// Start from the end and work backwards.
-				for ( int i = item_count - 1; i >= 0; --i )
+				for ( lvi.iItem = item_count - 1; lvi.iItem >= 0; --lvi.iItem )
 				{
-					lvi.iItem = i;
 					_SendMessageW( g_hWnd_ignore_cid_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 					ignorecidinfo *icidi = ( ignorecidinfo * )lvi.lParam;
@@ -1856,7 +1854,7 @@ THREAD_RETURN update_ignore_cid_list( void *pArguments )
 					{
 						free_ignorecidinfo( &icidi );
 
-						_SendMessageW( g_hWnd_ignore_cid_list, LVM_DELETEITEM, i, 0 );
+						_SendMessageW( g_hWnd_ignore_cid_list, LVM_DELETEITEM, lvi.iItem, 0 );
 					}
 				}
 
@@ -2201,9 +2199,8 @@ THREAD_RETURN update_forward_list( void *pArguments )
 				_EnableWindow( g_hWnd_forward_list, FALSE );
 
 				// Start from the end and work backwards.
-				for ( int i = item_count - 1; i >= 0; --i )
+				for ( lvi.iItem = item_count - 1; lvi.iItem >= 0; --lvi.iItem )
 				{
-					lvi.iItem = i;
 					_SendMessageW( g_hWnd_forward_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 					forwardinfo *fi = ( forwardinfo * )lvi.lParam;
@@ -2212,7 +2209,7 @@ THREAD_RETURN update_forward_list( void *pArguments )
 					{
 						free_forwardinfo( &fi );
 
-						_SendMessageW( g_hWnd_forward_list, LVM_DELETEITEM, i, 0 );
+						_SendMessageW( g_hWnd_forward_list, LVM_DELETEITEM, lvi.iItem, 0 );
 					}
 				}
 
@@ -2816,9 +2813,8 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 				_EnableWindow( g_hWnd_forward_cid_list, FALSE );
 
 				// Start from the end and work backwards.
-				for ( int i = item_count - 1; i >= 0; --i )
+				for ( lvi.iItem = item_count - 1; lvi.iItem >= 0; --lvi.iItem )
 				{
-					lvi.iItem = i;
 					_SendMessageW( g_hWnd_forward_cid_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 					forwardcidinfo *fcidi = ( forwardcidinfo * )lvi.lParam;
@@ -2827,7 +2823,7 @@ THREAD_RETURN update_forward_cid_list( void *pArguments )
 					{
 						free_forwardcidinfo( &fcidi );
 
-						_SendMessageW( g_hWnd_forward_cid_list, LVM_DELETEITEM, i, 0 );
+						_SendMessageW( g_hWnd_forward_cid_list, LVM_DELETEITEM, lvi.iItem, 0 );
 					}
 				}
 
