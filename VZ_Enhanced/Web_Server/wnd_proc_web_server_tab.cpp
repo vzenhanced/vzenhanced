@@ -252,12 +252,10 @@ void SaveWebServerSettings()
 		GlobalFree( cfg_document_root_directory );
 	}
 
-	/*g_document_root_directory_length = lstrlenW( t_document_root_directory );
+	g_document_root_directory_length = lstrlenW( t_document_root_directory );
 	cfg_document_root_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( g_document_root_directory_length + 1 ) );
 	_wmemcpy_s( cfg_document_root_directory, g_document_root_directory_length + 1, t_document_root_directory, g_document_root_directory_length );
-	*( cfg_document_root_directory + g_document_root_directory_length ) = 0;	// Sanity.*/
-
-	cfg_document_root_directory = GlobalStrDupW( t_document_root_directory );
+	*( cfg_document_root_directory + g_document_root_directory_length ) = 0;	// Sanity.
 
 	cfg_ssl_version = ( unsigned char )_SendMessageW( g_hWnd_ssl_version, CB_GETCURSEL, 0, 0 );
 
