@@ -25,6 +25,7 @@
 	pBeginPaint				_BeginPaint;
 	pCallWindowProcW		_CallWindowProcW;
 	pCharLowerA				_CharLowerA;
+	pCharLowerBuffA			_CharLowerBuffA;
 	//pCharUpperA			_CharUpperA;
 	pCheckMenuItem			_CheckMenuItem;
 	pCloseClipboard			_CloseClipboard;
@@ -130,6 +131,7 @@
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_BeginPaint, "BeginPaint" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CallWindowProcW, "CallWindowProcW" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CharLowerA, "CharLowerA" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CharLowerBuffA, "CharLowerBuffA" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CharUpperA, "CharUpperA" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CheckMenuItem, "CheckMenuItem" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CloseClipboard, "CloseClipboard" ) )

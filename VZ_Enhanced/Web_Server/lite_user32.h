@@ -32,7 +32,8 @@
 	#define _BeginDeferWindowPos	BeginDeferWindowPos
 	//#define _BeginPaint				BeginPaint
 	//#define _CallWindowProcW		CallWindowProcW
-	#define _CharLowerA				CharLowerA
+	//#define _CharLowerA				CharLowerA
+	#define _CharLowerBuffA			CharLowerBuffA
 	//#define _CharUpperA			CharUpperA
 	#define _CheckMenuItem			CheckMenuItem
 	#define _ClientToScreen			ClientToScreen
@@ -124,7 +125,8 @@
 	typedef HDWP ( WINAPI *pBeginDeferWindowPos )( int nNumWindows );
 	//typedef HDC ( WINAPI *pBeginPaint )( HWND hwnd, LPPAINTSTRUCT lpPaint );
 	//typedef LRESULT ( WINAPI *pCallWindowProcW )( WNDPROC lpPrevWndFunc, HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam );
-	typedef LPSTR ( WINAPI *pCharLowerA )( LPSTR lpsz );
+	//typedef LPSTR ( WINAPI *pCharLowerA )( LPSTR lpsz );
+	typedef DWORD ( WINAPI *pCharLowerBuffA )( LPTSTR lpsz, DWORD cchLength );
 	//typedef LPSTR ( WINAPI *pCharUpperA )( LPSTR lpsz );
 	typedef DWORD ( WINAPI *pCheckMenuItem )( HMENU hmenu, UINT uIDCheckItem, UINT uCheck );
 	typedef BOOL ( WINAPI *pClientToScreen )( HWND hWnd, LPPOINT lpPoint );
@@ -210,7 +212,8 @@
 	extern pBeginDeferWindowPos		_BeginDeferWindowPos;
 	//extern pBeginPaint				_BeginPaint;
 	//extern pCallWindowProcW			_CallWindowProcW;
-	extern pCharLowerA				_CharLowerA;
+	//extern pCharLowerA				_CharLowerA;
+	extern pCharLowerBuffA			_CharLowerBuffA;
 	//extern pCharUpperA			_CharUpperA;
 	extern pCheckMenuItem			_CheckMenuItem;
 	extern pClientToScreen			_ClientToScreen;

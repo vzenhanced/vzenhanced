@@ -83,10 +83,12 @@ char *fields_tolower( char *decoded_buffer )
 			break;
 		}
 
-		for ( int i = 0; i < str_pos_end - str_pos_start; ++i )
+		/*for ( int i = 0; i < str_pos_end - str_pos_start; ++i )
 		{
 			str_pos_start[ i ] = ( char )_CharLowerA( ( LPSTR )str_pos_start[ i ] );
-		}
+		}*/
+
+		_CharLowerBuffA( str_pos_start, str_pos_end - str_pos_start );
 	}
 
 	return end_of_header;

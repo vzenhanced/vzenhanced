@@ -24,7 +24,8 @@
 	pBeginDeferWindowPos	_BeginDeferWindowPos;
 	//pBeginPaint				_BeginPaint;
 	//pCallWindowProcW		_CallWindowProcW;
-	pCharLowerA				_CharLowerA;
+	//pCharLowerA				_CharLowerA;
+	pCharLowerBuffA			_CharLowerBuffA;
 	//pCharUpperA			_CharUpperA;
 	pCheckMenuItem			_CheckMenuItem;
 	pClientToScreen			_ClientToScreen;
@@ -128,7 +129,8 @@
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_BeginDeferWindowPos, "BeginDeferWindowPos" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_BeginPaint, "BeginPaint" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CallWindowProcW, "CallWindowProcW" ) )
-		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CharLowerA, "CharLowerA" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CharLowerA, "CharLowerA" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CharLowerBuffA, "CharLowerBuffA" ) )
 		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CharUpperA, "CharUpperA" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_CheckMenuItem, "CheckMenuItem" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_user32, ( void ** )&_ClientToScreen, "ClientToScreen" ) )

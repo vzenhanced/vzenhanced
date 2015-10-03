@@ -2430,7 +2430,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.2\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.3\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 

@@ -2,6 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VZ_Enhanced", "VZ_Enhanced\VZ_Enhanced.vcproj", "{AC946932-A09B-4857-B6E8-737B607D7B90}"
+	ProjectSection(ProjectDependencies) = postProject
+		{57A0CAA2-E747-4BD3-AD41-46899DC0D423} = {57A0CAA2-E747-4BD3-AD41-46899DC0D423}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Web_Server", "Web_Server\Web_Server.vcproj", "{57A0CAA2-E747-4BD3-AD41-46899DC0D423}"
 EndProject

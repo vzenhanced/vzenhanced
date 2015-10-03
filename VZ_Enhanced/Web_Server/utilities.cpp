@@ -165,10 +165,12 @@ char *fields_tolower( char *decoded_buffer )
 			break;
 		}
 
-		for ( int i = 0; i < str_pos_end - str_pos_start; ++i )
+		/*for ( int i = 0; i < str_pos_end - str_pos_start; ++i )
 		{
 			str_pos_start[ i ] = ( char )_CharLowerA( ( LPSTR )str_pos_start[ i ] );
-		}
+		}*/
+
+		_CharLowerBuffA( str_pos_start, str_pos_end - str_pos_start );
 	}
 
 	return end_of_header;
@@ -267,12 +269,25 @@ unsigned long long strtoull( char *str )
 
 char from_hex( char c )
 {
-  return is_digit( c ) ? c - '0' : ( char )_CharLowerA( ( LPSTR )c ) - 'a' + 10;
+	if ( is_digit( c ) )
+	{
+		return c - '0';
+	}
+	else if ( c - 'a' + 0U < 6U )
+	{
+		return c - 'a' + 10;
+	}
+	else if ( c - 'A' + 0U < 6U )
+	{
+		return c - 'A' + 10;
+	}
+
+	return c;
 }
 
 bool is_hex( char c )
 {
-	return ( is_digit( c ) || ( ( char )_CharLowerA( ( LPSTR )c ) - 'a' + 0U < 6U ) );
+	return ( is_digit( c ) || ( c - 'a' + 0U < 6U ) || ( c - 'A' + 0U < 6U ) );
 }
 
 char *url_decode( char *str, unsigned int str_len, unsigned int *dec_len )
