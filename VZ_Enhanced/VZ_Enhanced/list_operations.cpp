@@ -780,7 +780,7 @@ THREAD_RETURN remove_items( void *pArguments )
 				free_displayinfo( &di );
 			}
 
-			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_call_log_entry_entries ) }
+			if ( i == 0 ) { MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Removed_call_log_entry___entries ) }
 		}
 		else if ( hWnd == g_hWnd_contact_list )
 		{

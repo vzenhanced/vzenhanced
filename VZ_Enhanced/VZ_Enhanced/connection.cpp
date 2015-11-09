@@ -30,12 +30,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.3"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.4"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.2.3"
+#define USER_AGENT			"VZ-Enhanced/1.0.2.4"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -45,7 +45,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1023
+#define CURRENT_VERSION		1024
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -726,7 +726,7 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 							--end_of_chunk_header;
 						}
 
-						if ( _StrCmpNIA( transfer_encoding_header, "chunked", end_of_chunk_header - transfer_encoding_header ) == 0 )
+						if ( ( end_of_chunk_header - transfer_encoding_header ) == 7 && _StrCmpNIA( transfer_encoding_header, "chunked", 7 ) == 0 )
 						{
 							chunked_encoding_set = true;
 						}

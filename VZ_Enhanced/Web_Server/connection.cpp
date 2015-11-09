@@ -37,6 +37,7 @@ bool g_bEndServer = false;			// set to TRUE on CTRL-C
 bool g_bRestart = true;				// set to TRUE to CTRL-BRK
 HANDLE g_hIOCP = INVALID_HANDLE_VALUE;
 SOCKET g_sdListen = INVALID_SOCKET;
+bool g_use_ipv6 = false;
 
 LPFN_ACCEPTEX fpAcceptEx = NULL;
 
@@ -74,40 +75,80 @@ void AddConnectionInfo( SOCKET_CONTEXT *socket_context )
 		socket_context->connection_info.tx_bytes = 0;
 		socket_context->connection_info.psc = socket_context;
 
-		// Remote
-		struct sockaddr_in addr;
-		_memzero( &addr, sizeof( sockaddr_in ) );
+		socklen_t len = 0;
+		USHORT port = 0;
+		DWORD ip_length = 0;
 
-		socklen_t len = sizeof( sockaddr_in );
-		_getpeername( socket_context->Socket, ( struct sockaddr * )&addr, &len );
+		if ( g_use_ipv6 )
+		{
+			// Remote
+			struct sockaddr_in6 addr6;
+			_memzero( &addr6, sizeof( struct sockaddr_in6 ) );
 
-		addr.sin_family = AF_INET;
+			len = sizeof( struct sockaddr_in6 );
+			_getpeername( socket_context->Socket, ( SOCKADDR * )&addr6, &len );
 
-		USHORT port = _ntohs( addr.sin_port );
-		addr.sin_port = 0;
+			port = _ntohs( addr6.sin6_port );
+			addr6.sin6_port = 0;	// Prevents WSAAddressToString from returning the port.
 
-		DWORD ip_length = sizeof(socket_context->connection_info.r_ip );
-		_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, socket_context->connection_info.r_ip, &ip_length );
+			ip_length = 46;
+			_WSAAddressToStringW( ( SOCKADDR * )&addr6, sizeof( struct sockaddr_in6 ), NULL, socket_context->connection_info.r_ip, &ip_length );
 
-		__snwprintf( socket_context->connection_info.r_port, sizeof( socket_context->connection_info.r_port ), L"%hu", port );
+			__snwprintf( socket_context->connection_info.r_port, 6, L"%hu", port );
 
-		_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&socket_context->connection_info.r_host_name, NI_MAXHOST, NULL, 0, 0 );
+			_GetNameInfoW( ( SOCKADDR * )&addr6, sizeof( struct sockaddr_in6 ), ( PWCHAR )&socket_context->connection_info.r_host_name, NI_MAXHOST, NULL, 0, 0 );
 
-		// Local
-		_memzero( &addr, sizeof( sockaddr_in ) );
+			// Local
+			_memzero( &addr6, sizeof( struct sockaddr_in6 ) );
 
-		len = sizeof( sockaddr_in );
-		_getsockname( socket_context->Socket, ( struct sockaddr * )&addr, &len );
+			len = sizeof( struct sockaddr_in6 );
+			_getsockname( socket_context->Socket, ( SOCKADDR * )&addr6, &len );
 
-		port = _ntohs( addr.sin_port );
-		addr.sin_port = 0;
+			port = _ntohs( addr6.sin6_port );
+			addr6.sin6_port = 0;	// Prevents WSAAddressToString from returning the port.
 
-		ip_length = sizeof( socket_context->connection_info.l_ip );
-		_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, socket_context->connection_info.l_ip, &ip_length );
+			ip_length = 46;
+			_WSAAddressToStringW( ( SOCKADDR * )&addr6, sizeof( struct sockaddr_in6 ), NULL, socket_context->connection_info.l_ip, &ip_length );
 
-		__snwprintf( socket_context->connection_info.l_port, sizeof( socket_context->connection_info.l_port ), L"%hu", port );
+			__snwprintf( socket_context->connection_info.l_port, 6, L"%hu", port );
 
-		_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&socket_context->connection_info.l_host_name, NI_MAXHOST, NULL, 0, 0 );
+			_GetNameInfoW( ( SOCKADDR * )&addr6, sizeof( struct sockaddr_in6 ), ( PWCHAR )&socket_context->connection_info.l_host_name, NI_MAXHOST, NULL, 0, 0 );
+		}
+		else
+		{
+			// Remote
+			struct sockaddr_in addr;
+			_memzero( &addr, sizeof( struct sockaddr_in ) );
+
+			len = sizeof( struct sockaddr_in );
+			_getpeername( socket_context->Socket, ( SOCKADDR * )&addr, &len );
+
+			port = _ntohs( addr.sin_port );
+			addr.sin_port = 0;	// Prevents WSAAddressToString from returning the port.
+
+			ip_length = 46;
+			_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, socket_context->connection_info.r_ip, &ip_length );
+
+			__snwprintf( socket_context->connection_info.r_port, 6, L"%hu", port );
+
+			_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&socket_context->connection_info.r_host_name, NI_MAXHOST, NULL, 0, 0 );
+
+			// Local
+			_memzero( &addr, sizeof( struct sockaddr_in ) );
+
+			len = sizeof( struct sockaddr_in );
+			_getsockname( socket_context->Socket, ( SOCKADDR * )&addr, &len );
+
+			port = _ntohs( addr.sin_port );
+			addr.sin_port = 0;	// Prevents WSAAddressToString from returning the port.
+
+			ip_length = 46;
+			_WSAAddressToStringW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), NULL, socket_context->connection_info.l_ip, &ip_length );
+
+			__snwprintf( socket_context->connection_info.l_port, 6, L"%hu", port );
+
+			_GetNameInfoW( ( SOCKADDR * )&addr, sizeof( struct sockaddr_in ), ( PWCHAR )&socket_context->connection_info.l_host_name, NI_MAXHOST, NULL, 0, 0 );
+		}
 
 		LVITEM lvi;
 		_memzero( &lvi, sizeof( LVITEM ) );
@@ -507,7 +548,6 @@ DWORD WINAPI Poll( LPVOID WorkThreadContext )
 THREAD_RETURN Server( LPVOID pArguments )
 {
 	DWORD dwThreadCount = 0;
-	int nRet = 0;
 
 	if ( ws2_32_state == WS2_32_STATE_SHUTDOWN )
 	{
@@ -539,7 +579,6 @@ THREAD_RETURN Server( LPVOID pArguments )
 		InitializeReaderWriterLock( &g_reader_writer_lock );
 	}
 
-
 	HANDLE *g_ThreadHandles = ( HANDLE * )GlobalAlloc( GMEM_FIXED, sizeof ( HANDLE ) * max_threads );
 
 	for ( unsigned int i = 0; i < max_threads; ++i )
@@ -561,6 +600,8 @@ THREAD_RETURN Server( LPVOID pArguments )
 	{
 		g_bRestart = false;
 		g_bEndServer = false;
+
+		g_use_ipv6 = false;
 
 		use_ssl = cfg_enable_ssl;
 		ssl_version = cfg_ssl_version;
@@ -675,7 +716,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 		if ( g_sdListen != INVALID_SOCKET )
 		{
 			_shutdown( g_sdListen, SD_BOTH );
-			_closesocket( g_sdListen );                                
+			_closesocket( g_sdListen );
 			g_sdListen = INVALID_SOCKET;
 		}
 
@@ -762,13 +803,13 @@ THREAD_RETURN Server( LPVOID pArguments )
 	return 0;
 }
 
-SOCKET CreateSocket()
+SOCKET CreateSocket( bool IPv6 )
 {
 	int nRet = 0;
 	int nZero = 0;
 	SOCKET socket = INVALID_SOCKET;
 
-	socket = _WSASocketW( AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED ); 
+	socket = _WSASocketW( ( IPv6 ? AF_INET6 : AF_INET ), SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED ); 
 	if ( socket == INVALID_SOCKET )
 	{
 		return socket;
@@ -788,6 +829,8 @@ SOCKET CreateSocket()
 bool CreateListenSocket()
 {
 	bool ret = false;
+
+	int nRet = 0;
 
 	DWORD bytes = 0;
 	GUID acceptex_guid = WSAID_ACCEPTEX;	// GUID to Microsoft specific extensions
@@ -813,18 +856,45 @@ bool CreateListenSocket()
 		g_domain = NULL;
 	}
 
-	// Use Hostname.
+	// Use Hostname or IPv6 Address.
 	if ( cfg_address_type == 0 )
 	{
 		g_domain = GetUTF8Domain( cfg_hostname );
 
-		if ( _GetAddrInfoW( cfg_hostname, cport, &hints, &addrlocal ) != 0 )
+		nRet = _GetAddrInfoW( cfg_hostname, cport, &hints, &addrlocal );
+		if ( nRet == WSAHOST_NOT_FOUND )
+		{
+			g_use_ipv6 = true;
+
+			hints.ai_family = AF_INET6;	// Try IPv6
+			nRet = _GetAddrInfoW( cfg_hostname, cport, &hints, &addrlocal );
+		}
+
+		if ( nRet != 0 )
 		{
 			ret = false;
 			goto CLEANUP;
 		}
+
+		// Check the IPv6 address' formatting. It should be surrounded by brackets.
+		// GetAddrInfoW supports it with or without, but we want it to have it.
+		if ( g_use_ipv6 )
+		{
+			if ( g_domain != NULL && *g_domain != '[' )
+			{
+				int g_domain_length = lstrlenA( g_domain );
+				char *new_g_domain = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( g_domain_length + 3 ) );	// 2 brackets and the NULL character.
+				new_g_domain[ 0 ] = '[';
+				_memcpy_s( new_g_domain + 1, g_domain_length + 2, g_domain, g_domain_length );
+				new_g_domain[ g_domain_length + 1 ] = ']';
+				new_g_domain[ g_domain_length + 2 ] = 0;	// Sanity.
+
+				GlobalFree( g_domain );
+				g_domain = new_g_domain;
+			}
+		}
 	}
-	else	// Use IP Address.
+	else	// Use IPv4 Address.
 	{
 		struct sockaddr_in src_addr;
 		_memzero( &src_addr, sizeof( sockaddr_in ) );
@@ -851,21 +921,21 @@ bool CreateListenSocket()
 		goto CLEANUP;
 	}
 
-	g_sdListen = CreateSocket();
+	g_sdListen = CreateSocket( g_use_ipv6 );
 	if ( g_sdListen == INVALID_SOCKET)
 	{
 		ret = false;
 		goto CLEANUP;
 	}
 
-    int nRet = _bind( g_sdListen, addrlocal->ai_addr, ( int )addrlocal->ai_addrlen );
+    nRet = _bind( g_sdListen, addrlocal->ai_addr, ( int )addrlocal->ai_addrlen );
 	if ( nRet == SOCKET_ERROR)
 	{
 		ret = false;
 		goto CLEANUP;
 	}
 
-	nRet = _listen( g_sdListen, 5 );
+	nRet = _listen( g_sdListen, SOMAXCONN );
 	if ( nRet == SOCKET_ERROR )
 	{
 		ret = false;
@@ -911,7 +981,7 @@ bool CreateAcceptSocket()
 		}
 	}
 
-	listen_context->Socket = CreateSocket();
+	listen_context->Socket = CreateSocket( g_use_ipv6 );	// The accept socket will inherit the listen socket's properties when it completes. IPv6 doesn't actually have to be set here.
 	if ( listen_context->Socket == INVALID_SOCKET )
 	{
 		return false;

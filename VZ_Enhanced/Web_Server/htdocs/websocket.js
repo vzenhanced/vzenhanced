@@ -209,12 +209,12 @@ function validate_input( evt )
 	}
 
 	var key = ( evt.which ) ? evt.which : evt.keyCode;
-    if ( key < 48 || key > 57 )
+	if ( key < 48 || key > 57 )
 	{
-        return false;
+		return false;
 	}
 
-    return true;
+	return true;
 }
 
 function create_forward_window()

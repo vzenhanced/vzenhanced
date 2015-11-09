@@ -233,7 +233,25 @@ void SendResource( SOCKET_CONTEXT *socket_context )
 			*line_end = 0;
 
 			// Find the beginning of the resource.
-			char *resource_begin = _StrChrA( socket_context->io_context.wsabuf.buf, '/' );
+			char *resource_begin = NULL;
+			resource_begin = _StrStrA( socket_context->io_context.wsabuf.buf, "//" );	// Check for an absolute URI.
+			if ( resource_begin != NULL )
+			{
+				resource_begin = _StrChrA( resource_begin + 2, '/' );
+			}
+			else	// If there's no absolute URI, then find the relative path.
+			{
+				resource_begin = _StrChrA( socket_context->io_context.wsabuf.buf, ' ' );
+				if ( resource_begin != NULL )
+				{
+					// See if the path starts with an "/"
+					if ( *( resource_begin + 1 ) == '/' )
+					{
+						++resource_begin;
+					}
+				}
+			}
+
 			if ( resource_begin != NULL )
 			{
 				// Make sure our method type is GET. Anything else is unsupported.
@@ -925,7 +943,7 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 						--upgrade_header_end;
 					}
 
-					if ( _StrCmpNIA( upgrade_header, "websocket", upgrade_header_end - upgrade_header ) == 0 )
+					if ( ( upgrade_header_end - upgrade_header ) == 9 && _StrCmpNIA( upgrade_header, "websocket", 9 ) == 0 )
 					{
 						websocket_upgrade = true;
 					}
@@ -1083,7 +1101,7 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 						--transfer_encoding_header_end;
 					}
 
-					if ( _StrCmpNIA( transfer_encoding_header, "chunked", transfer_encoding_header_end - transfer_encoding_header ) == 0 )
+					if ( ( transfer_encoding_header_end - transfer_encoding_header ) == 7 && _StrCmpNIA( transfer_encoding_header, "chunked", 7 ) == 0 )
 					{
 						socket_context->resource.use_chunked_transfer = true;
 					}
@@ -1123,7 +1141,24 @@ bool VerifyOrigin( char *origin, int origin_length )
 
 	// Now check the domain and its port (if it's non-default).
 
-	char *has_colon = _StrChrA( origin_position, ':' );
+	char *has_colon = NULL;
+	
+	if ( g_use_ipv6 )
+	{
+		has_colon = _StrChrA( origin_position, ']' );
+		if ( has_colon != NULL )
+		{
+			++has_colon;
+			if ( *has_colon != ':' )
+			{
+				has_colon = NULL;
+			}
+		}
+	}
+	else
+	{
+		has_colon = _StrChrA( origin_position, ':' );
+	}
 
 	int local_length = lstrlenA( g_domain );
 

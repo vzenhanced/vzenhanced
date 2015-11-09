@@ -359,6 +359,8 @@ void UnInitializeWebServerDLL()
 
 	#ifndef WS2_32_USE_STATIC_LIB
 		UnInitializeWS2_32();
+	#else
+		EndWS2_32();
 	#endif
 	#ifndef RPCRT4_USE_STATIC_LIB
 		UnInitializeRpcRt4();

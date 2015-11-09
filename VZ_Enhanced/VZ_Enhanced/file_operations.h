@@ -46,4 +46,8 @@ char save_call_log_history( wchar_t *file_path );
 
 char save_call_log_csv_file( wchar_t *file_path );
 
+THREAD_RETURN AutoSave( void *pArguments );	// Saves our call log and lists.
+
+extern CRITICAL_SECTION auto_save_cs;
+
 #endif

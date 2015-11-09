@@ -150,8 +150,8 @@ struct CONNECTION_INFO
 	WCHAR l_host_name[ NI_MAXHOST ];
 	WCHAR r_host_name[ NI_MAXHOST ];
 
-	wchar_t r_ip[ 16 ];
-	wchar_t l_ip[ 16 ];
+	wchar_t r_ip[ 46 ];	// Max IPv6 address is 45 bytes.
+	wchar_t l_ip[ 46 ];	// Max IPv6 address is 45 bytes.
 
 	wchar_t r_port[ 6 ];
 	wchar_t l_port[ 6 ];
@@ -241,6 +241,8 @@ extern CRITICAL_SECTION close_connection_cs;	// Close connection critical sectio
 
 extern LONG total_clients;
 extern DoublyLinkedList *client_context_list;
+
+extern bool g_use_ipv6;
 
 extern char *g_domain;
 extern unsigned short g_port;

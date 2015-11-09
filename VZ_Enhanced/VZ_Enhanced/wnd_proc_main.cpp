@@ -77,6 +77,7 @@ bool last_menu = false;		// true if context menu was last open, false if main me
 bool main_active = false;	// Ugly work-around for misaligned listview rows when calling LVM_ENSUREVISIBLE and the window has not initially been shown.
 
 #define IDT_UPDATE_TIMER	10000
+#define IDT_SAVE_TIMER		10001
 
 VOID CALLBACK UpdateTimerProc( HWND hWnd, UINT msg, UINT idTimer, DWORD dwTime )
 {
@@ -91,6 +92,11 @@ VOID CALLBACK UpdateTimerProc( HWND hWnd, UINT msg, UINT idTimer, DWORD dwTime )
 	}
 
 	_KillTimer( hWnd, IDT_UPDATE_TIMER );
+}
+
+VOID CALLBACK SaveTimerProc( HWND hWnd, UINT msg, UINT idTimer, DWORD dwTime )
+{
+	CloseHandle( ( HANDLE )_CreateThread( NULL, 0, AutoSave, ( void * )NULL, 0, NULL ) );
 }
 
 // Sort function for columns.
@@ -1009,6 +1015,9 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				// Check after 10 seconds.
 				_SetTimer( hWnd, IDT_UPDATE_TIMER, 10000, ( TIMERPROC )UpdateTimerProc );
 			}
+
+			// Automatically save our call log and lists after 24 hours.
+			_SetTimer( hWnd, IDT_SAVE_TIMER, 86400000, ( TIMERPROC )SaveTimerProc );
 
 			return 0;
 		}
@@ -2430,7 +2439,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.3\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.4\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -3168,6 +3177,8 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				_DestroyWindow( g_hWnd_connection_manager );
 			}
 
+			_KillTimer( hWnd, IDT_SAVE_TIMER );
+
 			if ( cfg_enable_call_log_history == true && call_log_changed == true )
 			{
 				_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history\0", 18 );
@@ -3261,50 +3272,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			// Save before we shut down/restart/log off of Windows.
 			save_config();
 
-			if ( ignore_list_changed == true )
-			{
-				_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_phone_numbers\0", 22 );
-				base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
-
-				save_ignore_list( base_directory );
-				ignore_list_changed = false;
-			}
-
-			if ( forward_list_changed == true )
-			{
-				_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_phone_numbers\0", 23 );
-				base_directory[ base_directory_length + 22 ] = 0;	// Sanity.
-
-				save_forward_list( base_directory );
-				forward_list_changed = false;
-			}
-
-			if ( ignore_cid_list_changed == true )
-			{
-				_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_caller_id_names\0", 24 );
-				base_directory[ base_directory_length + 23 ] = 0;	// Sanity.
-
-				save_ignore_cid_list( base_directory );
-				ignore_cid_list_changed = false;
-			}
-
-			if ( forward_cid_list_changed == true )
-			{
-				_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_caller_id_names\0", 25 );
-				base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
-
-				save_forward_cid_list( base_directory );
-				forward_cid_list_changed = false;
-			}
-
-			if ( cfg_enable_call_log_history == true && call_log_changed == true )
-			{
-				_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history\0", 18 );
-				base_directory[ base_directory_length + 17 ] = 0;	// Sanity.
-
-				save_call_log_history( base_directory );
-				call_log_changed = false;
-			}
+			AutoSave( ( void * )1 );	// A non-zero parameter will prevent the function from calling ExitThread.
 
 			return 0;
 		}

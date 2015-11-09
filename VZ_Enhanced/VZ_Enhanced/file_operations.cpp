@@ -37,6 +37,8 @@ bool ignore_cid_list_changed = false;
 dllrbt_tree *forward_cid_list = NULL;
 bool forward_cid_list_changed = false;
 
+CRITICAL_SECTION auto_save_cs;
+
 char read_config()
 {
 	char status = 0;
@@ -2797,4 +2799,66 @@ char save_call_log_csv_file( wchar_t *file_path )
 	}
 
 	return status;
+}
+
+THREAD_RETURN AutoSave( void *pArguments )	// Saves our call log and lists.
+{
+	unsigned char return_type = ( unsigned char )pArguments;
+
+	EnterCriticalSection( &auto_save_cs );
+
+	if ( ignore_list_changed == true )
+	{
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_phone_numbers\0", 22 );
+		base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
+
+		save_ignore_list( base_directory );
+		ignore_list_changed = false;
+	}
+
+	if ( forward_list_changed == true )
+	{
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_phone_numbers\0", 23 );
+		base_directory[ base_directory_length + 22 ] = 0;	// Sanity.
+
+		save_forward_list( base_directory );
+		forward_list_changed = false;
+	}
+
+	if ( ignore_cid_list_changed == true )
+	{
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_caller_id_names\0", 24 );
+		base_directory[ base_directory_length + 23 ] = 0;	// Sanity.
+
+		save_ignore_cid_list( base_directory );
+		ignore_cid_list_changed = false;
+	}
+
+	if ( forward_cid_list_changed == true )
+	{
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_caller_id_names\0", 25 );
+		base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
+
+		save_forward_cid_list( base_directory );
+		forward_cid_list_changed = false;
+	}
+
+	if ( cfg_enable_call_log_history == true && call_log_changed == true )
+	{
+		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history\0", 18 );
+		base_directory[ base_directory_length + 17 ] = 0;	// Sanity.
+
+		save_call_log_history( base_directory );
+		call_log_changed = false;
+	}
+
+	LeaveCriticalSection( &auto_save_cs );
+
+	// If we're calling AutoSave from the main window thread (in WM_ENDSESSION), then we don't want to ExitThread since we're not spawning it as a worker thread.
+	if ( return_type == 0 )
+	{
+		_ExitThread( 0 );
+	}
+
+	return 0;
 }

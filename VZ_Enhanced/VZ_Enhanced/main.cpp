@@ -163,6 +163,9 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	// Blocks threads from adding/removing from the message log queue.
 	InitializeCriticalSection( &ml_queue_cs );
 
+	// Blocks threads from auto saving our call log and lists.
+	InitializeCriticalSection( &auto_save_cs );
+
 	// Get the default message system font.
 	NONCLIENTMETRICS ncm;
 	_memzero( &ncm, sizeof( NONCLIENTMETRICS ) );
@@ -757,6 +760,7 @@ CLEANUP:
 	DeleteCriticalSection( &ml_cs );	// Message log actions
 	DeleteCriticalSection( &ml_update_cs );	// Message log updates
 	DeleteCriticalSection( &ml_queue_cs );	// Message log queue operations
+	DeleteCriticalSection( &auto_save_cs );	// Auto save call log and lists
 
 	if ( fail_type == 1 )
 	{
