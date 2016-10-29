@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -144,7 +144,7 @@ LRESULT CALLBACK EditSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					}
 
 					// If we have a value and all characters are acceptable, then set the text in the text box and return. Don't perform the default window procedure.
-					if ( ret == true )
+					if ( ret )
 					{
 						char current_phone_number[ 17 ];
 						_memzero( current_phone_number, 17 );
@@ -263,7 +263,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					char number[ 17 ];
 					int length =  0;
 					
-					if ( multiple_phone_numbers == false )
+					if ( !multiple_phone_numbers )
 					{
 						length = _SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_GETTEXT, 17, ( LPARAM )number );
 
@@ -373,7 +373,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 							break;
 						}
 
-						if ( forward_incoming == true )
+						if ( forward_incoming )
 						{
 							if ( edit_di != NULL )
 							{
@@ -476,7 +476,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_1:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"1" );
 					}
@@ -489,7 +489,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_2:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"2" );
 					}
@@ -502,7 +502,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_3:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"3" );
 					}
@@ -515,7 +515,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_4:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"4" );
 					}
@@ -528,7 +528,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_5:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"5" );
 					}
@@ -541,7 +541,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_6:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"6" );
 					}
@@ -554,7 +554,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_7:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"7" );
 					}
@@ -567,7 +567,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_8:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"8" );
 					}
@@ -580,7 +580,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_9:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"9" );
 					}
@@ -593,7 +593,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				case BTN_0:
 				{
-					if ( forward_focus == false )
+					if ( !forward_focus )
 					{
 						_SendMessageW( _GetDlgItem( hWnd, EDIT_NUMBER ), EM_REPLACESEL, FALSE, ( LPARAM )L"0" );
 					}
@@ -626,7 +626,7 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 				if ( edit_di != NULL )	// If this is not NULL, then we're adding a forwarding number from the call log listview.
 				{
-					if ( multiple_phone_numbers == false )
+					if ( !multiple_phone_numbers )
 					{
 						_SendMessageA( _GetDlgItem( hWnd, EDIT_NUMBER ), WM_SETTEXT, 0, ( LPARAM )edit_di->ci.call_from );
 					}
@@ -755,6 +755,8 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 		case WM_CLOSE:
 		{
 			_DestroyWindow( hWnd );
+
+			return 0;
 		}
 		break;
 
@@ -778,6 +780,8 @@ LRESULT CALLBACK PhoneWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			{
 				g_hWnd_ignore_phone_number = NULL;
 			}
+
+			return 0;
 		}
 		break;
 

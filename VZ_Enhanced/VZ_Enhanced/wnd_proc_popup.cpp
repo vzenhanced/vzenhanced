@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			{
 				SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )ll->data )->shared_settings;
 
-				if ( shared_settings->popup_play_sound == true )
+				if ( shared_settings->popup_play_sound )
 				{
 					bool play = true;
 					#ifndef WINMM_USE_STATIC_LIB
@@ -54,7 +54,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						}
 					#endif
 
-					if ( play == true )
+					if ( play )
 					{
 						_PlaySoundW( shared_settings->popup_sound, NULL, SND_ASYNC | SND_FILENAME );
 					}
@@ -91,7 +91,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			{
 				SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )ll->data )->shared_settings;
 
-				if ( shared_settings->popup_gradient == false )
+				if ( !shared_settings->popup_gradient )
 				{
 					HBRUSH background = _CreateSolidBrush( shared_settings->popup_background_color1 );
 					_FillRect( hdcMem, &client_rc, background );
@@ -181,7 +181,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						rc_line.right = client_rc.right - 5;
 					}
 
-					if ( p_s->font_shadow == true )
+					if ( p_s->font_shadow )
 					{
 						RECT rc_shadow_line = rc_line;
 						rc_shadow_line.left += 2;
@@ -263,7 +263,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				POPUP_SETTINGS *ps = ( POPUP_SETTINGS * )ll->data;
 
 				// See if we have the mouse captured.
-				if ( ps->window_settings.is_dragging == true )
+				if ( ps->window_settings.is_dragging )
 				{
 					POINT cur_pos;
 					RECT wa;
@@ -311,6 +311,8 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 		case WM_CLOSE:
 		{
 			_DestroyWindow( hWnd );
+
+			return 0;
 		}
 		break;
 

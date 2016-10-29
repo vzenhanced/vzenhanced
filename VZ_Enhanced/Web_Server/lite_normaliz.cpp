@@ -17,44 +17,46 @@
 */
 
 #include "lite_dlls.h"
-#include "lite_comctl32.h"
+#include "lite_normaliz.h"
 
-#ifndef COMCTL32_USE_STATIC_LIB
+#ifndef NORMALIZ_USE_STATIC_LIB
 
-	pImageList_Destroy		_ImageList_Destroy;
+	pIdnToAscii		_IdnToAscii;
+	//pIdnToUnicode	_IdnToUnicode;
 
-	HMODULE hModule_comctl32 = NULL;
+	HMODULE hModule_normaliz = NULL;
 
-	unsigned char comctl32_state = 0;	// 0 = Not running, 1 = running.
+	unsigned char normaliz_state = 0;	// 0 = Not running, 1 = running.
 
-	bool InitializeComCtl32()
+	bool InitializeNormaliz()
 	{
-		if ( comctl32_state != COMCTL32_STATE_SHUTDOWN )
+		if ( normaliz_state != NORMALIZ_STATE_SHUTDOWN )
 		{
 			return true;
 		}
 
-		hModule_comctl32 = LoadLibraryDEMW( L"comctl32.dll" );
+		hModule_normaliz = LoadLibraryDEMW( L"normaliz.dll" );
 
-		if ( hModule_comctl32 == NULL )
+		if ( hModule_normaliz == NULL )
 		{
 			return false;
 		}
 
-		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_comctl32, ( void ** )&_ImageList_Destroy, "ImageList_Destroy" ) )
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_normaliz, ( void ** )&_IdnToAscii, "IdnToAscii" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_normaliz, ( void ** )&_IdnToUnicode, "IdnToUnicode" ) )
 
-		comctl32_state = COMCTL32_STATE_RUNNING;
+		normaliz_state = NORMALIZ_STATE_RUNNING;
 
 		return true;
 	}
 
-	bool UnInitializeComCtl32()
+	bool UnInitializeNormaliz()
 	{
-		if ( comctl32_state != COMCTL32_STATE_SHUTDOWN )
+		if ( normaliz_state != NORMALIZ_STATE_SHUTDOWN )
 		{
-			comctl32_state = COMCTL32_STATE_SHUTDOWN;
+			normaliz_state = NORMALIZ_STATE_SHUTDOWN;
 
-			return ( FreeLibrary( hModule_comctl32 ) == FALSE ? false : true );
+			return ( FreeLibrary( hModule_normaliz ) == FALSE ? false : true );
 		}
 
 		return true;

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -197,10 +197,10 @@ void ReadWebSocketRequest( SOCKET_CONTEXT *socket_context, DWORD request_size )
 
 	while ( true )
 	{
-		if ( use_ssl == true )
+		if ( use_ssl )
 		{
 			// We'll need to copy the decrypted data to our wsabuf.
-			if ( read_more_data == true )
+			if ( read_more_data )
 			{
 				bytes_decrypted = socket_context->ssl->cbIoBuffer;
 			}
@@ -233,14 +233,13 @@ void ReadWebSocketRequest( SOCKET_CONTEXT *socket_context, DWORD request_size )
 
 			break;
 		}
-		else if ( read_more_data == false )	// We need to read more data. The websocket frame is incomplete. Occurs on TSL 1.0 and below for browsers that handle the BEAST attack.
+		else if ( !read_more_data )	// We need to read more data. The websocket frame is incomplete. Occurs on TSL 1.0 and below for browsers that handle the BEAST attack.
 		{
 			// Adjust our buffer to decrypt/copy more data.
 			socket_context->io_context.wsabuf.len -= bytes_decrypted;
 			socket_context->io_context.wsabuf.buf += bytes_decrypted;
 
-			bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest );
-			if ( ret == false )
+			if ( !TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest ) )
 			{
 				BeginClose( socket_context );
 			}
@@ -433,7 +432,7 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 										_memcpy_s( forward_to, to_length + 1, to, to_length + 1 );
 										forward_to[ to_length ] = 0;	// Sanity.
 
-										if ( ( ( pWebForwardIncomingCall )WebForwardIncomingCall )( di, forward_to ) == false )
+										if ( !( ( ( pWebForwardIncomingCall )WebForwardIncomingCall )( di, forward_to ) ) )
 										{
 											GlobalFree( forward_to );
 										}
@@ -450,7 +449,7 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 										_memcpy_s( forward_to, to_length + 1, to, to_length + 1 );
 										forward_to[ to_length ] = 0;	// Sanity.
 
-										if ( ( ( pWebForwardIncomingCall )WebForwardIncomingCall )( di, forward_to ) == false )
+										if ( !( ( ( pWebForwardIncomingCall )WebForwardIncomingCall )( di, forward_to ) ) )
 										{
 											GlobalFree( forward_to );
 										}
@@ -491,13 +490,13 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 			}*/
 
 			bool remove_node = true;
-			if ( do_write == true )
+			if ( do_write )
 			{
 				socket_context->list_type = ot;
 
 				remove_node = WriteListData( socket_context, ( dll->next == NULL ? true : false ) );
 			}
-			else if ( do_read == true )
+			else if ( do_read )
 			{
 				// If there's no more nodes after this, then post a read, otherwise continue to write from the nodes.
 				if ( dll->next == NULL )
@@ -513,7 +512,7 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 				}
 			}
 
-			if ( remove_node == true )
+			if ( remove_node )
 			{
 				DoublyLinkedList *del_node = dll;
 				dll = dll->next;
@@ -526,13 +525,13 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 			}
 
 			// If we need to close the connection, do so after we remove the node above.
-			if ( ret == false )
+			if ( !ret )
 			{
 				BeginClose( socket_context );
 			}
 		}
 	}
-	while ( process_payload == true );
+	while ( process_payload );
 
 	LeaveCriticalSection( &context_list_cs );
 }
@@ -608,7 +607,7 @@ bool WriteListData( SOCKET_CONTEXT *socket_context, bool do_read )
 	// Determine whether we need to read more data, or not.
 	if ( node == NULL )
 	{
-		if ( do_read == true )
+		if ( do_read )
 		{
 			socket_context->io_context.IOOperation = ClientIoReadMoreWebSocketRequest;
 		}
@@ -616,8 +615,7 @@ bool WriteListData( SOCKET_CONTEXT *socket_context, bool do_read )
 
 	socket_context->io_context.wsabuf.len = reply_buf_length;
 
-	bool ret = TrySend( socket_context, &( socket_context->io_context.overlapped ), socket_context->io_context.IOOperation );
-	if ( ret == false )
+	if ( !TrySend( socket_context, &( socket_context->io_context.overlapped ), socket_context->io_context.IOOperation ) )
 	{
 		BeginClose( socket_context );
 	}
@@ -718,7 +716,7 @@ int WriteIgnoreCIDList( SOCKET_CONTEXT *socket_context )
 			break;
 		}
 
-		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"I\":\"%s\",\"C\":%c,\"W\":%c,\"T\":%lu}", SAFESTRA( icidi->c_caller_id ), ( icidi->match_case == true ? '1' : '0' ), ( icidi->match_whole_word == true ? '1' : '0' ), icidi->count );
+		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"I\":\"%s\",\"C\":%c,\"W\":%c,\"T\":%lu}", SAFESTRA( icidi->c_caller_id ), ( icidi->match_case ? '1' : '0' ), ( icidi->match_whole_word ? '1' : '0' ), icidi->count );
 		node = node->next;
 
 		if ( node != NULL )
@@ -838,7 +836,7 @@ int WriteForwardCIDList( SOCKET_CONTEXT *socket_context )
 			break;
 		}
 
-		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"I\":\"%s\",\"F\":\"%s\",\"C\":%c,\"W\":%c,\"T\":%lu}", SAFESTRA( fcidi->c_caller_id ), SAFESTRA( fcidi->c_forward_to ), ( fcidi->match_case == true ? '1' : '0' ), ( fcidi->match_whole_word == true ? '1' : '0' ), fcidi->count );
+		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"I\":\"%s\",\"F\":\"%s\",\"C\":%c,\"W\":%c,\"T\":%lu}", SAFESTRA( fcidi->c_caller_id ), SAFESTRA( fcidi->c_forward_to ), ( fcidi->match_case ? '1' : '0' ), ( fcidi->match_whole_word ? '1' : '0' ), fcidi->count );
 		node = node->next;
 
 		if ( node != NULL )
@@ -1013,7 +1011,7 @@ int WriteCallLog( SOCKET_CONTEXT *socket_context )
 				break;
 			}
 
-			json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"I\":%c,\"F\":%c}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, ( di->ci.ignored == true ? '1' : '0' ), ( di->ci.forwarded == true ? '1' : '0' ) );
+			json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"I\":%c,\"F\":%c}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, ( di->ci.ignored ? '1' : '0' ), ( di->ci.forwarded ? '1' : '0' ) );
 
 			if ( escaped_caller_id != NULL )
 			{
@@ -1029,7 +1027,7 @@ int WriteCallLog( SOCKET_CONTEXT *socket_context )
 			}
 		}
 
-		if ( exit_loop == true )
+		if ( exit_loop )
 		{
 			break;
 		}
@@ -1130,7 +1128,7 @@ THREAD_RETURN SendCallLogUpdate( LPVOID pArg )
 
 	if ( json_buf_length + cfg_val_length + 20 + 2 + 37 + 2 + 1 < ( MAX_BUFFER_SIZE - 10 ) )	// 20 for timestamp, 2 for ignore/forward state, 37 for the json, 2 for "]}".
 	{
-		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"R\":\"%s\",\"I\":%c,\"F\":%c}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, SAFESTRA( di->ci.call_reference_id ), ( di->ci.ignored == true ? '1' : '0' ), ( di->ci.forwarded == true ? '1' : '0' ) );
+		json_buf_length += __snprintf( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "{\"C\":\"%s\",\"N\":\"%s\",\"T\":%lld,\"R\":\"%s\",\"I\":%c,\"F\":%c}", ( escaped_caller_id != NULL ? escaped_caller_id : SAFESTRA( di->ci.caller_id ) ), SAFESTRA( di->ci.call_from ), date.QuadPart, SAFESTRA( di->ci.call_reference_id ), ( di->ci.ignored ? '1' : '0' ), ( di->ci.forwarded ? '1' : '0' ) );
 
 		_memcpy_s( json_buf + json_buf_length, ( MAX_BUFFER_SIZE - 10 ) - json_buf_length, "]}", 2 );
 		json_buf_length += 2;
@@ -1154,7 +1152,7 @@ THREAD_RETURN SendCallLogUpdate( LPVOID pArg )
 
 		while ( context_node != NULL )
 		{
-			if ( g_bEndServer == true )
+			if ( g_bEndServer )
 			{
 				break;
 			}
@@ -1192,7 +1190,7 @@ THREAD_RETURN SendCallLogUpdate( LPVOID pArg )
 
 				LeaveCriticalSection( &socket_context->write_cs );
 
-				if ( use_ssl == true )
+				if ( use_ssl )
 				{
 					SEND_BUFFER *sb = NULL;
 
@@ -1214,11 +1212,11 @@ THREAD_RETURN SendCallLogUpdate( LPVOID pArg )
 
 					LeaveCriticalSection( &socket_context->write_cs );
 
-					nRet = SSL_WSASend( socket_context, &( ubs->wsabuf ), sb, sent );
-					if ( nRet != SEC_E_OK )
+					/*nRet =*/ SSL_WSASend( socket_context, &( ubs->wsabuf ), sb, sent );
+					/*if ( nRet != SEC_E_OK )
 					{
 						sent = false;
-					}
+					}*/
 				}
 				else
 				{
@@ -1229,7 +1227,7 @@ THREAD_RETURN SendCallLogUpdate( LPVOID pArg )
 					}
 				}
 
-				if ( sent == false )
+				if ( !sent )
 				{
 					InterlockedDecrement( &socket_context->io_context.ref_update_count );
 					BeginClose( socket_context );

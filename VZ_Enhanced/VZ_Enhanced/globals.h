@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -455,6 +455,7 @@ extern CRITICAL_SECTION ct_cs;			// Allow only one connection thread to be activ
 extern CRITICAL_SECTION cwt_cs;			// Allow only one connection worker thread to be active.
 extern CRITICAL_SECTION cit_cs;			// Allow only one connection incoming thread to be active.
 extern CRITICAL_SECTION cut_cs;			// Allow only one update check thread to be active.
+extern CRITICAL_SECTION cuc_cs;			// Blocks the CleanupConnection().
 
 extern CRITICAL_SECTION ml_cs;			// Allow only one message log worker thread to be active.
 extern CRITICAL_SECTION ml_update_cs;	// Allow only one message log update thread to be active.

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			_SendMessageW( g_hWnd_username, EM_LIMITTEXT, 254, 0 );
 			_SendMessageW( g_hWnd_password, EM_LIMITTEXT, 254, 0 );
-			_SendMessageW( g_hWnd_remember, BM_SETCHECK, ( cfg_remember_login == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+			_SendMessageW( g_hWnd_remember, BM_SETCHECK, ( cfg_remember_login ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 			// Make pretty font.
 			_SendMessageW( g_hWnd_static1, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -103,38 +103,15 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					{
 						_EnableWindow( g_hWnd_btn_login, FALSE );
 
+						// Forceful shutdown.
 						incoming_con.state = LOGGING_OUT;
-						if ( incoming_con.ssl_socket != NULL )
-						{
-							_shutdown( incoming_con.ssl_socket->s, SD_BOTH );
-						}
-
-						if ( incoming_con.socket != INVALID_SOCKET )
-						{
-							_shutdown( incoming_con.socket, SD_BOTH );
-						}
+						CleanupConnection( &incoming_con );
 
 						worker_con.state = LOGGING_OUT;
-						if ( worker_con.ssl_socket != NULL )
-						{
-							_shutdown( worker_con.ssl_socket->s, SD_BOTH );
-						}
-
-						if ( worker_con.socket != INVALID_SOCKET )
-						{
-							_shutdown( worker_con.socket, SD_BOTH );
-						}
+						CleanupConnection( &worker_con );
 
 						main_con.state = LOGGING_OUT;
-						if ( main_con.ssl_socket != NULL )
-						{
-							_shutdown( main_con.ssl_socket->s, SD_BOTH );
-						}
-
-						if ( main_con.socket != INVALID_SOCKET )
-						{
-							_shutdown( main_con.socket, SD_BOTH );
-						}
+						CleanupConnection( &main_con );
 
 						break;
 					}
@@ -206,7 +183,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						cfg_username = username;
 
 						// Set changed only if we want to save the input.
-						if ( save_info == true )
+						if ( save_info )
 						{
 							changed = true;
 						}
@@ -228,7 +205,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						cfg_password = password;
 
 						// Set changed only if we want to save the input.
-						if ( save_info == true )
+						if ( save_info )
 						{
 							changed = true;
 						}
@@ -240,7 +217,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					}
 
 					// Only save if something has changed, and the check box is checked.
-					if ( changed == true && save_info == true )
+					if ( changed && save_info )
 					{
 						cfg_remember_login = true;
 						save_config();	// Save our settings.
@@ -260,7 +237,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					if ( HIWORD( wParam ) == BN_CLICKED )
 					{
 						// If we're now unchecked and our settings were set to remember, then prompt to remove settings.
-						if ( _SendMessageW( g_hWnd_remember, BM_GETCHECK, 0, 0 ) == BST_UNCHECKED && cfg_remember_login == true )
+						if ( _SendMessageW( g_hWnd_remember, BM_GETCHECK, 0, 0 ) == BST_UNCHECKED && cfg_remember_login )
 						{
 							if ( _MessageBoxW( hWnd, ST_PROMPT_delete_login_info, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
 							{
@@ -342,7 +319,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 			{
 				if ( g_hWnd_phone_lines == NULL )
 				{
-					g_hWnd_phone_lines = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phonelines", ST_Phone_Line, WS_OVERLAPPED | WS_CAPTION | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 300 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 300, 170, hWnd, NULL, NULL, NULL );
+					g_hWnd_phone_lines = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"phonelines", ST_Phone_Line, WS_OVERLAPPED | WS_CAPTION | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 300 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 300, 170, hWnd, NULL, NULL, NULL );
 					_ShowWindow( g_hWnd_phone_lines, SW_SHOWNORMAL );
 				}
 				_SetForegroundWindow( g_hWnd_phone_lines );
@@ -393,7 +370,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				_EnableWindow( g_hWnd_static1, FALSE );
 				_EnableWindow( g_hWnd_static2, FALSE );
 
-				if ( cfg_tray_icon == true )
+				if ( cfg_tray_icon )
 				{
 					g_nid.uFlags = NIF_TIP;
 					_wmemcpy_s( g_nid.szTip, sizeof( g_nid.szTip ), L"VZ Enhanced - Logging In...\0", 28 );
@@ -418,7 +395,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				_EnableWindow( g_hWnd_static1, FALSE );
 				_EnableWindow( g_hWnd_static2, FALSE );
 
-				if ( cfg_tray_icon == true )
+				if ( cfg_tray_icon )
 				{
 					g_nid.uFlags = NIF_TIP;
 					_wmemcpy_s( g_nid.szTip, sizeof( g_nid.szTip ), L"VZ Enhanced - Logged In\0", 24 );
@@ -426,7 +403,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					_Shell_NotifyIconW( NIM_MODIFY, &g_nid );
 				}
 
-				if ( silent_startup == false )
+				if ( !silent_startup )
 				{
 					_ShowWindow( g_hWnd_main, SW_SHOW );
 				}
@@ -455,7 +432,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				_SendMessageW( g_hWnd_btn_login, WM_SETTEXT, 0, ( LPARAM )ST_Log_In );
 				_SendMessageW( g_hWnd_username, WM_SETTEXT, 0, ( LPARAM )cfg_username );
 
-				if ( cfg_remember_login == true )
+				if ( cfg_remember_login )
 				{
 					_SendMessageW( g_hWnd_password, WM_SETTEXT, 0, ( LPARAM )cfg_password );
 				}
@@ -468,7 +445,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					}
 				}
 
-				if ( cfg_tray_icon == true )
+				if ( cfg_tray_icon )
 				{
 					g_nid.uFlags = NIF_TIP;
 					_wmemcpy_s( g_nid.szTip, sizeof( g_nid.szTip ), L"VZ Enhanced - Logged Out\0", 25 );
@@ -479,7 +456,7 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				_ShowWindow( hWnd, SW_SHOW );
 				_SetForegroundWindow( hWnd );
 
-				if ( silent_startup == true )
+				if ( silent_startup )
 				{
 					silent_startup = false;
 				}
@@ -489,17 +466,19 @@ LRESULT CALLBACK LoginWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 		case WM_CLOSE:
 		{
-			if ( silent_startup == true )
+			if ( silent_startup )
 			{
 				silent_startup = false;
 			}
 
-			if ( cfg_remember_login == false )
+			if ( !cfg_remember_login )
 			{
 				_SendMessageW( g_hWnd_password, WM_SETTEXT, 0, 0 );
 			}
 
 			_ShowWindow( hWnd, SW_HIDE );
+
+			return 0;
 		}
 		break;
 

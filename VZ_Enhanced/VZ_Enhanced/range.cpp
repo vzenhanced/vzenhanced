@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ bool RangeSearch( RANGE **head, const char *value, char found_value[ 32 ] )
 	}
 
 	// Skip searching for numbers if a wildcard matches.
-	if ( found == true )
+	if ( found )
 	{
 		return true;
 	}
@@ -239,7 +239,7 @@ bool RangeRemove( RANGE **head, const char *value, RANGE *parent )
 	}
 
 	// If at the end of our recursion we find an exact match, then begin removing the necessary values.
-	if ( found == true )
+	if ( found )
 	{
 		// Only remove the value if it has no children.
 		if ( tmp->child == NULL )

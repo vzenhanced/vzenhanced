@@ -16,42 +16,39 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _LITE_RPCRT4_H
-#define _LITE_RPCRT4_H
+#ifndef _LITE_NORMALIZ_H
+#define _LITE_NORMALIZ_H
 
 #define STRICT
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include <rpc.h>
+#include <winnls.h>
 
-//#define RPCRT4_USE_STATIC_LIB
+//#define NORMALIZ_USE_STATIC_LIB
 
-#ifdef RPCRT4_USE_STATIC_LIB
+#ifdef NORMALIZ_USE_STATIC_LIB
 
-	//__pragma( comment( lib, "rpcrt4.lib" ) )
+	//__pragma( comment( lib, "normaliz.lib" ) )
 
-	#define _RpcStringFreeW		RpcStringFreeW
-	#define _UuidToStringW		UuidToStringW
-	#define _UuidCreate			UuidCreate
+	#define _IdnToAscii		IdnToAscii
+	//#define _IdnToUnicode	IdnToUnicode
 
 #else
 
-	#define RPCRT4_STATE_SHUTDOWN		0
-	#define RPCRT4_STATE_RUNNING		1
+	#define NORMALIZ_STATE_SHUTDOWN	0
+	#define NORMALIZ_STATE_RUNNING	1
 
-	typedef RPC_STATUS ( RPC_ENTRY *pRpcStringFreeW )( RPC_WSTR __RPC_FAR *String );
-	typedef RPC_STATUS ( RPC_ENTRY *pUuidToStringW )( UUID __RPC_FAR *Uuid, RPC_WSTR __RPC_FAR *StringUuid );
-	typedef RPC_STATUS ( RPC_ENTRY *pUuidCreate )( UUID __RPC_FAR *Uuid );
+	typedef int ( WINAPI *pIdnToAscii )( DWORD dwFlags, LPCWSTR lpUnicodeCharStr, int cchUnicodeChar, LPWSTR lpASCIICharStr, int cchASCIIChar );
+	//typedef int ( WINAPI *pIdnToUnicode )( DWORD dwFlags, LPCWSTR lpASCIICharStr, int cchASCIIChar, LPWSTR lpUnicodeCharStr, int cchUnicodeChar );
 
-	extern pRpcStringFreeW		_RpcStringFreeW;
-	extern pUuidToStringW		_UuidToStringW;
-	extern pUuidCreate			_UuidCreate;
+	extern pIdnToAscii		_IdnToAscii;
+	//extern pIdnToUnicode	_IdnToUnicode;
 
-	extern unsigned char rpcrt4_state;
+	extern unsigned char normaliz_state;
 
-	bool InitializeRpcRt4();
-	bool UnInitializeRpcRt4();
+	bool InitializeNormaliz();
+	bool UnInitializeNormaliz();
 
 #endif
 

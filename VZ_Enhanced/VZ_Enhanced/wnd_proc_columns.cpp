@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -513,7 +513,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				case BTN_SAVE_COLUMNS:
 				case BTN_APPLY_COLUMNS:
 				{
-					if ( columns_state_changed == false )
+					if ( !columns_state_changed )
 					{
 						_SendMessageW( hWnd, WM_CLOSE, 0, 0 );
 						break;
@@ -536,14 +536,14 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = 0; i < NUM_COLUMNS1; ++i )
 					{
-						if ( column1_array[ i ] == true )
+						if ( column1_array[ i ] )
 						{
 							proceed = true;
 							break;
 						}
 					}
 
-					if ( proceed == false )
+					if ( !proceed )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 0, 0 );
 						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
@@ -572,14 +572,14 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					proceed = false;
 					for ( char i = 0; i < NUM_COLUMNS2; ++i )
 					{
-						if ( column2_array[ i ] == true )
+						if ( column2_array[ i ] )
 						{
 							proceed = true;
 							break;
 						}
 					}
 
-					if ( proceed == false )
+					if ( !proceed )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 1, 0 );
 						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
@@ -595,14 +595,14 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					proceed = false;
 					for ( char i = 0; i < NUM_COLUMNS3; ++i )
 					{
-						if ( column3_array[ i ] == true )
+						if ( column3_array[ i ] )
 						{
 							proceed = true;
 							break;
 						}
 					}
 
-					if ( proceed == false )
+					if ( !proceed )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 2, 0 );
 						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
@@ -617,14 +617,14 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					proceed = false;
 					for ( char i = 0; i < NUM_COLUMNS4; ++i )
 					{
-						if ( column4_array[ i ] == true )
+						if ( column4_array[ i ] )
 						{
 							proceed = true;
 							break;
 						}
 					}
 
-					if ( proceed == false )
+					if ( !proceed )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 3, 0 );
 						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
@@ -642,14 +642,14 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					proceed = false;
 					for ( char i = 0; i < NUM_COLUMNS5; ++i )
 					{
-						if ( column5_array[ i ] == true )
+						if ( column5_array[ i ] )
 						{
 							proceed = true;
 							break;
 						}
 					}
 
-					if ( proceed == false )
+					if ( !proceed )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 2, 0 );
 						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
@@ -666,14 +666,14 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					proceed = false;
 					for ( char i = 0; i < NUM_COLUMNS6; ++i )
 					{
-						if ( column6_array[ i ] == true )
+						if ( column6_array[ i ] )
 						{
 							proceed = true;
 							break;
 						}
 					}
 
-					if ( proceed == false )
+					if ( !proceed )
 					{
 						_SendMessageW( g_hWnd_column_tab, TCM_SETCURFOCUS, 3, 0 );
 						_MessageBoxW( hWnd, ST_must_have_column, PROGRAM_CAPTION, MB_ICONWARNING );
@@ -693,7 +693,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = 0; i < NUM_COLUMNS1; ++i )
 					{
-						if ( column1_array[ i ] == true && *call_log_columns[ i ] == -1 )
+						if ( column1_array[ i ] && *call_log_columns[ i ] == -1 )
 						{
 							switch ( i )
 							{
@@ -747,7 +747,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = 0; i < NUM_COLUMNS2; ++i )
 					{
-						if ( column2_array[ i ] == true && *contact_list_columns[ i ] == -1 )
+						if ( column2_array[ i ] && *contact_list_columns[ i ] == -1 )
 						{
 							switch ( i )
 							{
@@ -807,7 +807,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = 0; i < NUM_COLUMNS3; ++i )
 					{
-						if ( column3_array[ i ] == true && *forward_list_columns[ i ] == -1 )
+						if ( column3_array[ i ] && *forward_list_columns[ i ] == -1 )
 						{
 							switch ( i )
 							{
@@ -854,7 +854,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = 0; i < NUM_COLUMNS4; ++i )
 					{
-						if ( column4_array[ i ] == true && *ignore_list_columns[ i ] == -1 )
+						if ( column4_array[ i ] && *ignore_list_columns[ i ] == -1 )
 						{
 							switch ( i )
 							{
@@ -900,7 +900,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = 0; i < NUM_COLUMNS5; ++i )
 					{
-						if ( column5_array[ i ] == true && *forward_cid_list_columns[ i ] == -1 )
+						if ( column5_array[ i ] && *forward_cid_list_columns[ i ] == -1 )
 						{
 							switch ( i )
 							{
@@ -949,7 +949,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = 0; i < NUM_COLUMNS6; ++i )
 					{
-						if ( column6_array[ i ] == true && *ignore_cid_list_columns[ i ] == -1 )
+						if ( column6_array[ i ] && *ignore_cid_list_columns[ i ] == -1 )
 						{
 							switch ( i )
 							{
@@ -999,7 +999,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = NUM_COLUMNS1 - 1; i >= 0; --i )
 					{
-						if ( column1_array[ i ] == false && *call_log_columns[ i ] != -1 )
+						if ( !column1_array[ i ] && *call_log_columns[ i ] != -1 )
 						{
 							--total_columns1;
 
@@ -1039,7 +1039,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = NUM_COLUMNS2 - 1; i >= 0; --i )
 					{
-						if ( column2_array[ i ] == false && *contact_list_columns[ i ] != -1 )
+						if ( !column2_array[ i ] && *contact_list_columns[ i ] != -1 )
 						{
 							--total_columns2;
 
@@ -1085,7 +1085,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = NUM_COLUMNS3 - 1; i >= 0; --i )
 					{
-						if ( column3_array[ i ] == false && *forward_list_columns[ i ] != -1 )
+						if ( !column3_array[ i ] && *forward_list_columns[ i ] != -1 )
 						{
 							--total_columns3;
 
@@ -1119,7 +1119,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = NUM_COLUMNS4 - 1; i >= 0; --i )
 					{
-						if ( column4_array[ i ] == false && *ignore_list_columns[ i ] != -1 )
+						if ( !column4_array[ i ] && *ignore_list_columns[ i ] != -1 )
 						{
 							--total_columns4;
 
@@ -1152,7 +1152,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = NUM_COLUMNS5 - 1; i >= 0; --i )
 					{
-						if ( column5_array[ i ] == false && *forward_cid_list_columns[ i ] != -1 )
+						if ( !column5_array[ i ] && *forward_cid_list_columns[ i ] != -1 )
 						{
 							--total_columns5;
 
@@ -1188,7 +1188,7 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					for ( char i = NUM_COLUMNS6 - 1; i >= 0; --i )
 					{
-						if ( column6_array[ i ] == false && *ignore_cid_list_columns[ i ] != -1 )
+						if ( !column6_array[ i ] && *ignore_cid_list_columns[ i ] != -1 )
 						{
 							--total_columns6;
 
@@ -1323,6 +1323,8 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 		case WM_CLOSE:
 		{
 			_DestroyWindow( hWnd );
+
+			return 0;
 		}
 		break;
 
@@ -1331,6 +1333,8 @@ LRESULT CALLBACK ColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			columns_state_changed = false;	// Reset the state if it changed, but the columns were never saved.
 
 			g_hWnd_columns = NULL;
+
+			return 0;
 		}
 		break;
 

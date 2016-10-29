@@ -98,7 +98,7 @@ function initialize_page()
 
 function get_ignore_list()
 {
-	if ( ws != null && got_il == false )
+	if ( ws != null && !got_il )
 	{
 		got_il = true;
 		ws.send("GET_IGNORE_LIST");
@@ -107,7 +107,7 @@ function get_ignore_list()
 
 function get_forward_list()
 {
-	if ( ws != null && got_fl == false )
+	if ( ws != null && !got_fl )
 	{
 		got_fl = true;
 		ws.send("GET_FORWARD_LIST");
@@ -116,7 +116,7 @@ function get_forward_list()
 
 function get_contact_list()
 {
-	if ( ws != null && got_cl == false )
+	if ( ws != null && !got_cl )
 	{
 		got_cl = true;
 		ws.send("GET_CONTACT_LIST");
@@ -125,7 +125,7 @@ function get_contact_list()
 
 function get_call_log()
 {
-	if ( ws != null && got_l == false )
+	if ( ws != null && !got_l )
 	{
 		got_l = true;
 		ws.send("GET_CALL_LOG");
@@ -134,7 +134,7 @@ function get_call_log()
 
 function get_forward_cid_list()
 {
-	if ( ws != null && got_fcidl == false )
+	if ( ws != null && !got_fcidl )
 	{
 		got_fcidl = true;
 		ws.send("GET_FORWARD_CID_LIST");
@@ -143,7 +143,7 @@ function get_forward_cid_list()
 
 function get_ignore_cid_list()
 {
-	if ( ws != null && got_icidl == false )
+	if ( ws != null && !got_icidl )
 	{
 		got_icidl = true;
 		ws.send("GET_IGNORE_CID_LIST");
@@ -429,7 +429,7 @@ function create_forward_window()
 function forward_incoming_call( to, from, reference, id )
 {
 	var number = to.replace( /\s/g, 'X' );	// Replace whitepsace with X. Prevent the number from going through.
-	if ( ws != null && isNaN( number ) == false )
+	if ( ws != null && !isNaN( number ) )
 	{
 		last_forward_number = to;
 		ws.send( "FORWARD_INCOMING:" + from + ":" + number + ":" + reference );
@@ -463,9 +463,9 @@ function show_hide_forward_window( type )
 
 function set_title( reset )
 {
-	if ( reset == true )
+	if ( reset )
 	{
-		if ( timer_set == false )
+		if ( !timer_set )
 		{
 			timer_set = true;
 			title_timer = window.setInterval( function()
@@ -553,7 +553,7 @@ function create_popup( caller_id, from, timestamp, reference )
 		document.body.removeChild( popup );
 	}, 30000 )
 	
-	if ( is_blurred == true )
+	if ( is_blurred )
 	{
 		title_message = caller_id + " : " + txt_phone_number + " : ";
 		set_title( true );	// Set and rotate the title message.
@@ -569,7 +569,7 @@ function connect()
 {
 	if ( "WebSocket" in window )
 	{
-		if ( connected == true )
+		if ( connected )
 		{
 			if ( ws != null )
 			{
@@ -597,7 +597,7 @@ function connect()
 			get_ignore_cid_list();
 		};
 
-		ws.onmessage = function (evt) 
+		ws.onmessage = function( evt ) 
 		{
 			var received_msg = evt.data;
 			received_msg = ab_to_str( received_msg );
@@ -987,6 +987,18 @@ function connect()
 			got_cl = false;
 			got_l = false;
 		};
+
+		ws.onerror = function()
+		{
+		    if ( connected )
+		    {
+		        ws.close();
+		    }
+		    else
+		    {
+		        alert( "Unable to connect to server." );
+		    }
+		}
 	}
 	else
 	{

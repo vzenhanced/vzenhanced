@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -213,7 +213,7 @@ wchar_t *common_message_string_table[] =
 	L"Selected phone number is forwarded using wildcard digit(s).\r\n\r\nPlease remove it from the forward phone number list.",
 	L"Selected phone number is ignored using wildcard digit(s).\r\n\r\nPlease remove it from the ignore phone number list.",
 	L"The download could not be completed.\r\n\r\nWould you like to visit the VZ Enhanced home page instead?",
-	L"The file's format is incorrect and could not be imported.",
+	L"The file(s) could not be imported because the format is incorrect.",
 	L"The Message Log thread is still running.\r\n\r\nPlease wait for it to terminate, or restart the program.",
 	L"The update check could not be completed.\r\n\r\nWould you like to visit the VZ Enhanced home page instead?",
 	L"Tree-View image list was not destroyed.",
@@ -556,6 +556,7 @@ wchar_t *list_string_table[] =
 	L"Added phone number(s) to forward phone number list.",
 	L"Added phone number to ignore phone number list.",
 	L"Added phone number(s) to ignore phone number list.",
+	L"Automatic save has completed.",
 	L"Exported call log history.",
 	L"Exported forward caller ID name list.",
 	L"Exported forward phone number list.",
@@ -571,6 +572,7 @@ wchar_t *list_string_table[] =
 	L"Loaded forward phone number list.",
 	L"Loaded ignore caller ID name list.",
 	L"Loaded ignore phone number list.",
+	L"Performing automatic save.",
 	L"Removed call log entry / entries.",
 	L"Removed caller ID name(s) from forward caller ID name list.",
 	L"Removed caller ID name(s) from ignore caller ID name list.",

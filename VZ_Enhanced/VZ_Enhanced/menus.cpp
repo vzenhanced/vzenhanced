@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -891,12 +891,12 @@ void HandleRightClick( HWND hWnd )
 					break;
 				}
 
-				unsigned char incoming_menu_offset = ( l_incoming_menu_showing == true ? 3 : 0 );
+				unsigned char incoming_menu_offset = ( l_incoming_menu_showing ? 3 : 0 );
 				menu_offset = 4 + incoming_menu_offset;
 
-				if ( l_phone_menu_showing == true )
+				if ( l_phone_menu_showing )
 				{
-					if ( show_call_menu == false )
+					if ( !show_call_menu )
 					{
 						_DeleteMenu( g_hMenuSub_list_context, 3 + incoming_menu_offset, MF_BYPOSITION );	// Separator
 						_RemoveMenu( g_hMenuSub_list_context, 2 + incoming_menu_offset, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -911,7 +911,7 @@ void HandleRightClick( HWND hWnd )
 					}
 				}
 
-				if ( column_l_menu_showing == true )
+				if ( column_l_menu_showing )
 				{
 					_SetMenuItemInfoW( g_hMenuSub_list_context, menu_offset, TRUE, &mii );
 				}
@@ -922,9 +922,9 @@ void HandleRightClick( HWND hWnd )
 					column_l_menu_showing = true;
 				}
 
-				if ( show_call_menu == true )
+				if ( show_call_menu )
 				{
-					if ( l_phone_menu_showing == true )
+					if ( l_phone_menu_showing )
 					{
 						_SetMenuItemInfoW( g_hMenuSub_list_context, 0 + incoming_menu_offset, TRUE, &mii2 );
 					}
@@ -955,7 +955,7 @@ void HandleRightClick( HWND hWnd )
 		}
 		else
 		{
-			if ( l_incoming_menu_showing == true )
+			if ( l_incoming_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Separator
 				_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );
@@ -964,7 +964,7 @@ void HandleRightClick( HWND hWnd )
 				l_incoming_menu_showing = false;
 			}
 
-			if ( l_phone_menu_showing == true )
+			if ( l_phone_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_list_context, 3, MF_BYPOSITION );	// Separator
 				_RemoveMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -974,7 +974,7 @@ void HandleRightClick( HWND hWnd )
 				l_phone_menu_showing = false;
 			}
 
-			if ( column_l_menu_showing == true )
+			if ( column_l_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_list_context, 4, MF_BYPOSITION );
 
@@ -996,7 +996,7 @@ void HandleRightClick( HWND hWnd )
 
 			displayinfo *di = ( displayinfo * )lvi.lParam;
 
-			if ( di->process_incoming == true )
+			if ( di->process_incoming )
 			{
 				SYSTEMTIME SystemTime;
 				GetLocalTime( &SystemTime );
@@ -1013,7 +1013,7 @@ void HandleRightClick( HWND hWnd )
 				// See if the elapsed time is less than 30 seconds.
 				if ( ( li.QuadPart - di->time.QuadPart ) <= ( 30 * FILETIME_TICKS_PER_SECOND ) )
 				{
-					if ( l_incoming_menu_showing == false )
+					if ( !l_incoming_menu_showing )
 					{
 						MENUITEMINFO mii3;
 						_memzero( &mii3, sizeof( MENUITEMINFO ) );
@@ -1048,7 +1048,7 @@ void HandleRightClick( HWND hWnd )
 				}
 				else	// If it's greater than 20 seconds, then remove the menus and disable them from showing again.
 				{
-					if ( l_incoming_menu_showing == true )
+					if ( l_incoming_menu_showing )
 					{
 						_DeleteMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Separator
 						_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );
@@ -1060,7 +1060,7 @@ void HandleRightClick( HWND hWnd )
 					di->process_incoming = false;
 				}
 			}
-			else if ( di->process_incoming == false && l_incoming_menu_showing == true )
+			else if ( !di->process_incoming && l_incoming_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Separator
 				_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );
@@ -1448,9 +1448,9 @@ void HandleRightClick( HWND hWnd )
 
 				menu_offset = 4;
 
-				if ( cl_phone_menu_showing == true )
+				if ( cl_phone_menu_showing )
 				{
-					if ( show_call_menu == false )
+					if ( !show_call_menu )
 					{
 						_DeleteMenu( g_hMenuSub_contact_list_context, 3, MF_BYPOSITION );	// Separator
 						_RemoveMenu( g_hMenuSub_contact_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -1465,9 +1465,9 @@ void HandleRightClick( HWND hWnd )
 					}
 				}
 				
-				if ( cl_url_menu_showing == true )
+				if ( cl_url_menu_showing )
 				{
-					if ( show_url_menu == false )
+					if ( !show_url_menu )
 					{
 						_DeleteMenu( g_hMenuSub_contact_list_context, 1, MF_BYPOSITION );	// Separator
 						_DeleteMenu( g_hMenuSub_contact_list_context, 0, MF_BYPOSITION );
@@ -1480,7 +1480,7 @@ void HandleRightClick( HWND hWnd )
 					}
 				}
 
-				if ( column_cl_menu_showing == true )
+				if ( column_cl_menu_showing )
 				{
 					_SetMenuItemInfoW( g_hMenuSub_contact_list_context, menu_offset, TRUE, &mii );
 				}
@@ -1491,9 +1491,9 @@ void HandleRightClick( HWND hWnd )
 					column_cl_menu_showing = true;
 				}
 
-				if ( show_call_menu == true )
+				if ( show_call_menu )
 				{
-					if ( cl_phone_menu_showing == true )
+					if ( cl_phone_menu_showing )
 					{
 						_SetMenuItemInfoW( g_hMenuSub_contact_list_context, 0, TRUE, &mii2 );
 					}
@@ -1521,9 +1521,9 @@ void HandleRightClick( HWND hWnd )
 					}
 				}
 
-				if ( show_url_menu == true )
+				if ( show_url_menu )
 				{
-					if ( cl_url_menu_showing == true )
+					if ( cl_url_menu_showing )
 					{
 						_SetMenuItemInfoW( g_hMenuSub_contact_list_context, 0, TRUE, &mii2 );
 					}
@@ -1541,7 +1541,7 @@ void HandleRightClick( HWND hWnd )
 		}
 		else
 		{
-			if ( cl_phone_menu_showing == true )
+			if ( cl_phone_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_contact_list_context, 3, MF_BYPOSITION );	// Separator
 				_RemoveMenu( g_hMenuSub_contact_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -1551,7 +1551,7 @@ void HandleRightClick( HWND hWnd )
 				cl_phone_menu_showing = false;
 			}
 
-			if ( cl_url_menu_showing == true )
+			if ( cl_url_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_contact_list_context, 1, MF_BYPOSITION );	// Separator
 				_DeleteMenu( g_hMenuSub_contact_list_context, 0, MF_BYPOSITION );
@@ -1559,7 +1559,7 @@ void HandleRightClick( HWND hWnd )
 				cl_url_menu_showing = false;
 			}
 
-			if ( column_cl_menu_showing == true )
+			if ( column_cl_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_contact_list_context, 4, MF_BYPOSITION );
 
@@ -1678,9 +1678,9 @@ void HandleRightClick( HWND hWnd )
 
 				menu_offset = 4;
 
-				if ( fl_phone_menu_showing == true )
+				if ( fl_phone_menu_showing )
 				{
-					if ( show_call_menu == false )
+					if ( !show_call_menu )
 					{
 						_DeleteMenu( g_hMenuSub_forward_list_context, 3, MF_BYPOSITION );	// Separator
 						_RemoveMenu( g_hMenuSub_forward_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -1695,7 +1695,7 @@ void HandleRightClick( HWND hWnd )
 					}
 				}
 
-				if ( column_fl_menu_showing == true )
+				if ( column_fl_menu_showing )
 				{
 					_SetMenuItemInfoW( g_hMenuSub_forward_list_context, menu_offset, TRUE, &mii );
 				}
@@ -1706,9 +1706,9 @@ void HandleRightClick( HWND hWnd )
 					column_fl_menu_showing = true;
 				}
 
-				if ( show_call_menu == true )
+				if ( show_call_menu )
 				{
-					if ( fl_phone_menu_showing == true )
+					if ( fl_phone_menu_showing )
 					{
 						_SetMenuItemInfoW( g_hMenuSub_forward_list_context, 0, TRUE, &mii2 );
 					}
@@ -1739,7 +1739,7 @@ void HandleRightClick( HWND hWnd )
 		}
 		else
 		{
-			if ( fl_phone_menu_showing == true )
+			if ( fl_phone_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_forward_list_context, 3, MF_BYPOSITION );	// Separator
 				_RemoveMenu( g_hMenuSub_forward_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -1749,7 +1749,7 @@ void HandleRightClick( HWND hWnd )
 				fl_phone_menu_showing = false;
 			}
 
-			if ( column_fl_menu_showing == true )
+			if ( column_fl_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_forward_list_context, 4, MF_BYPOSITION );
 
@@ -1895,9 +1895,9 @@ void HandleRightClick( HWND hWnd )
 
 				menu_offset = 4;
 
-				if ( fl_cid_phone_menu_showing == true )
+				if ( fl_cid_phone_menu_showing )
 				{
-					if ( show_call_menu == false )
+					if ( !show_call_menu )
 					{
 						_DeleteMenu( g_hMenuSub_forward_cid_list_context, 3, MF_BYPOSITION );	// Separator
 						_RemoveMenu( g_hMenuSub_forward_cid_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -1912,7 +1912,7 @@ void HandleRightClick( HWND hWnd )
 					}
 				}
 
-				if ( column_fl_cid_menu_showing == true )
+				if ( column_fl_cid_menu_showing )
 				{
 					_SetMenuItemInfoW( g_hMenuSub_forward_cid_list_context, menu_offset, TRUE, &mii );
 				}
@@ -1923,9 +1923,9 @@ void HandleRightClick( HWND hWnd )
 					column_fl_cid_menu_showing = true;
 				}
 
-				if ( show_call_menu == true )
+				if ( show_call_menu )
 				{
-					if ( fl_cid_phone_menu_showing == true )
+					if ( fl_cid_phone_menu_showing )
 					{
 						_SetMenuItemInfoW( g_hMenuSub_forward_cid_list_context, 0, TRUE, &mii2 );
 					}
@@ -1956,7 +1956,7 @@ void HandleRightClick( HWND hWnd )
 		}
 		else
 		{
-			if ( fl_cid_phone_menu_showing == true )
+			if ( fl_cid_phone_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_forward_cid_list_context, 3, MF_BYPOSITION );	// Separator
 				_RemoveMenu( g_hMenuSub_forward_cid_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -1966,7 +1966,7 @@ void HandleRightClick( HWND hWnd )
 				fl_cid_phone_menu_showing = false;
 			}
 
-			if ( column_fl_cid_menu_showing == true )
+			if ( column_fl_cid_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_forward_cid_list_context, 4, MF_BYPOSITION );
 
@@ -2061,9 +2061,9 @@ void HandleRightClick( HWND hWnd )
 
 				menu_offset = 3;
 
-				if ( il_phone_menu_showing == true )
+				if ( il_phone_menu_showing )
 				{
-					if ( show_call_menu == false )
+					if ( !show_call_menu )
 					{
 						_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );	// Separator
 						_RemoveMenu( g_hMenuSub_ignore_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -2078,7 +2078,7 @@ void HandleRightClick( HWND hWnd )
 					}
 				}
 
-				if ( column_il_menu_showing == true )
+				if ( column_il_menu_showing )
 				{
 					_SetMenuItemInfoW( g_hMenuSub_ignore_list_context, menu_offset, TRUE, &mii );
 				}
@@ -2089,9 +2089,9 @@ void HandleRightClick( HWND hWnd )
 					column_il_menu_showing = true;
 				}
 
-				if ( show_call_menu == true )
+				if ( show_call_menu )
 				{
-					if ( il_phone_menu_showing == true )
+					if ( il_phone_menu_showing )
 					{
 						_SetMenuItemInfoW( g_hMenuSub_ignore_list_context, 0, TRUE, &mii2 );
 					}
@@ -2122,7 +2122,7 @@ void HandleRightClick( HWND hWnd )
 		}
 		else
 		{
-			if ( il_phone_menu_showing == true )
+			if ( il_phone_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );	// Separator
 				_RemoveMenu( g_hMenuSub_ignore_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -2132,7 +2132,7 @@ void HandleRightClick( HWND hWnd )
 				il_phone_menu_showing = false;
 			}
 
-			if ( column_il_menu_showing == true )
+			if ( column_il_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );
 
@@ -2233,7 +2233,7 @@ void HandleRightClick( HWND hWnd )
 					break;
 				}
 
-				if ( column_il_cid_menu_showing == true )
+				if ( column_il_cid_menu_showing )
 				{
 					_SetMenuItemInfoW( g_hMenuSub_ignore_cid_list_context, 4, TRUE, &mii );
 				}
@@ -2247,7 +2247,7 @@ void HandleRightClick( HWND hWnd )
 		}
 		else
 		{
-			if ( column_il_cid_menu_showing == true )
+			if ( column_il_cid_menu_showing )
 			{
 				_DeleteMenu( g_hMenuSub_ignore_cid_list_context, 4, MF_BYPOSITION );
 
@@ -2374,7 +2374,7 @@ void UpdateMenus( unsigned char action )
 
 	if ( hWnd == g_hWnd_call_log )
 	{
-		if ( l_incoming_menu_showing == true )
+		if ( l_incoming_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Separator
 			_DeleteMenu( g_hMenuSub_list_context, 1, MF_BYPOSITION );
@@ -2383,7 +2383,7 @@ void UpdateMenus( unsigned char action )
 			l_incoming_menu_showing = false;
 		}
 
-		if ( l_phone_menu_showing == true )
+		if ( l_phone_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_list_context, 3, MF_BYPOSITION );	// Separator
 			_RemoveMenu( g_hMenuSub_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -2393,7 +2393,7 @@ void UpdateMenus( unsigned char action )
 			l_phone_menu_showing = false;
 		}
 
-		if ( column_l_menu_showing == true )
+		if ( column_l_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_list_context, 4, MF_BYPOSITION );
 
@@ -2430,7 +2430,7 @@ void UpdateMenus( unsigned char action )
 				_SetMenuItemInfoW( g_hMenuSub_lists, 0, TRUE, &mii3 );
 			}
 
-			if ( ( ( displayinfo * )lvi.lParam )->forward_phone_number == true )
+			if ( ( ( displayinfo * )lvi.lParam )->forward_phone_number )
 			{
 				mii3.dwTypeData = ST_Remove_from_Forward_Phone_Number_List;
 				mii3.cch = 37;
@@ -2456,7 +2456,7 @@ void UpdateMenus( unsigned char action )
 				_SetMenuItemInfoW( g_hMenuSub_lists, 3, TRUE, &mii3 );
 			}
 
-			if ( ( ( displayinfo * )lvi.lParam )->ignore_phone_number == true )
+			if ( ( ( displayinfo * )lvi.lParam )->ignore_phone_number )
 			{
 				mii3.dwTypeData = ST_Remove_from_Ignore_Phone_Number_List;
 				mii3.cch = 36;
@@ -2521,7 +2521,7 @@ void UpdateMenus( unsigned char action )
 	}
 	else if ( hWnd == g_hWnd_contact_list )
 	{
-		if ( cl_phone_menu_showing == true )
+		if ( cl_phone_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_contact_list_context, 3, MF_BYPOSITION );	// Separator
 			_RemoveMenu( g_hMenuSub_contact_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -2531,7 +2531,7 @@ void UpdateMenus( unsigned char action )
 			cl_phone_menu_showing = false;
 		}
 
-		if ( cl_url_menu_showing == true )
+		if ( cl_url_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_contact_list_context, 1, MF_BYPOSITION );	// Separator
 			_DeleteMenu( g_hMenuSub_contact_list_context, 0, MF_BYPOSITION );
@@ -2539,7 +2539,7 @@ void UpdateMenus( unsigned char action )
 			cl_url_menu_showing = false;
 		}
 
-		if ( column_cl_menu_showing == true )
+		if ( column_cl_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_contact_list_context, 4, MF_BYPOSITION );
 
@@ -2582,7 +2582,7 @@ void UpdateMenus( unsigned char action )
 	}
 	else if ( hWnd == g_hWnd_ignore_list )
 	{
-		if ( il_phone_menu_showing == true )
+		if ( il_phone_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );	// Separator
 			_RemoveMenu( g_hMenuSub_ignore_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -2592,7 +2592,7 @@ void UpdateMenus( unsigned char action )
 			il_phone_menu_showing = false;
 		}
 
-		if ( column_il_menu_showing == true )
+		if ( column_il_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_ignore_list_context, 3, MF_BYPOSITION );
 
@@ -2624,7 +2624,7 @@ void UpdateMenus( unsigned char action )
 	}
 	else if ( hWnd == g_hWnd_forward_list )
 	{
-		if ( fl_phone_menu_showing == true )
+		if ( fl_phone_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_forward_list_context, 3, MF_BYPOSITION );	// Separator
 			_RemoveMenu( g_hMenuSub_forward_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -2634,7 +2634,7 @@ void UpdateMenus( unsigned char action )
 			fl_phone_menu_showing = false;
 		}
 
-		if ( column_fl_menu_showing == true )
+		if ( column_fl_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_forward_list_context, 4, MF_BYPOSITION );
 
@@ -2668,7 +2668,7 @@ void UpdateMenus( unsigned char action )
 	}
 	else if ( hWnd == g_hWnd_ignore_cid_list )
 	{
-		if ( column_il_cid_menu_showing == true )
+		if ( column_il_cid_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_ignore_cid_list_context, 4, MF_BYPOSITION );
 
@@ -2702,7 +2702,7 @@ void UpdateMenus( unsigned char action )
 	}
 	else if ( hWnd == g_hWnd_forward_cid_list )
 	{
-		if ( fl_cid_phone_menu_showing == true )
+		if ( fl_cid_phone_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_forward_cid_list_context, 3, MF_BYPOSITION );	// Separator
 			_RemoveMenu( g_hMenuSub_forward_cid_list_context, 2, MF_BYPOSITION );	// Remove instead to save the sub menu handle.
@@ -2712,7 +2712,7 @@ void UpdateMenus( unsigned char action )
 			fl_cid_phone_menu_showing = false;
 		}
 
-		if ( column_fl_cid_menu_showing == true )
+		if ( column_fl_cid_menu_showing )
 		{
 			_DeleteMenu( g_hMenuSub_forward_cid_list_context, 4, MF_BYPOSITION );
 

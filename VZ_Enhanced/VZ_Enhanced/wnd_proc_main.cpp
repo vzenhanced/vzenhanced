@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -55,7 +55,8 @@ HWND g_hWnd_edit = NULL;				// Handle to the listview edit control.
 HWND g_hWnd_tab = NULL;
 HWND g_hWnd_connection_manager = NULL;
 
-WNDPROC ListProc = NULL;
+WNDPROC ListsProc = NULL;
+WNDPROC TabListsProc = NULL;
 
 NOTIFYICONDATA g_nid;					// Tray icon information.
 
@@ -82,7 +83,7 @@ bool main_active = false;	// Ugly work-around for misaligned listview rows when 
 VOID CALLBACK UpdateTimerProc( HWND hWnd, UINT msg, UINT idTimer, DWORD dwTime )
 {
 	// We'll check the setting again in case the user turned it off before the 10 second grace period.
-	if ( cfg_check_for_updates == true )
+	if ( cfg_check_for_updates )
 	{
 		// Do not notify if it's up to date.
 		UPDATE_CHECK_INFO *update_info = ( UPDATE_CHECK_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( UPDATE_CHECK_INFO ) );
@@ -124,7 +125,7 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 				{
 					return 0;
 				}
-				else if ( fi1->forward_phone_number == true && fi2->forward_phone_number == false )
+				else if ( fi1->forward_phone_number && !fi2->forward_phone_number )
 				{
 					return 1;
 				}
@@ -141,7 +142,7 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 				{
 					return 0;
 				}
-				else if ( fi1->ignore_phone_number == true && fi2->ignore_phone_number == false )
+				else if ( fi1->ignore_phone_number && !fi2->ignore_phone_number )
 				{
 					return 1;
 				}
@@ -273,7 +274,7 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 				{
 					return 0;
 				}
-				else if ( fi1->match_case == true && fi2->match_case == false )
+				else if ( fi1->match_case && !fi2->match_case )
 				{
 					return 1;
 				}
@@ -290,7 +291,7 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 				{
 					return 0;
 				}
-				else if ( fi1->match_whole_word == true && fi2->match_whole_word == false )
+				else if ( fi1->match_whole_word && !fi2->match_whole_word )
 				{
 					return 1;
 				}
@@ -330,7 +331,7 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 				{
 					return 0;
 				}
-				else if ( fi1->match_case == true && fi2->match_case == false )
+				else if ( fi1->match_case && !fi2->match_case )
 				{
 					return 1;
 				}
@@ -347,7 +348,7 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 				{
 					return 0;
 				}
-				else if ( fi1->match_whole_word == true && fi2->match_whole_word == false )
+				else if ( fi1->match_whole_word && !fi2->match_whole_word )
 				{
 					return 1;
 				}
@@ -371,7 +372,79 @@ int CALLBACK CompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 	return 0;
 }
 
-LRESULT CALLBACK ListSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+LRESULT CALLBACK ListsSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+{
+	switch ( msg )
+	{
+		// This will essentially reconstruct the string that the open file dialog box creates when selecting multiple files.
+		case WM_DROPFILES:
+		{
+			int count = _DragQueryFileW( ( HDROP )wParam, -1, NULL, 0 );
+
+			importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GPTR, sizeof( importexportinfo ) );
+
+			if		( hWnd == g_hWnd_call_log )			{ iei->file_type = IE_CALL_LOG_HISTORY; }
+			else if ( hWnd == g_hWnd_forward_cid_list )	{ iei->file_type = IE_FORWARD_CID_LIST; }
+			else if ( hWnd == g_hWnd_forward_list )		{ iei->file_type = IE_FORWARD_PN_LIST; }
+			else if ( hWnd == g_hWnd_ignore_cid_list )	{ iei->file_type = IE_IGNORE_CID_LIST; }
+			else /*if ( hWnd == g_hWnd_ignore_list )*/	{ iei->file_type = IE_IGNORE_PN_LIST; }
+
+			wchar_t file_path[ MAX_PATH ];
+
+			int file_paths_offset = 0;	// Keeps track of the last file in filepath.
+			int file_paths_length = ( MAX_PATH * count ) + 1;
+
+			// Go through the list of paths.
+			for ( int i = 0; i < count; ++i )
+			{
+				// Get the file path and its length.
+				int file_path_length = _DragQueryFileW( ( HDROP )wParam, i, file_path, MAX_PATH ) + 1;	// Include the NULL terminator.
+
+				// Skip any folders that were dropped.
+				if ( ( GetFileAttributes( file_path ) & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
+				{
+					if ( iei->file_paths == NULL )
+					{
+						iei->file_paths = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * file_paths_length );
+						iei->file_offset = file_path_length;
+
+						// Find the last occurance of "\" in the string.
+						while ( iei->file_offset != 0 && file_path[ --iei->file_offset ] != L'\\' );
+
+						// Save the root directory name.
+						_wmemcpy_s( iei->file_paths, file_paths_length - iei->file_offset, file_path, iei->file_offset );
+
+						file_paths_offset = ++iei->file_offset;
+					}
+
+					// Copy the file name. Each is separated by the NULL character.
+					_wmemcpy_s( iei->file_paths + file_paths_offset, file_paths_length - file_paths_offset, file_path + iei->file_offset, file_path_length - iei->file_offset );
+
+					file_paths_offset += ( file_path_length - iei->file_offset );
+				}
+			}
+
+			_DragFinish( ( HDROP )wParam );
+
+			if ( iei->file_paths != NULL )
+			{
+				// iei will be freed in the import_list thread.
+				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, import_list, ( void * )iei, 0, NULL ) );
+			}
+			else	// No files were dropped.
+			{
+				GlobalFree( iei );
+			}
+
+			return 0;
+		}
+		break;
+	}
+
+	return _CallWindowProcW( ListsProc, hWnd, msg, wParam, lParam );
+}
+
+LRESULT CALLBACK TabListsSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
 	switch ( msg )
 	{
@@ -405,12 +478,12 @@ LRESULT CALLBACK ListSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				bool selected = false;
 				if ( dis->itemState & ( ODS_FOCUS || ODS_SELECTED ) )
 				{
-					if ( ( skip_log_draw == true && dis->hwndItem == g_hWnd_call_log ) ||
-						 ( skip_contact_draw == true && dis->hwndItem == g_hWnd_contact_list ) ||
-						 ( skip_ignore_draw == true && dis->hwndItem == g_hWnd_ignore_list ) ||
-						 ( skip_ignore_cid_draw == true && dis->hwndItem == g_hWnd_ignore_cid_list ) ||
-						 ( skip_forward_draw == true && dis->hwndItem == g_hWnd_forward_list ) ||
-						 ( skip_forward_cid_draw == true && dis->hwndItem == g_hWnd_forward_cid_list ) )
+					if ( ( skip_log_draw && dis->hwndItem == g_hWnd_call_log ) ||
+						 ( skip_contact_draw && dis->hwndItem == g_hWnd_contact_list ) ||
+						 ( skip_ignore_draw && dis->hwndItem == g_hWnd_ignore_list ) ||
+						 ( skip_ignore_cid_draw && dis->hwndItem == g_hWnd_ignore_cid_list ) ||
+						 ( skip_forward_draw && dis->hwndItem == g_hWnd_forward_list ) ||
+						 ( skip_forward_cid_draw && dis->hwndItem == g_hWnd_forward_cid_list ) )
 					{
 						return TRUE;	// Don't draw selected items because their lParam values are being deleted.
 					}
@@ -680,7 +753,7 @@ LRESULT CALLBACK ListSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					_SetBkMode( hdcMem, TRANSPARENT );
 
 					// Draw selected text
-					if ( selected == true )
+					if ( selected )
 					{
 						// Fill the background.
 						HBRUSH color = _CreateSolidBrush( ( COLORREF )_GetSysColor( COLOR_HIGHLIGHT ) );
@@ -706,7 +779,7 @@ LRESULT CALLBACK ListSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						}
 						else
 						{
-							_SetTextColor( hdcMem, ( ( ( displayinfo * )dis->itemData )->ci.ignored == true ? RGB( 0xFF, 0x00, 0x00 ) : ( ( displayinfo * )dis->itemData )->ci.forwarded == true ? RGB( 0xFF, 0x80, 0x00 ) : RGB( 0x00, 0x00, 0x00 ) ) );
+							_SetTextColor( hdcMem, ( ( ( displayinfo * )dis->itemData )->ci.ignored ? RGB( 0xFF, 0x00, 0x00 ) : ( ( displayinfo * )dis->itemData )->ci.forwarded ? RGB( 0xFF, 0x80, 0x00 ) : RGB( 0x00, 0x00, 0x00 ) ) );
 						}
 						_DrawTextW( hdcMem, buf, -1, &rc, DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS );
 						_BitBlt( dis->hDC, dis->rcItem.left + last_rc.left, last_rc.top, width, height, hdcMem, 0, 0, SRCAND );
@@ -721,7 +794,7 @@ LRESULT CALLBACK ListSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 		break;
 	}
 
-	return _CallWindowProcW( ListProc, hWnd, msg, wParam, lParam );
+	return _CallWindowProcW( TabListsProc, hWnd, msg, wParam, lParam );
 }
 
 LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
@@ -770,6 +843,13 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			_SendMessageW( g_hWnd_ignore_cid_list, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_ignore_list, WM_SETFONT, ( WPARAM )hFont, 0 );
 
+			// Allow drag and drop for the listview.
+			_DragAcceptFiles( g_hWnd_call_log, TRUE );
+			_DragAcceptFiles( g_hWnd_forward_cid_list, TRUE );
+			_DragAcceptFiles( g_hWnd_forward_list, TRUE );
+			_DragAcceptFiles( g_hWnd_ignore_cid_list, TRUE );
+			_DragAcceptFiles( g_hWnd_ignore_list, TRUE );
+
 			TCITEM ti;
 			_memzero( &ti, sizeof( TCITEM ) );
 			ti.mask = TCIF_PARAM | TCIF_TEXT;			// The tab will have text and an lParam value.
@@ -786,11 +866,21 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			ti.lParam = ( LPARAM )g_hWnd_ignore_list;
 			_SendMessageW( g_hWnd_ignore_tab, TCM_INSERTITEM, 1, ( LPARAM )&ti );	// Insert a new tab at the end.
 
-			ListProc = ( WNDPROC )_GetWindowLongW( g_hWnd_tab, GWL_WNDPROC );
-			_SetWindowLongW( g_hWnd_tab, GWL_WNDPROC, ( LONG )ListSubProc );
-			_SetWindowLongW( g_hWnd_forward_tab, GWL_WNDPROC, ( LONG )ListSubProc );
-			_SetWindowLongW( g_hWnd_ignore_tab, GWL_WNDPROC, ( LONG )ListSubProc );
+			// Handles drag and drop in the listviews.
+			ListsProc = ( WNDPROC )_GetWindowLongW( g_hWnd_call_log, GWL_WNDPROC );
+			_SetWindowLongW( g_hWnd_call_log, GWL_WNDPROC, ( LONG )ListsSubProc );
+			_SetWindowLongW( g_hWnd_forward_cid_list, GWL_WNDPROC, ( LONG )ListsSubProc );
+			_SetWindowLongW( g_hWnd_forward_list, GWL_WNDPROC, ( LONG )ListsSubProc );
+			_SetWindowLongW( g_hWnd_ignore_cid_list, GWL_WNDPROC, ( LONG )ListsSubProc );
+			_SetWindowLongW( g_hWnd_ignore_list, GWL_WNDPROC, ( LONG )ListsSubProc );
 
+			// Handles the drawing of the listviews in the tab controls.
+			TabListsProc = ( WNDPROC )_GetWindowLongW( g_hWnd_tab, GWL_WNDPROC );
+			_SetWindowLongW( g_hWnd_tab, GWL_WNDPROC, ( LONG )TabListsSubProc );
+			_SetWindowLongW( g_hWnd_forward_tab, GWL_WNDPROC, ( LONG )TabListsSubProc );
+			_SetWindowLongW( g_hWnd_ignore_tab, GWL_WNDPROC, ( LONG )TabListsSubProc );
+
+			// Handles the drawing of the main tab control.
 			TabProc = ( WNDPROC )_GetWindowLongW( g_hWnd_tab, GWL_WNDPROC );
 			_SetWindowLongW( g_hWnd_tab, GWL_WNDPROC, ( LONG )TabSubProc );
 
@@ -940,7 +1030,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 			_SendMessageW( g_hWnd_ignore_cid_list, LVM_SETCOLUMNORDERARRAY, total_columns6, ( LPARAM )arr );
 
-			if ( cfg_tray_icon == true )
+			if ( cfg_tray_icon )
 			{
 				_memzero( &g_nid, sizeof( NOTIFYICONDATA ) );
 				g_nid.cbSize = sizeof( g_nid );
@@ -954,15 +1044,16 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				_Shell_NotifyIconW( NIM_ADD, &g_nid );
 			}
 
-			if ( cfg_enable_call_log_history == true )
+			if ( cfg_enable_call_log_history )
 			{
 				importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof( importexportinfo ) );
 
-				iei->file_path = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-				_wmemcpy_s( iei->file_path, MAX_PATH, base_directory, base_directory_length );
-				_wmemcpy_s( iei->file_path + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history\0", 18 );
-				iei->file_path[ base_directory_length + 17 ] = 0;	// Sanity.
-
+				// Include an empty string.
+				iei->file_paths = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * ( MAX_PATH + 1 ) );
+				_wmemcpy_s( iei->file_paths, MAX_PATH, base_directory, base_directory_length );
+				_wmemcpy_s( iei->file_paths + ( base_directory_length + 1 ), MAX_PATH - ( base_directory_length - 1 ), L"call_log_history\0", 17 );
+				iei->file_paths[ base_directory_length + 17 ] = 0;	// Sanity.
+				iei->file_offset = ( unsigned short )( base_directory_length + 1 );
 				iei->file_type = LOAD_CALL_LOG_HISTORY;
 
 				// iei will be freed in the import_list thread.
@@ -1010,14 +1101,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			// fcidui is freed in the update_forward_cid_list thread.
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_cid_list, ( void * )fcidui, 0, NULL ) );
 
-			if ( cfg_check_for_updates == true )
+			if ( cfg_check_for_updates )
 			{
 				// Check after 10 seconds.
 				_SetTimer( hWnd, IDT_UPDATE_TIMER, 10000, ( TIMERPROC )UpdateTimerProc );
 			}
 
-			// Automatically save our call log and lists after 24 hours.
-			_SetTimer( hWnd, IDT_SAVE_TIMER, 86400000, ( TIMERPROC )SaveTimerProc );
+			// Automatically save our call log and lists after 12 hours.
+			_SetTimer( hWnd, IDT_SAVE_TIMER, 43200000, ( TIMERPROC )SaveTimerProc );
 
 			return 0;
 		}
@@ -1077,7 +1168,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			if ( ( BOOL )wParam == FALSE )
 			{
 				// And a context menu was open, then revert the context menu additions.
-				if ( last_menu == true )
+				if ( last_menu )
 				{
 					UpdateMenus( UM_ENABLE );
 
@@ -1195,37 +1286,13 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						{
 							// Forceful shutdown.
 							incoming_con.state = LOGGING_OUT;
-							if ( incoming_con.ssl_socket != NULL )
-							{
-								_shutdown( incoming_con.ssl_socket->s, SD_BOTH );
-							}
-
-							if ( incoming_con.socket != INVALID_SOCKET )
-							{
-								_shutdown( incoming_con.socket, SD_BOTH );
-							}
+							CleanupConnection( &incoming_con );
 
 							worker_con.state = LOGGING_OUT;
-							if ( worker_con.ssl_socket != NULL )
-							{
-								_shutdown( worker_con.ssl_socket->s, SD_BOTH );
-							}
-
-							if ( worker_con.socket != INVALID_SOCKET )
-							{
-								_shutdown( worker_con.socket, SD_BOTH );
-							}
+							CleanupConnection( &worker_con );
 
 							main_con.state = LOGGING_OUT;
-							if ( main_con.ssl_socket != NULL )
-							{
-								_shutdown( main_con.ssl_socket->s, SD_BOTH );
-							}
-
-							if ( main_con.socket != INVALID_SOCKET )
-							{
-								_shutdown( main_con.socket, SD_BOTH );
-							}
+							CleanupConnection( &main_con );
 
 							// If we're in the reconnect loop, then exit.
 							if ( reconnect_semaphore != NULL )
@@ -1608,14 +1675,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 									}
 								#endif
 
-								if ( destroy == true )
+								if ( destroy )
 								{
 									_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
 								}
 
 								_ShellExecuteW( NULL, L"open", ci->web_page, NULL, NULL, SW_SHOWNORMAL );
 
-								if ( destroy == true )
+								if ( destroy )
 								{
 									_CoUninitialize();
 								}
@@ -1649,8 +1716,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							++phone_number;
 						}
 
-						wchar_t *url = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * 128 );
-						_memzero( url, sizeof( wchar_t ) * 128 );
+						wchar_t *url = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * 128 );
 
 						switch ( LOWORD( wParam ) )
 						{
@@ -1674,14 +1740,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							}
 						#endif
 
-						if ( destroy == true )
+						if ( destroy )
 						{
 							_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
 						}
 
 						_ShellExecuteW( NULL, L"open", url, NULL, NULL, SW_SHOWNORMAL );
 
-						if ( destroy == true )
+						if ( destroy )
 						{
 							_CoUninitialize();
 						}
@@ -1718,14 +1784,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 									}
 								#endif
 
-								if ( destroy == true )
+								if ( destroy )
 								{
 									_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
 								}
 
 								_ShellExecuteW( NULL, L"open", mailto, NULL, NULL, SW_SHOWNORMAL );
 
-								if ( destroy == true )
+								if ( destroy )
 								{
 									_CoUninitialize();
 								}
@@ -1755,7 +1821,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						if ( g_hWnd_dial == NULL )
 						{
-							g_hWnd_dial = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Dial_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )0 );
+							g_hWnd_dial = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"phone", ST_Dial_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )0 );
 						}
 
 						_SendMessageW( g_hWnd_dial, WM_PROPAGATE, 0, ( LPARAM )call_to );
@@ -1792,7 +1858,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( g_hWnd_ignore_phone_number == NULL )
 						{
 							// Allow wildcard input. (Last parameter of CreateWindow is 1)
-							g_hWnd_ignore_phone_number = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Ignore_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )1 );
+							g_hWnd_ignore_phone_number = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"phone", ST_Ignore_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 255 ) / 2 ), 205, 255, NULL, NULL, NULL, ( LPVOID )1 );
 						}
 
 						_SendMessageW( g_hWnd_ignore_phone_number, WM_PROPAGATE, 2, 0 );
@@ -1806,7 +1872,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_ignore_cid == NULL )
 						{
-							g_hWnd_ignore_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Ignore_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 205, 170, NULL, NULL, NULL, ( LPVOID )0 );
+							g_hWnd_ignore_cid = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"cid", ST_Ignore_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 205, 170, NULL, NULL, NULL, ( LPVOID )0 );
 						}
 
 						if ( LOWORD( wParam ) == MENU_ADD_IGNORE_CID_LIST )
@@ -1846,7 +1912,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							if ( LOWORD( wParam ) == MENU_IGNORE_LIST )
 							{
 								// This item we've selected is in the ignorelist tree.
-								if ( ( ( displayinfo * )lvi.lParam )->ignore_phone_number == true )
+								if ( ( ( displayinfo * )lvi.lParam )->ignore_phone_number )
 								{
 									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries_ipn, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
 									{
@@ -1895,7 +1961,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								{
 									if ( g_hWnd_ignore_cid == NULL )
 									{
-										g_hWnd_ignore_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Ignore_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 205, 170, NULL, NULL, NULL, ( LPVOID )0 );
+										g_hWnd_ignore_cid = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"cid", ST_Ignore_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 170 ) / 2 ), 205, 170, NULL, NULL, NULL, ( LPVOID )0 );
 									}
 
 									_SendMessageW( g_hWnd_ignore_cid, WM_PROPAGATE, ( _SendMessageW( g_hWnd_call_log, LVM_GETSELECTEDCOUNT, 0, 0 ) > 1 ? 6 : 2 ), lvi.lParam );
@@ -1914,7 +1980,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( g_hWnd_forward == NULL )
 						{
 							// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
-							g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
+							g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
 						}
 
 						if ( LOWORD( wParam ) == MENU_ADD_FORWARD_LIST )
@@ -1958,7 +2024,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_forward_cid == NULL )
 						{
-							g_hWnd_forward_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Forward_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 210 ) / 2 ), 205, 210, NULL, NULL, NULL, ( LPVOID )1 );
+							g_hWnd_forward_cid = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"cid", ST_Forward_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 210 ) / 2 ), 205, 210, NULL, NULL, NULL, ( LPVOID )1 );
 						}
 
 						if ( LOWORD( wParam ) == MENU_ADD_FORWARD_CID_LIST )
@@ -1998,7 +2064,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							if ( LOWORD( wParam ) == MENU_FORWARD_LIST )
 							{
 								// This item we've selected is in the forwardlist tree.
-								if ( ( ( displayinfo * )lvi.lParam )->forward_phone_number == true )
+								if ( ( ( displayinfo * )lvi.lParam )->forward_phone_number )
 								{
 									if ( _MessageBoxW( hWnd, ST_PROMPT_remove_entries_fpn, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONQUESTION | MB_YESNO ) == IDYES )
 									{
@@ -2018,7 +2084,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 									if ( g_hWnd_forward == NULL )
 									{
 										// Show forward window with the forward edit box enabled and allow wildcard input. (Last parameter of CreateWindow is 2)
-										g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
+										g_hWnd_forward = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"phone", ST_Forward_Phone_Number, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 295 ) / 2 ), 205, 295, NULL, NULL, NULL, ( LPVOID )2 );
 									}
 
 									_SendMessageW( g_hWnd_forward, WM_PROPAGATE, ( _SendMessageW( g_hWnd_call_log, LVM_GETSELECTEDCOUNT, 0, 0 ) > 1 ? 5 : 1 ), lvi.lParam );
@@ -2050,7 +2116,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								{
 									if ( g_hWnd_forward_cid == NULL )
 									{
-										g_hWnd_forward_cid = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"cid", ST_Forward_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 210 ) / 2 ), 205, 210, NULL, NULL, NULL, ( LPVOID )1 );
+										g_hWnd_forward_cid = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"cid", ST_Forward_Caller_ID_Name, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 205 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 210 ) / 2 ), 205, 210, NULL, NULL, NULL, ( LPVOID )1 );
 									}
 
 									_SendMessageW( g_hWnd_forward_cid, WM_PROPAGATE, ( _SendMessageW( g_hWnd_call_log, LVM_GETSELECTEDCOUNT, 0, 0 ) > 1 ? 5 : 1 ), lvi.lParam );
@@ -2067,7 +2133,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						if ( g_hWnd_columns == NULL )
 						{
 							// Show columns window.
-							g_hWnd_columns = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"columns", ST_Select_Columns, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 410 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - MIN_HEIGHT ) / 2 ), 410, MIN_HEIGHT, NULL, NULL, NULL, NULL );
+							g_hWnd_columns = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"columns", ST_Select_Columns, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 410 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - MIN_HEIGHT ) / 2 ), 410, MIN_HEIGHT, NULL, NULL, NULL, NULL );
 						}
 
 						unsigned char index = 0;
@@ -2104,7 +2170,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_contact == NULL )
 						{
-							g_hWnd_contact = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"contact", ST_Contact_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 550 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 550, 290, NULL, NULL, NULL, NULL );
+							g_hWnd_contact = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"contact", ST_Contact_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 550 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 550, 290, NULL, NULL, NULL, NULL );
 						}
 
 						if ( LOWORD( wParam ) == MENU_EDIT_CONTACT )
@@ -2147,7 +2213,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_account == NULL )
 						{
-							g_hWnd_account = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"account", ST_Account_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 290 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 290, 290, NULL, NULL, NULL, NULL );
+							g_hWnd_account = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"account", ST_Account_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 290 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 290, 290, NULL, NULL, NULL, NULL );
 							_ShowWindow( g_hWnd_account, SW_SHOWNORMAL );
 						}
 						_SetForegroundWindow( g_hWnd_account );
@@ -2156,8 +2222,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_EXPORT_CONTACTS:
 					{
-						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-						_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
+						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 						OPENFILENAME ofn;
 						_memzero( &ofn, sizeof( OPENFILENAME ) );
@@ -2173,7 +2238,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						if ( _GetSaveFileNameW( &ofn ) )
 						{
-							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof ( importexportinfo ) );
+							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof( importexportinfo ) );
 
 							// Change the default extension for vCard files.
 							if ( ofn.nFilterIndex == 2 )
@@ -2195,7 +2260,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								//}
 							}
 
-							iei->file_path = file_name;
+							iei->file_paths = file_name;
 
 							iei->file_type = ( unsigned char )( ofn.nFilterIndex - 1 );
 
@@ -2220,8 +2285,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							break;
 						}
 
-						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-						_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
+						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 						OPENFILENAME ofn;
 						_memzero( &ofn, sizeof( OPENFILENAME ) );
@@ -2236,9 +2300,9 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 						if ( _GetOpenFileNameW( &ofn ) )
 						{
-							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof ( importexportinfo ) );
+							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof( importexportinfo ) );
 
-							iei->file_path = file_name;
+							iei->file_paths = file_name;
 
 							iei->file_type = ( unsigned char )( ofn.nFilterIndex - 1 );
 
@@ -2254,8 +2318,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_SAVE_CALL_LOG:
 					{
-						wchar_t *file_path = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-						_memzero( file_path, sizeof ( wchar_t ) * MAX_PATH );
+						wchar_t *file_path = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 						OPENFILENAME ofn;
 						_memzero( &ofn, sizeof( OPENFILENAME ) );
@@ -2282,8 +2345,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_EXPORT_LIST:
 					{
-						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-						_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
+						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 						OPENFILENAME ofn;
 						_memzero( &ofn, sizeof( OPENFILENAME ) );
@@ -2300,9 +2362,19 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						ofn.nMaxFile = MAX_PATH;
 						ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_READONLY;
 
+						HWND c_hWnd = GetCurrentListView();
+						if ( c_hWnd != NULL )
+						{
+							if		( c_hWnd == g_hWnd_call_log )			{ ofn.nFilterIndex = 1; }
+							else if ( c_hWnd == g_hWnd_forward_cid_list )	{ ofn.nFilterIndex = 2; }
+							else if ( c_hWnd == g_hWnd_forward_list )		{ ofn.nFilterIndex = 3; }
+							else if ( c_hWnd == g_hWnd_ignore_cid_list )	{ ofn.nFilterIndex = 4; }
+							else if ( c_hWnd == g_hWnd_ignore_list )		{ ofn.nFilterIndex = 5; }
+						}
+
 						if ( _GetSaveFileNameW( &ofn ) )
 						{
-							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof ( importexportinfo ) );
+							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof( importexportinfo ) );
 
 							/*// Change the default extension for the call log history.
 							if ( ofn.nFilterIndex == 1 )
@@ -2324,7 +2396,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 								//}
 							}*/
 
-							iei->file_path = file_name;
+							iei->file_paths = file_name;
 
 							iei->file_type = ( unsigned char )( 5 - ofn.nFilterIndex );
 
@@ -2340,8 +2412,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_IMPORT_LIST:
 					{
-						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-						_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
+						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * ( MAX_PATH * MAX_PATH ) );
 
 						OPENFILENAME ofn;
 						_memzero( &ofn, sizeof( OPENFILENAME ) );
@@ -2354,15 +2425,25 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 										  L"Ignore Phone Number List\0*.*\0";
 						ofn.lpstrTitle = ST_Import;
 						ofn.lpstrFile = file_name;
-						ofn.nMaxFile = MAX_PATH;
-						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_READONLY;
+						ofn.nMaxFile = MAX_PATH * MAX_PATH;
+						ofn.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_READONLY;
+
+						HWND c_hWnd = GetCurrentListView();
+						if ( c_hWnd != NULL )
+						{
+							if		( c_hWnd == g_hWnd_call_log )			{ ofn.nFilterIndex = 1; }
+							else if ( c_hWnd == g_hWnd_forward_cid_list )	{ ofn.nFilterIndex = 2; }
+							else if ( c_hWnd == g_hWnd_forward_list )		{ ofn.nFilterIndex = 3; }
+							else if ( c_hWnd == g_hWnd_ignore_cid_list )	{ ofn.nFilterIndex = 4; }
+							else if ( c_hWnd == g_hWnd_ignore_list )		{ ofn.nFilterIndex = 5; }
+						}
 
 						if ( _GetOpenFileNameW( &ofn ) )
 						{
-							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof ( importexportinfo ) );
+							importexportinfo *iei = ( importexportinfo * )GlobalAlloc( GMEM_FIXED, sizeof( importexportinfo ) );
 
-							iei->file_path = file_name;
-
+							iei->file_paths = file_name;
+							iei->file_offset = ofn.nFileOffset;
 							iei->file_type = ( unsigned char )( 5 - ofn.nFilterIndex );
 
 							// iei will be freed in the import_list thread.
@@ -2379,7 +2460,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_options == NULL )
 						{
-							g_hWnd_options = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 470 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 395 ) / 2 ), 470, 395, NULL, NULL, NULL, NULL );
+							g_hWnd_options = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"options", ST_Options, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 470 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 395 ) / 2 ), 470, 395, NULL, NULL, NULL, NULL );
 							_ShowWindow( g_hWnd_options, SW_SHOWNORMAL );
 						}
 						_SetForegroundWindow( g_hWnd_options );
@@ -2396,14 +2477,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							}
 						#endif
 
-						if ( destroy == true )
+						if ( destroy )
 						{
 							_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
 						}
 
 						_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
 
-						if ( destroy == true )
+						if ( destroy )
 						{
 							_CoUninitialize();
 						}
@@ -2416,15 +2497,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						{
 							// Forceful shutdown.
 							update_con.state = CONNECTION_CANCEL;
-							if ( update_con.ssl_socket != NULL )
-							{
-								_shutdown( update_con.ssl_socket->s, SD_BOTH );
-							}
-
-							if ( update_con.socket != INVALID_SOCKET )
-							{
-								_shutdown( update_con.socket, SD_BOTH );
-							}
+							CleanupConnection( &update_con );
 						}
 						else
 						{
@@ -2439,7 +2512,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.4\r\n\r\nCopyright \xA9 2013-2015 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.5\r\n\r\nCopyright \xA9 2013-2016 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -2677,7 +2750,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				case LVN_KEYDOWN:
 				{
 					// Make sure the control key is down and that we're not already in a worker thread. Prevents threads from queuing in case the user falls asleep on their keyboard.
-					if ( _GetKeyState( VK_CONTROL ) & 0x8000 && in_worker_thread == false )
+					if ( _GetKeyState( VK_CONTROL ) & 0x8000 && !in_worker_thread )
 					{
 						NMLISTVIEW *nmlv = ( NMLISTVIEW * )lParam;
 
@@ -2806,7 +2879,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				{
 					NMLISTVIEW *nmlv = ( NMLISTVIEW * )lParam;
 
-					if ( in_worker_thread == false )
+					if ( !in_worker_thread )
 					{
 						UpdateMenus( ( _SendMessageW( nmlv->hdr.hwndFrom, LVM_GETSELECTEDCOUNT, 0, 0 ) > 0 ? UM_ENABLE : UM_DISABLE ) );
 					}
@@ -2829,7 +2902,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 		case WM_SYSCOMMAND:
 		{
-			if ( wParam == SC_MINIMIZE && cfg_tray_icon == true && cfg_minimize_to_tray == true )
+			if ( wParam == SC_MINIMIZE && cfg_tray_icon && cfg_minimize_to_tray )
 			{
 				_ShowWindow( hWnd, SW_HIDE );
 
@@ -2871,14 +2944,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						}
 					#endif
 
-					if ( destroy == true )
+					if ( destroy )
 					{
 						_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
 					}
 
 					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
 
-					if ( destroy == true )
+					if ( destroy )
 					{
 						_CoUninitialize();
 					}
@@ -2896,14 +2969,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						}
 					#endif
 
-					if ( destroy == true )
+					if ( destroy )
 					{
 						_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
 					}
 
 					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
 
-					if ( destroy == true )
+					if ( destroy )
 					{
 						_CoUninitialize();
 					}
@@ -2933,13 +3006,13 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				if ( HIWORD( wParam ) == 0 )
 				{
 					// Work-around for misaligned listview rows.
-					if ( main_active == true )
+					if ( main_active )
 					{
 						// Scroll to the newest entry.
 						_SendMessageW( g_hWnd_call_log, LVM_ENSUREVISIBLE, index, FALSE );
 					}
 
-					if ( cfg_enable_popups == true )
+					if ( cfg_enable_popups )
 					{
 						CreatePopup( di );
 					}
@@ -3019,7 +3092,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 		case WM_CLOSE:
 		{
-			if ( cfg_tray_icon == true && cfg_close_to_tray == true )
+			if ( cfg_tray_icon && cfg_close_to_tray )
 			{
 				_ShowWindow( hWnd, SW_HIDE );
 			}
@@ -3095,14 +3168,20 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			_EnableWindow( hWnd, FALSE );
 			_ShowWindow( hWnd, SW_HIDE );
 
+			if ( cfg_tray_icon )
+			{
+				// Remove the icon from the notification area.
+				_Shell_NotifyIconW( NIM_DELETE, &g_nid );
+			}
+
 			// If we're in a secondary thread, then kill it (cleanly) and wait for it to exit.
-			if ( in_worker_thread == true ||
-				 in_connection_thread == true ||
-				 in_connection_worker_thread == true ||
-				 in_connection_incoming_thread == true ||
-				 in_update_check_thread == true ||
-				 in_ml_update_thread == true ||
-				 in_ml_worker_thread == true )
+			if ( in_worker_thread ||
+				 in_connection_thread ||
+				 in_connection_worker_thread ||
+				 in_connection_incoming_thread ||
+				 in_update_check_thread ||
+				 in_ml_update_thread ||
+				 in_ml_worker_thread )
 			{
 				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, cleanup, ( void * )NULL, 0, NULL ) );
 			}
@@ -3179,12 +3258,13 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 			_KillTimer( hWnd, IDT_SAVE_TIMER );
 
-			if ( cfg_enable_call_log_history == true && call_log_changed == true )
+			if ( cfg_enable_call_log_history && call_log_changed )
 			{
 				_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history\0", 18 );
 				base_directory[ base_directory_length + 17 ] = 0;	// Sanity.
 
 				save_call_log_history( base_directory );
+				call_log_changed = false;
 			}
 
 			// Get the number of items in the listview.
@@ -3206,12 +3286,6 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			UpdateColumnOrders();
 
 			DestroyMenus();
-
-			if ( cfg_tray_icon == true )
-			{
-				// Remove the icon from the notification area.
-				_Shell_NotifyIconW( NIM_DELETE, &g_nid );
-			}
 
 			_DestroyWindow( hWnd );
 		}

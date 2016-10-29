@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 					}
 				#endif
 
-				if ( use_theme == true )
+				if ( use_theme )
 				{
 					// Open our tab theme. Closed in WM_DESTROY of the tab subclass.
 					hTheme = _OpenThemeData( hWnd, L"Tab" );
@@ -98,7 +98,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 		{
 			tab_is_dragging = ( ( HWND )lParam == hWnd ) ? true : false;
 
-			if ( tab_is_dragging == false )
+			if ( !tab_is_dragging )
 			{
 				cur_over = -1;
 				tab_moved = false;
@@ -125,7 +125,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 		case WM_LBUTTONUP:
 		{
-			if ( tab_is_dragging == true )
+			if ( tab_is_dragging )
 			{
 				int index = _SendMessageW( hWnd, TCM_GETCURSEL, 0, 0 );		// Get the selected tab
 
@@ -135,7 +135,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 					int new_index = 0;
 
 					// The point we dragged to is to the right of the hittest tab item.
-					if ( drag_pos == true )
+					if ( drag_pos )
 					{
 						new_index = cur_over + 1;
 					}
@@ -230,12 +230,12 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 			// Find the current tab item that the mouse is over.
 			TCHITTESTINFO tcht;
 			tcht.pt.x = GET_X_LPARAM( lParam );
-			tcht.pt.y = ( tab_is_dragging == true ? tab_y_pos : GET_Y_LPARAM( lParam ) );
+			tcht.pt.y = ( tab_is_dragging ? tab_y_pos : GET_Y_LPARAM( lParam ) );
 			tcht.flags = TCHT_ONITEM;
 
 			cur_over = _SendMessageW( hWnd, TCM_HITTEST, 0, ( LPARAM )&tcht );
 
-			if ( tab_is_dragging == true )
+			if ( tab_is_dragging )
 			{
 				cur_tab_x_pos = GET_X_LPARAM( lParam );
 
@@ -311,7 +311,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 			// Create and save a bitmap in memory to paint to. (Double buffer)
 			HDC hdcMem = _CreateCompatibleDC( hDC );
 
-			if ( hbm_tab == NULL || size_changed == true )
+			if ( hbm_tab == NULL || size_changed )
 			{
 				if ( hbm_tab != NULL )
 				{
@@ -381,7 +381,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 							if ( hTheme != NULL )
 							{
-								if ( tab_is_dragging == true )
+								if ( tab_is_dragging )
 								{
 									_DrawThemeBackground( hTheme, hdcMem, TABP_TABITEM, TIS_FOCUSED, &rc_tab, 0 );
 								}
@@ -412,7 +412,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 			}
 
 			// Draw the dragging anchor on top of the TIS_FOCUSED item.
-			if ( tab_is_dragging == true && cur_over != -1 )
+			if ( tab_is_dragging && cur_over != -1 )
 			{
 				_SendMessageW( hWnd, TCM_GETITEMRECT, cur_over, ( LPARAM )&rc_tab );
 
@@ -423,7 +423,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 				rectangle.bottom = rc_tab.bottom;
 				
 				HBRUSH hBrush = _CreateSolidBrush( ( COLORREF )_GetSysColor( COLOR_HOTLIGHT ) );
-				if ( drag_pos == true )	// Draw right anchor
+				if ( drag_pos )	// Draw right anchor
 				{
 					rectangle.right = rc_tab.right + 1;
 					rectangle.left = rc_tab.right - 1;
@@ -479,7 +479,7 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 				_DrawTextW( hdcMem, tab_text, -1, &rc_text, DT_CENTER | DT_VCENTER | DT_NOPREFIX | DT_SINGLELINE | DT_END_ELLIPSIS );
 
 				// Draw the transparent selected tab on top of everything else.
-				if ( tab_is_dragging == true && tab_moved == true )
+				if ( tab_is_dragging && tab_moved )
 				{
 					// Tab position.
 					RECT rc_drag_tab;
@@ -562,6 +562,8 @@ LRESULT CALLBACK TabSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 			#ifndef UXTHEME_USE_STATIC_LIB
 				UnInitializeUXTheme();
 			#endif
+
+			return 0;
 		}
 		break;
 	}

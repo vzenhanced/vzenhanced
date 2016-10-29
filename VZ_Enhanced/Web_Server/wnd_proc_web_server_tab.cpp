@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "lite_comdlg32.h"
 #include "lite_ole32.h"
 #include "lite_user32.h"
+#include "lite_normaliz.h"
 
 #include "file_operations.h"
 #include "utilities.h"
@@ -154,13 +155,33 @@ void SaveWebServerSettings()
 
 	cfg_address_type = ( _SendMessageW( g_hWnd_chk_type_ip_address, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? 1 : 0 );
 
-	unsigned int hostname_length = _SendMessageW( g_hWnd_hostname, WM_GETTEXTLENGTH, 0, 0 );
+	unsigned int hostname_length = _SendMessageW( g_hWnd_hostname, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 	if ( cfg_hostname != NULL )
 	{
 		GlobalFree( cfg_hostname );
 	}
-	cfg_hostname = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( hostname_length + 1 ) );
-	_SendMessageW( g_hWnd_hostname, WM_GETTEXT, hostname_length + 1, ( LPARAM )cfg_hostname );
+	cfg_hostname = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * hostname_length );
+	_SendMessageW( g_hWnd_hostname, WM_GETTEXT, hostname_length, ( LPARAM )cfg_hostname );
+
+	if ( normaliz_state == NORMALIZ_STATE_RUNNING )
+	{
+		if ( cfg_address_type == 0 )
+		{
+			if ( g_punycode_hostname != NULL )
+			{
+				GlobalFree( g_punycode_hostname );
+				g_punycode_hostname = NULL;
+			}
+
+			int punycode_length = _IdnToAscii( 0, cfg_hostname, hostname_length, NULL, 0 );
+
+			if ( punycode_length > ( int )hostname_length )
+			{
+				g_punycode_hostname = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * punycode_length );
+				_IdnToAscii( 0, cfg_hostname, hostname_length, g_punycode_hostname, punycode_length );
+			}
+		}
+	}
 
 	_SendMessageW( g_hWnd_ip_address, IPM_GETADDRESS, 0, ( LPARAM )&cfg_ip_address );
 
@@ -180,22 +201,22 @@ void SaveWebServerSettings()
 
 	cfg_use_authentication = ( _SendMessageW( g_hWnd_chk_use_authentication, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
-	unsigned int authentication_username_length = _SendMessageW( g_hWnd_authentication_username, WM_GETTEXTLENGTH, 0, 0 );
+	unsigned int authentication_username_length = _SendMessageW( g_hWnd_authentication_username, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 	if ( cfg_authentication_username != NULL )
 	{
 		GlobalFree( cfg_authentication_username );
 	}
-	cfg_authentication_username = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( authentication_username_length + 1 ) );
-	_SendMessageW( g_hWnd_authentication_username, WM_GETTEXT, authentication_username_length + 1, ( LPARAM )cfg_authentication_username );
+	cfg_authentication_username = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * authentication_username_length );
+	_SendMessageW( g_hWnd_authentication_username, WM_GETTEXT, authentication_username_length, ( LPARAM )cfg_authentication_username );
 
 
-	unsigned int authentication_password_length = _SendMessageW( g_hWnd_authentication_password, WM_GETTEXTLENGTH, 0, 0 );
+	unsigned int authentication_password_length = _SendMessageW( g_hWnd_authentication_password, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 	if ( cfg_authentication_password != NULL )
 	{
 		GlobalFree( cfg_authentication_password );
 	}
-	cfg_authentication_password = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( authentication_password_length + 1 ) );
-	_SendMessageW( g_hWnd_authentication_password, WM_GETTEXT, authentication_password_length + 1, ( LPARAM )cfg_authentication_password );
+	cfg_authentication_password = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * authentication_password_length );
+	_SendMessageW( g_hWnd_authentication_password, WM_GETTEXT, authentication_password_length, ( LPARAM )cfg_authentication_password );
 
 	_SendMessageA( g_hWnd_thread_count, WM_GETTEXT, 11, ( LPARAM )value );
 	cfg_thread_count = _strtoul( value, NULL, 10 );
@@ -215,13 +236,13 @@ void SaveWebServerSettings()
 
 	cfg_certificate_pkcs_file_name = GlobalStrDupW( certificate_pkcs_file_name );
 
-	unsigned int certificate_pkcs_password_length = _SendMessageW( g_hWnd_certificate_pkcs_password, WM_GETTEXTLENGTH, 0, 0 );
+	unsigned int certificate_pkcs_password_length = _SendMessageW( g_hWnd_certificate_pkcs_password, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 	if ( cfg_certificate_pkcs_password != NULL )
 	{
 		GlobalFree( cfg_certificate_pkcs_password );
 	}
-	cfg_certificate_pkcs_password = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( certificate_pkcs_password_length + 1 ) );
-	_SendMessageW( g_hWnd_certificate_pkcs_password, WM_GETTEXT, certificate_pkcs_password_length + 1, ( LPARAM )cfg_certificate_pkcs_password );
+	cfg_certificate_pkcs_password = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * certificate_pkcs_password_length );
+	_SendMessageW( g_hWnd_certificate_pkcs_password, WM_GETTEXT, certificate_pkcs_password_length, ( LPARAM )cfg_certificate_pkcs_password );
 
 	if ( cfg_certificate_cer_file_name != NULL )
 	{
@@ -261,12 +282,12 @@ void SaveWebServerSettings()
 
 	save_config();
 
-	if ( cfg_enable_web_server == false )
+	if ( !cfg_enable_web_server )
 	{
 		StopWebServer();
 	}
 
-	if ( enable_changed == true )
+	if ( enable_changed )
 	{
 		EnableDisableMenus( false );
 	}
@@ -374,13 +395,13 @@ void Set_Window_Settings()
 	__snprintf( value, 21, "%hu", cfg_port );
 	_SendMessageA( g_hWnd_port, WM_SETTEXT, 0, ( LPARAM )value );
 
-	_SendMessageW( g_hWnd_chk_auto_start, BM_SETCHECK, ( cfg_auto_start == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
-	_SendMessageW( g_hWnd_chk_verify_origin, BM_SETCHECK, ( cfg_verify_origin == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
-	_SendMessageW( g_hWnd_chk_keep_alive, BM_SETCHECK, ( cfg_allow_keep_alive_requests == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_auto_start, BM_SETCHECK, ( cfg_auto_start ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_verify_origin, BM_SETCHECK, ( cfg_verify_origin ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_keep_alive, BM_SETCHECK, ( cfg_allow_keep_alive_requests ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_enable_ssl, BM_SETCHECK, ( cfg_enable_ssl == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_enable_ssl, BM_SETCHECK, ( cfg_enable_ssl ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_use_authentication, BM_SETCHECK, ( cfg_use_authentication == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_use_authentication, BM_SETCHECK, ( cfg_use_authentication ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	_SendMessageW( g_hWnd_web_server_directory, WM_SETTEXT, 0, ( LPARAM )cfg_document_root_directory );
 
@@ -442,13 +463,13 @@ void Set_Window_Settings()
 
 	_SendMessageW( g_hWnd_ssl_version, CB_SETCURSEL, cfg_ssl_version, 0 );
 
-	if ( cfg_enable_web_server == true )
+	if ( cfg_enable_web_server )
 	{
 		_SendMessageW( g_hWnd_chk_web_server, BM_SETCHECK, BST_CHECKED, 0 );
 		Enable_Disable_Windows( TRUE );
 
-		Enable_Disable_SSL_Windows( ( ( cfg_enable_ssl == true ) ? TRUE : FALSE ) );
-		Enable_Disable_Authentication_Windows( ( ( cfg_use_authentication == true ) ? TRUE : FALSE ) );
+		Enable_Disable_SSL_Windows( ( ( cfg_enable_ssl ) ? TRUE : FALSE ) );
+		Enable_Disable_Authentication_Windows( ( ( cfg_use_authentication ) ? TRUE : FALSE ) );
 	}
 	else
 	{
@@ -560,6 +581,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 			_SendMessageW( g_hWnd_port, EM_LIMITTEXT, 5, 0 );
 			_SendMessageW( g_hWnd_thread_count, EM_LIMITTEXT, 10, 0 );
 			_SendMessageW( g_hWnd_resource_cache_size, EM_LIMITTEXT, 20, 0 );
+			_SendMessageW( g_hWnd_certificate_pkcs_password, EM_LIMITTEXT, 1024, 0 );	// 1024 characters + 1 NULL
 
 
 			web_server_tab_scroll_pos = 0;
@@ -786,21 +808,30 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 				{
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
+						DWORD sel_start = 0;
+
 						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 6, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						unsigned long num = _strtoul( value, NULL, 10 );
 
 						if ( num > 65535 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"65535" );
 
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
+						else if ( num == 0 )
+						{
+							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
-						if ( state_changed != NULL )
+							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"1" );
+
+							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
+						}
+
+						if ( state_changed != NULL && num != cfg_port )
 						{
 							*state_changed = true;
 							_EnableWindow( *g_hWnd_apply, TRUE );
@@ -813,11 +844,11 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 				{
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
+						DWORD sel_start = 0;
+
 						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 11, ( LPARAM )value );
 						unsigned long num = _strtoul( value, NULL, 10 );
-
-						DWORD sel_start = 0;
 
 						if ( num > max_threads )
 						{
@@ -837,7 +868,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
 
-						if ( state_changed != NULL )
+						if ( state_changed != NULL && num != cfg_thread_count )
 						{
 							*state_changed = true;
 							_EnableWindow( *g_hWnd_apply, TRUE );
@@ -850,13 +881,14 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 				{
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
+						DWORD sel_start = 0;
+
 						char value[ 21 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 21, ( LPARAM )value );
 						unsigned long long num = strtoull( value );
 
 						if ( num == ULLONG_MAX && lstrcmpA( value, "18446744073709551615" ) != 0 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							// Reset the text. If our string is greater than ULLONG_MAX.
@@ -865,7 +897,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
 
-						if ( state_changed != NULL )
+						if ( state_changed != NULL && num != cfg_resource_cache_size )
 						{
 							*state_changed = true;
 							_EnableWindow( *g_hWnd_apply, TRUE );
@@ -959,7 +991,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 					if ( _SendMessageW( g_hWnd_chk_enable_ssl, BM_GETCHECK, 0, 0 ) == BST_CHECKED )
 					{
 						// Revert to saved port of ssl is already enabled.
-						if ( cfg_enable_ssl == true )
+						if ( cfg_enable_ssl )
 						{
 							char port[ 6 ];
 							_memzero( port, sizeof( char ) * 6 );
@@ -975,7 +1007,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 					else
 					{
 						// Revert to saved port if ssl is disabled.
-						if ( cfg_enable_ssl == false )
+						if ( !cfg_enable_ssl )
 						{
 							char port[ 6 ];
 							_memzero( port, sizeof( char ) * 6 );
@@ -1070,7 +1102,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 						}
 					#endif
 
-					if ( destroy == true )
+					if ( destroy )
 					{
 						// OleInitialize calls CoInitializeEx
 						_OleInitialize( NULL );
@@ -1079,8 +1111,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 					LPITEMIDLIST lpiidl = _SHBrowseForFolderW( &bi );
 					if ( lpiidl )
 					{
-						wchar_t *directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-						_memzero( directory, sizeof ( wchar_t ) * MAX_PATH );
+						wchar_t *directory = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 						// Get the directory path from the id list.
 						_SHGetPathFromIDListW( lpiidl, ( LPTSTR )directory );
@@ -1107,7 +1138,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 							GlobalFree( directory );
 						}
 
-						if ( destroy == true )
+						if ( destroy )
 						{
 							_CoTaskMemFree( lpiidl );
 						}
@@ -1117,7 +1148,7 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 						}
 					}
 
-					if ( destroy == true )
+					if ( destroy )
 					{
 						_OleUninitialize();
 					}
@@ -1126,16 +1157,12 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 				case BTN_CERTIFICATE_PKCS:
 				{
-					wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
+					wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 					if ( certificate_pkcs_file_name != NULL )
 					{
 						_wcsncpy_s( file_name, MAX_PATH, certificate_pkcs_file_name, MAX_PATH );
 						file_name[ MAX_PATH - 1 ] = 0;	// Sanity.
-					}
-					else
-					{
-						_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
 					}
 
 					OPENFILENAME ofn;
@@ -1174,16 +1201,12 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 				case BTN_CERTIFICATE_CER:
 				{
-					wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
+					wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 					if ( certificate_cer_file_name != NULL )
 					{
 						_wcsncpy_s( file_name, MAX_PATH, certificate_cer_file_name, MAX_PATH );
 						file_name[ MAX_PATH - 1 ] = 0;	// Sanity.
-					}
-					else
-					{
-						_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
 					}
 
 					OPENFILENAME ofn;
@@ -1222,16 +1245,12 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 				case BTN_CERTIFICATE_KEY:
 				{
-					wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
+					wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 					if ( certificate_key_file_name != NULL )
 					{
 						_wcsncpy_s( file_name, MAX_PATH, certificate_key_file_name, MAX_PATH );
 						file_name[ MAX_PATH - 1 ] = 0;	// Sanity.
-					}
-					else
-					{
-						_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
 					}
 
 					OPENFILENAME ofn;
@@ -1314,6 +1333,8 @@ LRESULT CALLBACK WebServerTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM
 
 			_DeleteObject( hFont_copy );
 			hFont_copy = NULL;
+
+			return 0;
 		}
 		break;
 

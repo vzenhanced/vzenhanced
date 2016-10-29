@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -71,22 +71,24 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	#endif
 
 	#ifndef USER32_USE_STATIC_LIB
-		if ( InitializeUser32() == false ){ goto UNLOAD_DLLS; }
+		if ( !InitializeUser32() ){ goto UNLOAD_DLLS; }
 	#endif
 	#ifndef NTDLL_USE_STATIC_LIB
-		if ( InitializeNTDLL() == false ){ goto UNLOAD_DLLS; }
+		if ( !InitializeNTDLL() ){ goto UNLOAD_DLLS; }
 	#endif
 	#ifndef GDI32_USE_STATIC_LIB
-		if ( InitializeGDI32() == false ){ goto UNLOAD_DLLS; }
+		if ( !InitializeGDI32() ){ goto UNLOAD_DLLS; }
 	#endif
 	#ifndef COMDLG32_USE_STATIC_LIB
-		if ( InitializeComDlg32() == false ){ goto UNLOAD_DLLS; }
+		if ( !InitializeComDlg32() ){ goto UNLOAD_DLLS; }
 	#endif
 	#ifndef SHELL32_USE_STATIC_LIB
-		if ( InitializeShell32() == false ){ goto UNLOAD_DLLS; }
+		if ( !InitializeShell32() ){ goto UNLOAD_DLLS; }
 	#endif
 
 	unsigned char fail_type = 0;
+	MSG msg;
+	_memzero( &msg, sizeof( MSG ) );
 
 	base_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * MAX_PATH );
 
@@ -98,7 +100,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	{
 		// The first parameter is the path to the executable, second is our switch "-d", and third is the new base directory path.
 		if ( argCount == 3 &&
-			 szArgList[ 1 ][ 0 ] != 0 && szArgList[ 1 ][ 0 ] == L'-' && szArgList[ 1 ][ 1 ] != 0 && szArgList[ 1 ][ 1 ] == L'd' && szArgList[ 1 ][ 2 ] == 0 &&
+			 szArgList[ 1 ][ 0 ] == L'-' && szArgList[ 1 ][ 1 ] == L'd' && szArgList[ 1 ][ 2 ] == 0 &&
 			 GetFileAttributes( szArgList[ 2 ] ) == FILE_ATTRIBUTE_DIRECTORY )
 		{
 			base_directory_length = lstrlenW( szArgList[ 2 ] );
@@ -117,7 +119,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	}
 
 	// Use our default directory if none was supplied.
-	if ( default_directory == true )
+	if ( default_directory )
 	{
 		_SHGetFolderPathW( NULL, BASE_DIRECTORY_FLAG, NULL, 0, base_directory );
 
@@ -134,7 +136,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	}
 
 	// We want the base directory to be set before calling InitializeWebServerDLL so that the dll can use the same path.
-	if ( InitializeWebServer() == true && InitializeWebServerDLL( base_directory ) == false )
+	if ( InitializeWebServer() && !InitializeWebServerDLL( base_directory ) )
 	{
 		UnInitializeWebServer();	// This will also perform UnInitializeWebServerDLL.
 	}
@@ -153,6 +155,9 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	// Blocks our update check threads.
 	InitializeCriticalSection( &cut_cs );
+
+	// Blocks the CleanupConnection().
+	InitializeCriticalSection( &cuc_cs );
 
 	// Blocks our message log worker threads.
 	InitializeCriticalSection( &ml_cs );
@@ -494,7 +499,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	}
 
 	// Create this first so that the other windows and their function calls can start logging to it.
-	g_hWnd_message_log = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"message_log", ST_Message_Log, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 600 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 480 ) / 2 ), 600, 480, NULL, NULL, NULL, NULL );
+	g_hWnd_message_log = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"message_log", ST_Message_Log, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 600 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 480 ) / 2 ), 600, 480, NULL, NULL, NULL, NULL );
 
 	if ( !g_hWnd_message_log )
 	{
@@ -502,7 +507,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		goto CLEANUP;
 	}
 
-	g_hWnd_main = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"callerid", PROGRAM_CAPTION, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cfg_pos_x, cfg_pos_y, cfg_width, cfg_height, NULL, NULL, NULL, NULL );
+	g_hWnd_main = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"callerid", PROGRAM_CAPTION, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cfg_pos_x, cfg_pos_y, cfg_width, cfg_height, NULL, NULL, NULL, NULL );
 
 	if ( !g_hWnd_main )
 	{
@@ -510,7 +515,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		goto CLEANUP;
 	}
 
-	g_hWnd_login = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"login", ST_Login, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 180 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 190 ) / 2 ), 180, 190, NULL, NULL, NULL, NULL );
+	g_hWnd_login = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"login", ST_Login, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 180 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 190 ) / 2 ), 180, 190, NULL, NULL, NULL, NULL );
 
 	if ( !g_hWnd_login )
 	{
@@ -520,7 +525,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	if ( web_server_state == WEB_SERVER_STATE_RUNNING )
 	{
-		g_hWnd_connection_manager = _CreateWindowExW( ( cfg_always_on_top == true ? WS_EX_TOPMOST : 0 ), L"connection_manager", L"Connection Manager", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 480 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 320 ) / 2 ), 480, 320, NULL, NULL, NULL, NULL );
+		g_hWnd_connection_manager = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"connection_manager", L"Connection Manager", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 480 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 320 ) / 2 ), 480, 320, NULL, NULL, NULL, NULL );
 
 		SetConnectionManagerHWND( &g_hWnd_connection_manager );
 
@@ -530,25 +535,24 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		}
 	}
 
-	if ( cfg_silent_startup == false )
+	if ( !cfg_silent_startup )
 	{
 		_ShowWindow( g_hWnd_main, SW_SHOW );
 	}
 
-	if ( cfg_remember_login == true && cfg_connection_auto_login == true )
+	if ( cfg_remember_login && cfg_connection_auto_login )
 	{
-		_SendMessageW( g_hWnd_login, WM_PROPAGATE, AUTO_LOGIN, ( cfg_silent_startup == true ? TRUE : FALSE ) );
+		_SendMessageW( g_hWnd_login, WM_PROPAGATE, AUTO_LOGIN, ( cfg_silent_startup ? TRUE : FALSE ) );
 	}
 	else
 	{
-		if ( cfg_silent_startup == false )
+		if ( !cfg_silent_startup )
 		{
 			_ShowWindow( g_hWnd_login, SW_SHOW );
 		}
 	}
 
 	// Main message loop:
-	MSG msg;
 	while ( _GetMessageW( &msg, NULL, 0, 0 ) > 0 )
 	{
 		if ( g_hWnd_active == NULL || !_IsDialogMessageW( g_hWnd_active, &msg ) )	// Checks tab stops.
@@ -563,7 +567,7 @@ CLEANUP:
 	// Save before we exit.
 	save_config();
 
-	if ( ignore_list_changed == true )
+	if ( ignore_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_phone_numbers\0", 22 );
 		base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
@@ -571,7 +575,7 @@ CLEANUP:
 		save_ignore_list( base_directory );
 	}
 
-	if ( forward_list_changed == true )
+	if ( forward_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_phone_numbers\0", 23 );
 		base_directory[ base_directory_length + 22 ] = 0;	// Sanity.
@@ -579,7 +583,7 @@ CLEANUP:
 		save_forward_list( base_directory );
 	}
 
-	if ( ignore_cid_list_changed == true )
+	if ( ignore_cid_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_caller_id_names\0", 24 );
 		base_directory[ base_directory_length + 23 ] = 0;	// Sanity.
@@ -587,7 +591,7 @@ CLEANUP:
 		save_ignore_cid_list( base_directory );
 	}
 
-	if ( forward_cid_list_changed == true )
+	if ( forward_cid_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_caller_id_names\0", 25 );
 		base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
@@ -757,6 +761,7 @@ CLEANUP:
 	DeleteCriticalSection( &cwt_cs );	// User initiated connections
 	DeleteCriticalSection( &cit_cs );	// Automated connections
 	DeleteCriticalSection( &cut_cs );	// Update check
+	DeleteCriticalSection( &cuc_cs );	// Cleanup connection
 	DeleteCriticalSection( &ml_cs );	// Message log actions
 	DeleteCriticalSection( &ml_update_cs );	// Message log updates
 	DeleteCriticalSection( &ml_queue_cs );	// Message log queue operations

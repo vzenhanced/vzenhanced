@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -41,10 +41,10 @@ void UpdateMenus()
 
 void EnableDisableMenus( bool enable )
 {
-	_EnableMenuItem( hMenuSub, MENU_START_WEB_SERVER, ( enable == true ? MF_DISABLED : ( cfg_enable_web_server == true ? MF_ENABLED : MF_DISABLED ) ) );
-	_EnableMenuItem( hMenuSub, MENU_RESTART_WEB_SERVER, ( enable == true ? MF_ENABLED : MF_DISABLED ) );
-	_EnableMenuItem( hMenuSub, MENU_STOP_WEB_SERVER, ( enable == true ? MF_ENABLED : MF_DISABLED ) );
-	_EnableMenuItem( hMenuSub, MENU_CONNECTION_MANAGER, ( enable == true ? MF_ENABLED : MF_DISABLED ) );
+	_EnableMenuItem( hMenuSub, MENU_START_WEB_SERVER, ( enable ? MF_DISABLED : ( cfg_enable_web_server ? MF_ENABLED : MF_DISABLED ) ) );
+	_EnableMenuItem( hMenuSub, MENU_RESTART_WEB_SERVER, ( enable ? MF_ENABLED : MF_DISABLED ) );
+	_EnableMenuItem( hMenuSub, MENU_STOP_WEB_SERVER, ( enable ? MF_ENABLED : MF_DISABLED ) );
+	_EnableMenuItem( hMenuSub, MENU_CONNECTION_MANAGER, ( enable ? MF_ENABLED : MF_DISABLED ) );
 }
 
 extern "C" __declspec ( dllexport )
@@ -65,7 +65,7 @@ HMENU GetWebServerMenu()
 	mii.dwTypeData = ST_Start_Web_Server;
 	mii.cch = 16;
 	mii.wID = MENU_START_WEB_SERVER;
-	mii.fState = ( cfg_enable_web_server == true ? MF_ENABLED : MF_DISABLED );
+	mii.fState = ( cfg_enable_web_server ? MF_ENABLED : MF_DISABLED );
 	_InsertMenuItemW( hMenuSub, 0, TRUE, &mii );
 
 	mii.dwTypeData = ST_Restart_Web_Server;

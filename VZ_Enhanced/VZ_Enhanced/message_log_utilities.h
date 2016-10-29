@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -70,8 +70,8 @@ extern bool skip_message_log_draw;
 
 extern bool add_to_ml_top;	// Add to the top or bottom of the message log depending on the date/time column sort value (up or down).
 
-#define MESSAGE_LOG_OUTPUT( level, output ) if ( cfg_enable_message_log == true ) { _SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_W | level, ( LPARAM )output ); }
-#define MESSAGE_LOG_OUTPUT_MB( level, output ) _SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ( cfg_enable_message_log == true ? ML_WRITE_OUTPUT_W : 0 ) | ML_MESSAGE_BOX_W | level, ( LPARAM )output );
-#define MESSAGE_LOG_OUTPUT_FREE_A( level, output ) if ( cfg_enable_message_log == true ) { _SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_FREE_INPUT | level, ( LPARAM )output ); } else { GlobalFree( output ); }
+#define MESSAGE_LOG_OUTPUT( level, output ) if ( cfg_enable_message_log ) { _SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_W | level, ( LPARAM )output ); }
+#define MESSAGE_LOG_OUTPUT_MB( level, output ) _SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ( cfg_enable_message_log ? ML_WRITE_OUTPUT_W : 0 ) | ML_MESSAGE_BOX_W | level, ( LPARAM )output );
+#define MESSAGE_LOG_OUTPUT_FREE_A( level, output ) if ( cfg_enable_message_log ) { _SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_FREE_INPUT | level, ( LPARAM )output ); } else { GlobalFree( output ); }
 
 #endif

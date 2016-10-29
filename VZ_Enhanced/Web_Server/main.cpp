@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "lite_rpcrt4.h"
 #include "lite_ole32.h"
 #include "lite_user32.h"
+#include "lite_normaliz.h"
 
 #include "dllrbt.h"
 
@@ -61,6 +62,8 @@ unsigned char cfg_address_type = 0;	// 0 = Host name, 1 = IP address
 unsigned long cfg_ip_address = 2130706433;	// 127.0.0.1
 wchar_t *cfg_hostname = NULL;
 unsigned short cfg_port = 80;
+
+wchar_t *g_punycode_hostname = NULL;
 
 unsigned char cfg_ssl_version = 2;	// TLS 1.0
 
@@ -170,7 +173,7 @@ extern "C" __declspec ( dllexport )
 void UpdateCallLog( displayinfo *di )
 {
 	// Make sure the Winsock library has been initialized and that the server is running.
-	if ( ws2_32_state == WS2_32_STATE_SHUTDOWN || in_server_thread == false || di == NULL )
+	if ( ws2_32_state == WS2_32_STATE_SHUTDOWN || !in_server_thread || di == NULL )
 	{
 		return;
 	}
@@ -182,25 +185,28 @@ extern "C" __declspec ( dllexport )
 bool InitializeWebServerDLL( wchar_t *directory )
 {
 	#ifndef USER32_USE_STATIC_LIB
-		if ( InitializeUser32() == false ){ return false; }
+		if ( !InitializeUser32() ){ return false; }
 	#endif
 	#ifndef NTDLL_USE_STATIC_LIB
-		if ( InitializeNTDLL() == false ){ return false; }
+		if ( !InitializeNTDLL() ){ return false; }
 	#endif
 	#ifndef GDI32_USE_STATIC_LIB
-		if ( InitializeGDI32() == false ){ return false; }
+		if ( !InitializeGDI32() ){ return false; }
 	#endif
 	#ifndef ADVAPI32_USE_STATIC_LIB
-		if ( InitializeAdvApi32() == false ){ return false; }
+		if ( !InitializeAdvApi32() ){ return false; }
 	#endif
 	#ifndef COMDLG32_USE_STATIC_LIB
-		if ( InitializeComDlg32() == false ){ return false; }
+		if ( !InitializeComDlg32() ){ return false; }
 	#endif
 	#ifndef SHELL32_USE_STATIC_LIB
-		if ( InitializeShell32() == false ){ return false; }
+		if ( !InitializeShell32() ){ return false; }
 	#endif
 	#ifndef CRYPT32_USE_STATIC_LIB
-		if ( InitializeCrypt32() == false ){ return false; }
+		if ( !InitializeCrypt32() ){ return false; }
+	#endif
+	#ifndef NORMALIZ_USE_STATIC_LIB
+		InitializeNormaliz();
 	#endif
 
 	// If this is false, then we're probably on XP or older.
@@ -280,9 +286,24 @@ bool InitializeWebServerDLL( wchar_t *directory )
 
 	read_config();
 
+	if ( normaliz_state == NORMALIZ_STATE_RUNNING )
+	{
+		if ( cfg_address_type == 0 )
+		{
+			int hostname_length = lstrlenW( cfg_hostname ) + 1;	// Include the NULL terminator.
+			int punycode_length = _IdnToAscii( 0, cfg_hostname, hostname_length, NULL, 0 );
+
+			if ( punycode_length > hostname_length )
+			{
+				g_punycode_hostname = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * punycode_length );
+				_IdnToAscii( 0, cfg_hostname, hostname_length, g_punycode_hostname, punycode_length );
+			}
+		}
+	}
+
 	g_hCleanupEvent[ 0 ] = WSA_INVALID_EVENT;
 
-	if ( cfg_enable_web_server == true && cfg_auto_start == true )
+	if ( cfg_enable_web_server && cfg_auto_start )
 	{
 		GetWebServerMenu();	// Menus need to be loaded first so that the Server thread can set them.
 		StartWebServer();
@@ -294,7 +315,7 @@ bool InitializeWebServerDLL( wchar_t *directory )
 extern "C" __declspec ( dllexport )
 void UnInitializeWebServerDLL()
 {
-	if ( in_server_thread == true )
+	if ( in_server_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		server_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
@@ -312,6 +333,10 @@ void UnInitializeWebServerDLL()
 	if ( cfg_hostname != NULL )
 	{
 		GlobalFree( cfg_hostname );
+	}
+	if ( g_punycode_hostname != NULL )
+	{
+		GlobalFree( g_punycode_hostname );
 	}
 	if ( cfg_certificate_pkcs_file_name != NULL )
 	{
@@ -372,6 +397,9 @@ void UnInitializeWebServerDLL()
 	// Start up loaded DLLs
 	UnInitializeKernel32();
 
+	#ifndef NORMALIZ_USE_STATIC_LIB
+		UnInitializeNormaliz();
+	#endif
 	#ifndef CRYPT32_USE_STATIC_LIB
 		UnInitializeCrypt32();
 	#endif

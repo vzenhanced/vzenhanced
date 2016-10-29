@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ wchar_t *decode_message_event_w( wchar_t *string )
 	{
 		if ( *p == L'\r' || *p == L'\n' || *p == L'\t' )
 		{
-			if ( add_space == true )
+			if ( add_space )
 			{
 				add_space = false;
 
@@ -78,7 +78,7 @@ wchar_t *decode_message_event_w( wchar_t *string )
 
 void Processing_ML_Window( bool enable )
 {
-	if ( enable == false )
+	if ( !enable )
 	{
 		_EnableWindow( g_hWnd_message_log_list, FALSE );			// Prevent any interaction with the listview while we're processing.
 		_SendMessageW( g_hWnd_main, WM_CHANGE_CURSOR, TRUE, 0 );	// SetCursor only works from the main thread. Set it to an arrow with hourglass.
@@ -135,7 +135,7 @@ void cleanup_message_log()
 
 void kill_ml_update_thread()
 {
-	if ( in_ml_update_thread == true )
+	if ( in_ml_update_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		ml_update_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
@@ -156,7 +156,7 @@ void kill_ml_update_thread()
 
 void kill_ml_worker_thread()
 {
-	if ( in_ml_worker_thread == true )
+	if ( in_ml_worker_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		ml_worker_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
@@ -184,11 +184,11 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 	lvi.mask = LVIF_PARAM; // Our listview items will display the text contained the lParam value.
 	lvi.iSubItem = 0;
 
-	while ( kill_ml_update_thread_flag == false )
+	while ( !kill_ml_update_thread_flag )
 	{
 		WaitForSingleObject( ml_update_trigger_semaphore, INFINITE );
 
-		if ( kill_ml_update_thread_flag == true )
+		if ( kill_ml_update_thread_flag )
 		{
 			break;
 		}
@@ -199,7 +199,7 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 		// If our queue has too many entries, process 32 at a time.
 		for ( int i = 0; i < PROCESS_ITEM_COUNT; ++i )
 		{
-			if ( kill_ml_update_thread_flag == true )
+			if ( kill_ml_update_thread_flag )
 			{
 				break;
 			}
@@ -229,7 +229,7 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 				{
 					--item_count;
 
-					if ( add_to_ml_top == true )
+					if ( add_to_ml_top )
 					{
 						lvi.iItem = item_count;
 					}
@@ -255,7 +255,7 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 				_InvalidateRect( g_hWnd_message_log_list, NULL, TRUE );
 			}
 
-			lvi.iItem = ( add_to_ml_top == true ? 0 : item_count );
+			lvi.iItem = ( add_to_ml_top ? 0 : item_count );
 			lvi.lParam = ( LPARAM )mlq_node->data;
 			_SendMessageW( g_hWnd_message_log_list, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
 
@@ -372,12 +372,12 @@ THREAD_RETURN copy_message_log( void *pArguments )
 	for ( int i = 0; i < item_count; ++i )
 	{
 		// Stop processing and exit the thread.
-		if ( kill_ml_worker_thread_flag == true )
+		if ( kill_ml_worker_thread_flag )
 		{
 			break;
 		}
 
-		if ( copy_all == true )
+		if ( copy_all )
 		{
 			lvi.iItem = i;
 		}
@@ -425,7 +425,7 @@ THREAD_RETURN copy_message_log( void *pArguments )
 				continue;
 			}
 
-			if ( j > 0 && add_tab == true )
+			if ( j > 0 && add_tab )
 			{
 				*( copy_buffer + buffer_offset ) = L'\t';
 				++buffer_offset;
@@ -452,14 +452,14 @@ THREAD_RETURN copy_message_log( void *pArguments )
 			add_newline = true;
 		}
 
-		if ( i < item_count - 1 && add_newline == true )	// Add newlines for every item except the last.
+		if ( i < item_count - 1 && add_newline )	// Add newlines for every item except the last.
 		{
 			*( copy_buffer + buffer_offset ) = L'\r';
 			++buffer_offset;
 			*( copy_buffer + buffer_offset ) = L'\n';
 			++buffer_offset;
 		}
-		else if ( ( i == item_count - 1 && add_newline == false ) && buffer_offset >= 2 )	// If add_newline is false for the last item, then a newline character is in the buffer.
+		else if ( ( i == item_count - 1 && !add_newline ) && buffer_offset >= 2 )	// If add_newline is false for the last item, then a newline character is in the buffer.
 		{
 			buffer_offset -= 2;	// Ignore the last newline in the buffer.
 		}
@@ -540,7 +540,7 @@ void save_message_log_csv_file( wchar_t *file_path )
 		for ( lvi.iItem = 0; lvi.iItem < num_items; ++lvi.iItem )
 		{
 			// Stop processing and exit the thread.
-			/*if ( kill_ml_worker_thread_flag == true )
+			/*if ( kill_ml_worker_thread_flag )
 			{
 				break;
 			}*/

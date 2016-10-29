@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@ THREAD_RETURN close_connections( void *pArguments )
 		   ( ci->psc->io_context.NextIOOperation != ClientIoShutdown && ci->psc->io_context.NextIOOperation != ClientIoClose ) )
 		{
 			// Attempts a shutdown and then explicitly closes the connection (to force any stale connections to return from the completion port).
-			BeginClose( ci->psc, ( use_ssl == true ? ClientIoShutdown : ClientIoClose ) );
+			BeginClose( ci->psc, ( use_ssl ? ClientIoShutdown : ClientIoClose ) );
 		}
 	}
 
@@ -103,10 +103,10 @@ int CALLBACK CMCompareFunc( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort )
 
 		switch ( si->column )
 		{
-			case 1: { return ( show_host_name == true ? _wcsicmp_s( ci1->l_host_name, ci2->l_host_name ) : _wcsicmp_s( ci1->l_ip, ci2->l_ip ) ); } break;
+			case 1: { return ( show_host_name ? _wcsicmp_s( ci1->l_host_name, ci2->l_host_name ) : _wcsicmp_s( ci1->l_ip, ci2->l_ip ) ); } break;
 			case 2: { return _wcsicmp_s( ci1->l_port, ci2->l_port ); } break;
 
-			case 3: { return ( show_host_name == true ? _wcsicmp_s( ci1->r_host_name, ci2->r_host_name ) : _wcsicmp_s( ci1->r_ip, ci2->r_ip ) ); } break;
+			case 3: { return ( show_host_name ? _wcsicmp_s( ci1->r_host_name, ci2->r_host_name ) : _wcsicmp_s( ci1->r_ip, ci2->r_ip ) ); } break;
 			case 4: { return _wcsicmp_s( ci1->r_port, ci2->r_port ); } break;
 
 			case 5: { return ( ci1->tx_bytes > ci2->tx_bytes ); } break;
@@ -224,7 +224,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 					case MENU_RESOLVE_ADDRESSES:
 					{
 						show_host_name = !show_host_name;
-						_CheckMenuItem( g_hMenuSub_connection_manager, MENU_RESOLVE_ADDRESSES, ( show_host_name == true ? MF_CHECKED : MF_UNCHECKED ) );
+						_CheckMenuItem( g_hMenuSub_connection_manager, MENU_RESOLVE_ADDRESSES, ( show_host_name ? MF_CHECKED : MF_UNCHECKED ) );
 						_InvalidateRect( g_hWnd_connections, NULL, TRUE );
 					}
 					break;
@@ -377,7 +377,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 				bool selected = false;
 				if ( dis->itemState & ( ODS_FOCUS || ODS_SELECTED ) )
 				{
-					if ( skip_connections_draw == true && dis->hwndItem == g_hWnd_connections )
+					if ( skip_connections_draw && dis->hwndItem == g_hWnd_connections )
 					{
 						return TRUE;	// Don't draw selected items because their lParam values are being deleted.
 					}
@@ -417,7 +417,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 
 						case 1:
 						{
-							if ( show_host_name == false )
+							if ( !show_host_name )
 							{
 								buf = ci->r_ip;
 							}
@@ -436,7 +436,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 
 						case 3:
 						{
-							if ( show_host_name == false )
+							if ( !show_host_name )
 							{
 								buf = ci->l_ip;
 							}
@@ -517,7 +517,7 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 					_SetBkMode( hdcMem, TRANSPARENT );
 
 					// Draw selected text
-					if ( selected == true )
+					if ( selected )
 					{
 						// Fill the background.
 						HBRUSH color = _CreateSolidBrush( ( COLORREF )_GetSysColor( COLOR_HIGHLIGHT ) );
@@ -564,6 +564,8 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 			_KillTimer( hWnd, IDT_TIMER );
 
 			_ShowWindow( hWnd, SW_HIDE );
+
+			return 0;
 		}
 		break;
 
@@ -572,6 +574,8 @@ LRESULT CALLBACK ConnectionManagerWndProc( HWND hWnd, UINT msg, WPARAM wParam, L
 			_KillTimer( hWnd, IDT_TIMER );
 
 			*g_hWnd_connection_manager = NULL;
+
+			return 0;
 		}
 		break;
 

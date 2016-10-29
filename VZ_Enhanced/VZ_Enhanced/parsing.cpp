@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -48,6 +48,49 @@ char *strnchr( const char *s, int c, int n )
 	}
 	
 	return NULL;
+}
+
+// Finds a character in an element, but excludes searching attribute values.
+char *FindCharExcludeAttributeValues( char *element_start, char *element_end, char element_character )
+{
+	unsigned char opened_quote = 0;
+
+	char *pos = element_start;
+
+	while ( pos != NULL )
+	{
+		// If an end was supplied, then search until we reach it. If not, then search until we reach the NULL terminator.
+		if ( ( element_end != NULL && pos < element_end ) || ( element_end == NULL && *pos != NULL ) )
+		{
+			if ( opened_quote == 0 )
+			{
+				// Exit if we've found the end of the element.
+				if ( *pos == element_character )
+				{
+					break;
+				}
+				else if ( *pos == '\'' || *pos == '\"' )	// A single or double quote has been opened.
+				{
+					opened_quote = *pos;
+				}
+			}
+			else	// Find the single or double quote's pair (closing quote).
+			{
+				if ( *pos == opened_quote || *pos == opened_quote )
+				{
+					opened_quote = 0;
+				}
+			}
+
+			++pos;
+		}
+		else
+		{
+			pos = NULL;
+		}
+	}
+
+	return pos;
 }
 
 char *fields_tolower( char *decoded_buffer )
@@ -371,10 +414,16 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 {
 	char *element_start = decoded_buffer;
 	char *element_end = decoded_buffer;
-	char *find_attribute = NULL;
+	char *attribute_name_start = NULL;
+	char *attribute_name_end = NULL;
+	char *attribute_value_start = NULL;
+	char *attribute_value_end = NULL;
 	char *name = NULL;
+	char *name_end = NULL;
 	char *value = NULL;
+	char *value_end = NULL;
 	char *action = NULL;
+	char *action_end = NULL;
 
 	DoublyLinkedList *element_ll = NULL;
 	int total_element_length = 0;
@@ -391,122 +440,169 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 			return false;
 		}
 
+		++element_start;
+
 		// Find the end of the HTML element.
-		element_end = _StrChrA( element_start + 1, '>' );
+		element_end = FindCharExcludeAttributeValues( element_start, NULL, '>' );
 		if ( element_end == NULL )
 		{
 			return false;
 		}
 
 		// See if the length of the element is enough for a form tag with attributes.
-		if ( ( element_end - element_start ) >= 12 ) // It should have at least: "<form action"
+		if ( ( element_end - element_start ) >= 11 ) // It should have at least: "form action"
 		{
-			// We expect the form to have attributes. Thus the space.
-			if ( _StrCmpNIA( element_start, "<form ", 6 ) == 0 )
+			// We expect the form to have attributes.
+			if ( _StrCmpNIA( element_start, "form", 4 ) == 0 )
 			{
-				element_start += 6;
+				element_start += 4;
 
-				find_attribute = element_start;
+				attribute_name_start = element_start;
 
 				// Locate each attribute.
-				while ( find_attribute < element_end )
+				while ( attribute_name_start < element_end )
 				{
-					// Each attribute will begin with an "=".
-					find_attribute = _StrChrA( find_attribute, '=' );
-					if ( find_attribute == NULL || find_attribute >= element_end )
+					// Skip whitespace that appear before the attribute name.
+					while ( attribute_name_start < element_end )
 					{
-						break;
-					}
-					++find_attribute;
-
-					// Go back enough characters and see if the attribute is "action". The subtraction should be guaranteed.
-
-					// Skip whitespace that could appear after the attribute name, but before the "=".
-					char *go_back = find_attribute - 1;
-					while ( ( go_back - 1 ) >= ( element_start + 6 ) )	// +6 for "action"
-					{
-						if ( *( go_back - 1 ) != ' ' && *( go_back - 1 ) != '\t' && *( go_back - 1 ) != '\f' )
+						if ( attribute_name_start[ 0 ] != ' ' &&
+							 attribute_name_start[ 0 ] != '\t' &&
+							 attribute_name_start[ 0 ] != '\f' &&
+							 attribute_name_start[ 0 ] != '\r' &&
+							 attribute_name_start[ 0 ] != '\n' )
 						{
 							break;
 						}
 
-						--go_back;
+						++attribute_name_start;
 					}
 
-					if ( _StrCmpNIA( go_back - 6, "action", 6 ) == 0 )	// We found the attribute.
+					// If these pointers are equal, then there was no whitespace after the element name. We want: "form "
+					if ( attribute_name_start == element_start )
+					{
+						break;
+					}
+
+					// Each attribute value will begin with an "=".
+					attribute_value_start = FindCharExcludeAttributeValues( attribute_name_start, element_end, '=' );
+					if ( attribute_value_start == NULL )
+					{
+						break;
+					}
+					++attribute_value_start;
+
+					// Skip whitespace that could appear after the attribute name, but before the "=".
+					attribute_name_end = attribute_value_start - 1;
+					while ( ( attribute_name_end - 1 ) >= attribute_name_start )
+					{
+						if ( *( attribute_name_end - 1 ) != ' ' &&
+							 *( attribute_name_end - 1 ) != '\t' &&
+							 *( attribute_name_end - 1 ) != '\f' &&
+							 *( attribute_name_end - 1 ) != '\r' &&
+							 *( attribute_name_end - 1 ) != '\n' )
+						{
+							break;
+						}
+
+						--attribute_name_end;
+					}
+
+					if ( action == NULL && ( attribute_name_end - attribute_name_start ) == 6 && _StrCmpNIA( attribute_name_start, "action", 6 ) == 0 )	// We found the attribute.
 					{
 						// Skip whitespace that could appear after the "=", but before the attribute value.
-						while ( find_attribute < element_end )
+						while ( attribute_value_start < element_end )
 						{
-							if ( find_attribute[ 0 ] != ' ' && find_attribute[ 0 ] != '\t' && find_attribute[ 0 ] != '\f' )
+							if ( attribute_value_start[ 0 ] != ' ' &&
+								 attribute_value_start[ 0 ] != '\t' &&
+								 attribute_value_start[ 0 ] != '\f' &&
+								 attribute_value_start[ 0 ] != '\r' &&
+								 attribute_value_start[ 0 ] != '\n' )
 							{
 								break;
 							}
 
-							++find_attribute;
+							++attribute_value_start;
 						}
 
-						action = find_attribute;
+						action = attribute_value_start;
+					}
+
+					// Find the end of the attribute value.
+					char delimiter = attribute_value_start[ 0 ];
+					if ( delimiter == '\"' || delimiter == '\'' )
+					{
+						++attribute_value_start;
+
+						attribute_value_end = _StrChrA( attribute_value_start, delimiter );	// Find the end of the ID.
+						if ( attribute_value_end == NULL || attribute_value_end >= element_end )
+						{
+							return false;
+						}
+					}
+					else	// No delimiter.
+					{
+						attribute_value_end = attribute_value_start;
+
+						while ( attribute_value_end < element_end )
+						{
+							if ( attribute_value_end[ 0 ] == ' ' ||
+								 attribute_value_end[ 0 ] == '\t' ||
+								 attribute_value_end[ 0 ] == '\f' ||
+								 attribute_value_end[ 0 ] == '\r' ||
+								 attribute_value_end[ 0 ] == '\n' )
+							{
+								break;
+							}
+
+							++attribute_value_end;
+						}
+					}
+
+					if ( action == NULL )
+					{
+						attribute_name_start = attribute_value_end + 1;
+					}
+					else// if ( action != NULL )
+					{
+						action = attribute_value_start;
+						action_end = attribute_value_end;
+
+						char *domain_start = _StrStrA( action, "//" );		// Find the beginning of the URL's domain name.
+						if ( domain_start == NULL || domain_start >= element_end )
+						{
+							return false;
+						}
+						domain_start += 2;
+
+						char *domain_end = _StrChrA( domain_start, '/' );	// Find the end of the domain name.
+						if ( domain_end == NULL || domain_end >= element_end )
+						{
+							return false;
+						}
+						int host_length = domain_end - domain_start;
+
+						*host = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( host_length + 1 ) );
+						_memcpy_s( *host, host_length + 1, domain_start, host_length );
+						*( *host + host_length ) = 0;	// Sanity
+
+						domain_start += host_length;
+
+						int resource_length = action_end - domain_start;
+
+						*resource = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( resource_length + 1 ) );
+						_memcpy_s( *resource, resource_length + 1, domain_start, resource_length );
+						*( *resource + resource_length ) = 0;	// Sanity
+
 						break;
 					}
 				}
 
-				if ( action == NULL )
+				if ( action != NULL && action_end != NULL )
 				{
-					return false;
+					action = action_end = NULL;
+
+					break;
 				}
-
-				char delimiter = action[ 0 ];
-				char *action_end = element_end;
-
-				if ( delimiter == '\"' || delimiter == '\'' )
-				{
-					++action;
-
-					action_end = _StrChrA( action, delimiter );	// Find the end of the ID.
-					if ( action_end == NULL || action_end >= element_end )
-					{
-						return false;
-					}
-				}
-				else	// No delimiter.
-				{
-					// Let's see if it ends with a space.
-					action_end = _StrChrA( action, ' ' );	// Find the end of the URL.
-					if ( action_end == NULL || action_end >= element_end )
-					{
-						// If not, then it ends before the end of the element.
-						action_end = element_end;
-					}
-				}
-
-				char *domain_start = _StrStrA( action, "//" );		// Find the beginning of the URL's domain name.
-				if ( domain_start == NULL || domain_start >= element_end )
-				{
-					return false;
-				}
-				domain_start += 2;
-
-				char *domain_end = _StrChrA( domain_start, '/' );	// Find the end of the domain name.
-				if ( domain_end == NULL || domain_end >= element_end )
-				{
-					return false;
-				}
-				int host_length = domain_end - domain_start;
-
-				*host = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( host_length + 1 ) );
-				_memcpy_s( *host, host_length + 1, domain_start, host_length );
-				*( *host + host_length ) = 0;	// Sanity
-
-				domain_start += host_length;
-
-				int resource_length = action_end - domain_start;
-
-				*resource = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( resource_length + 1 ) );
-				_memcpy_s( *resource, resource_length + 1, domain_start, resource_length );
-				*( *resource + resource_length ) = 0;	// Sanity
-
-				break;
 			}
 		}
 	}
@@ -521,8 +617,10 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 			break;
 		}
 
+		++element_start;
+
 		// Find the end of the HTML element.
-		element_end = _StrChrA( element_start + 1, '>' );
+		element_end = FindCharExcludeAttributeValues( element_start, NULL, '>' );
 		if ( element_end == NULL )
 		{
 			bad_form = true;
@@ -530,121 +628,150 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 		}
 
 		// See if the length of the element is enough for an input tag with attributes.
-		if ( ( element_end - element_start ) >= 12 ) // It should have at least: "<input value". "<input name" is implied.
+		if ( ( element_end - element_start ) >= 11 ) // It should have at least: "input value". "input name" is implied.
 		{
-			// We expect the form to have attributes. Thus the space.
-			if ( _StrCmpNIA( element_start, "<input ", 7 ) == 0 )
+			// We expect the form to have attributes.
+			if ( _StrCmpNIA( element_start, "input", 5 ) == 0 )
 			{
-				element_start += 7;
+				element_start += 5;
 
-				find_attribute = element_start;
+				attribute_name_start = element_start;
 
 				// Locate each attribute.
-				while ( find_attribute < element_end )
+				while ( attribute_name_start < element_end )
 				{
-					// Each attribute will begin with an "=".
-					find_attribute = _StrChrA( find_attribute, '=' );
-					if ( find_attribute == NULL || find_attribute >= element_end )
+					// Skip whitespace that appear before the attribute name.
+					while ( attribute_name_start < element_end )
 					{
-						break;
-					}
-					++find_attribute;
-
-					// Go back enough characters and see if the attribute is "name" or "value". The subtraction should be guaranteed.
-
-					// Skip whitespace that could appear after the attribute name, but before the "=".
-					char *go_back = find_attribute - 1;
-					while ( ( go_back - 1 ) >= ( element_start + 4 ) )	// +4 for "name". Setting this to +5 for "value" would cause go_back to be incorrectly offset when there's whitespace before the "=".
-					{
-						if ( *( go_back - 1 ) != ' ' && *( go_back - 1 ) != '\t' && *( go_back - 1 ) != '\f' )
+						if ( attribute_name_start[ 0 ] != ' ' &&
+							 attribute_name_start[ 0 ] != '\t' &&
+							 attribute_name_start[ 0 ] != '\f' &&
+							 attribute_name_start[ 0 ] != '\r' &&
+							 attribute_name_start[ 0 ] != '\n' )
 						{
 							break;
 						}
 
-						--go_back;
+						++attribute_name_start;
 					}
 
-					if ( name == NULL && _StrCmpNIA( go_back - 4, "name", 4 ) == 0 )	// We found the attribute.
+					// If these pointers are equal, then there was no whitespace after the element name. We want: "input "
+					if ( attribute_name_start == element_start )
+					{
+						break;
+					}
+
+					// Each attribute will begin with an "=".
+					attribute_value_start = FindCharExcludeAttributeValues( attribute_name_start, element_end, '=' );
+					if ( attribute_value_start == NULL )
+					{
+						break;
+					}
+					++attribute_value_start;
+
+					// Skip whitespace that could appear after the attribute name, but before the "=".
+					attribute_name_end = attribute_value_start - 1;
+					while ( ( attribute_name_end - 1 ) >= attribute_name_start )
+					{
+						if ( *( attribute_name_end - 1 ) != ' ' &&
+							 *( attribute_name_end - 1 ) != '\t' &&
+							 *( attribute_name_end - 1 ) != '\f' &&
+							 *( attribute_name_end - 1 ) != '\r' &&
+							 *( attribute_name_end - 1 ) != '\n' )
+						{
+							break;
+						}
+
+						--attribute_name_end;
+					}
+
+					if ( name == NULL && ( attribute_name_end - attribute_name_start ) == 4 && _StrCmpNIA( attribute_name_start, "name", 4 ) == 0 )	// We found the attribute.
 					{
 						// Skip whitespace that could appear after the "=", but before the attribute value.
-						while ( find_attribute < element_end )
+						while ( attribute_value_start < element_end )
 						{
-							if ( find_attribute[ 0 ] != ' ' && find_attribute[ 0 ] != '\t' && find_attribute[ 0 ] != '\f' )
+							if ( attribute_value_start[ 0 ] != ' ' &&
+								 attribute_value_start[ 0 ] != '\t' &&
+								 attribute_value_start[ 0 ] != '\f' &&
+								 attribute_value_start[ 0 ] != '\r' &&
+								 attribute_value_start[ 0 ] != '\n' )
 							{
 								break;
 							}
 
-							++find_attribute;
+							++attribute_value_start;
 						}
 
-						name = find_attribute;
+						name = attribute_value_start;
 					}
-					else if ( value == NULL && _StrCmpNIA( go_back - 5, "value", 5 ) == 0 )	// We found the attribute.
+					else if ( value == NULL && ( attribute_name_end - attribute_name_start ) == 5 && _StrCmpNIA( attribute_name_start, "value", 5 ) == 0 )	// We found the attribute.
 					{
 						// Skip whitespace that could appear after the "=", but before the attribute value.
-						while ( find_attribute < element_end )
+						while ( attribute_value_start < element_end )
 						{
-							if ( find_attribute[ 0 ] != ' ' && find_attribute[ 0 ] != '\t' && find_attribute[ 0 ] != '\f' )
+							if ( attribute_value_start[ 0 ] != ' ' &&
+								 attribute_value_start[ 0 ] != '\t' &&
+								 attribute_value_start[ 0 ] != '\f' &&
+								 attribute_value_start[ 0 ] != '\r' &&
+								 attribute_value_start[ 0 ] != '\n' )
 							{
 								break;
 							}
 
-							++find_attribute;
+							++attribute_value_start;
 						}
 
-						value = find_attribute;
+						value = attribute_value_start;
 					}
 
-					if ( name != NULL && value != NULL )
+					char delimiter = attribute_value_start[ 0 ];
+					if ( delimiter == '\"' || delimiter == '\'' )
 					{
-						char delimiter = name[ 0 ];
-						char *name_end = element_end;
+						++attribute_value_start;
 
-						if ( delimiter == '\"' || delimiter == '\'' )
+						attribute_value_end = _StrChrA( attribute_value_start, delimiter );	// Find the end of the ID.
+						if ( attribute_value_end == NULL || attribute_value_end >= element_end )
 						{
-							++name;
-
-							name_end = _StrChrA( name, delimiter );	// Find the end of the ID.
-							if ( name_end == NULL || name_end >= element_end )
-							{
-								return false;
-							}
+							return false;
 						}
-						else	// No delimiter.
+					}
+					else	// No delimiter.
+					{
+						attribute_value_end = attribute_value_start;
+
+						while ( attribute_value_end < element_end )
 						{
-							// Let's see if it ends with a space.
-							name_end = _StrChrA( name, ' ' );	// Find the end of the URL.
-							if ( name_end == NULL || name_end >= element_end )
+							if ( attribute_value_end[ 0 ] == ' ' ||
+								 attribute_value_end[ 0 ] == '\t' ||
+								 attribute_value_end[ 0 ] == '\f' ||
+								 attribute_value_end[ 0 ] == '\r' ||
+								 attribute_value_end[ 0 ] == '\n' )
 							{
-								// If not, then it ends before the end of the element.
-								name_end = element_end;
+								break;
 							}
+
+							++attribute_value_end;
 						}
+					}
 
-						delimiter = value[ 0 ];
-						char *value_end = element_end;
+					if ( name != NULL && name_end == NULL )
+					{
+						name = attribute_value_start;
+						name_end = attribute_value_end;
+					}
 
-						if ( delimiter == '\"' || delimiter == '\'' )
-						{
-							++value;
+					if ( value != NULL && value_end == NULL )
+					{
+						value = attribute_value_start;
+						value_end = attribute_value_end;
+					}
 
-							value_end = _StrChrA( value, delimiter );	// Find the end of the ID.
-							if ( value_end == NULL || value_end >= element_end )
-							{
-								return false;
-							}
-						}
-						else	// No delimiter.
-						{
-							// Let's see if it ends with a space.
-							value_end = _StrChrA( value, ' ' );	// Find the end of the URL.
-							if ( value_end == NULL || value_end >= element_end )
-							{
-								// If not, then it ends before the end of the element.
-								value_end = element_end;
-							}
-						}
-
+					if ( name_end == NULL || value_end == NULL )
+					{
+						attribute_name_start = attribute_value_end + 1;
+					}
+					else// if ( name_end != NULL && value_end != NULL )
+					{
 						FORM_ELEMENTS *fe = ( FORM_ELEMENTS * )GlobalAlloc( GMEM_FIXED, sizeof( FORM_ELEMENTS ) );
 
 						unsigned int enc_len = 0;
@@ -670,22 +797,23 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 							DLL_AddNode( &element_ll, dll, 0 );
 						}
 
-						name = NULL;
-						value = NULL;
+						name = name_end = NULL;
+						value = value_end = NULL;
+
 						break;
 					}
 				}
 			}
 		}
-		else if ( ( element_end - element_start ) == 6 )	// "</form"
+		else if ( ( element_end - element_start ) == 5 )	// "/form"
 		{
-			if ( _StrCmpNIA( element_start, "</form", 6 ) == 0 )
+			if ( _StrCmpNIA( element_start, "/form", 5 ) == 0 )
 			{
 				break;
 			}
 		}
 
-		if ( bad_form == true )
+		if ( bad_form )
 		{
 			break;
 		}
@@ -693,7 +821,7 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 
 	DoublyLinkedList *current_node = element_ll;
 
-	if ( bad_form == true )
+	if ( bad_form )
 	{
 		while ( current_node != NULL )
 		{
@@ -1095,7 +1223,7 @@ StackTree *BuildXMLTree( char *xml )
 		++element_start;
 
 		// Find the closing of the element.
-		char *element_end = _StrChrA( element_start, '>' );
+		char *element_end = FindCharExcludeAttributeValues( element_start, NULL, '>' );
 		if ( element_end == NULL )
 		{
 			break;
@@ -1358,12 +1486,12 @@ StackTree *GetElementValue( StackTree *tree, char *element_name, int element_nam
 				{
 					int value_length = element_end - element_start;
 
-					if ( element_value_length != NULL && return_element_value == true )
+					if ( element_value_length != NULL && return_element_value )
 					{
 						*element_value_length = value_length;
 					}
 
-					if ( element_value != NULL && return_element_value == true )
+					if ( element_value != NULL && return_element_value )
 					{
 						*element_value = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( value_length + 1 ) );
 						_memcpy_s( *element_value, value_length + 1, element_start, value_length );
@@ -1389,107 +1517,154 @@ StackTree *GetElementAttributeValue( StackTree *tree, char *element_name, int el
 	{
 		if ( _StrCmpNIA( tree->element_name, element_name, element_name_length ) == 0 )
 		{
+			char *element_start = tree->element_name + tree->element_name_length;
 			char *element_end = tree->element_name + tree->element_length;
-			char *element_start = tree->element_name;
 
-			char *find_attribute = tree->element_name + tree->element_name_length;
+			char *attribute = NULL;
+			char *attribute_end = NULL;
+
+			char *attribute_name_start = element_start;
+			char *attribute_name_end = NULL;
+
+			char *attribute_value_start = NULL;
+			char *attribute_value_end = NULL;
 
 			// Locate each attribute.
-			while ( find_attribute < element_end )
+			while ( attribute_name_start < element_end )
 			{
-				// Each attribute will begin with an "=".
-				find_attribute = _StrChrA( find_attribute, '=' );
-				if ( find_attribute == NULL )
+				// Skip whitespace that appear before the attribute name.
+				while ( attribute_name_start < element_end )
 				{
-					return NULL;
-				}
-				else if ( find_attribute >= element_end )	// Missing attribute.
-				{
-					// If the attribute value length is -1, then we supplied a dummy value. Return the element that we last processed.
-					if ( attribute_value_length != NULL && *attribute_value_length == -1 )
-					{
-						return tree;
-					}
-
-					// Go to the next element.
-					break;
-				}
-				++find_attribute;
-
-				// Skip whitespace that could appear after the attribute name, but before the "=".
-				char *go_back = find_attribute - 1;
-				while ( ( go_back - 1 ) >= ( element_start + attribute_name_length ) )
-				{
-					if ( *( go_back - 1 ) != ' ' && *( go_back - 1 ) != '\t' && *( go_back - 1 ) != '\r' && *( go_back - 1 ) != '\n' )	// Different whitespace characters for XML
+					if ( attribute_name_start[ 0 ] != ' ' &&
+						 attribute_name_start[ 0 ] != '\t' &&
+						 attribute_name_start[ 0 ] != '\r' &&
+						 attribute_name_start[ 0 ] != '\n' )	// Different whitespace characters for XML
 					{
 						break;
 					}
 
-					--go_back;
+					++attribute_name_start;
 				}
 
-				if ( _StrCmpNIA( go_back - attribute_name_length, attribute_name, attribute_name_length ) == 0 )	// We found the attribute.
+				// If these pointers are equal, then there was no whitespace after the element name.
+				if ( attribute_name_start == element_start )
+				{
+					break;
+				}
+
+				// Each attribute value will begin with an "=".
+				attribute_value_start = FindCharExcludeAttributeValues( attribute_name_start, element_end, '=' );
+				if ( attribute_value_start == NULL )
+				{
+					return NULL;
+				}
+				++attribute_value_start;
+
+				// Skip whitespace that could appear after the attribute name, but before the "=".
+				attribute_name_end = attribute_value_start - 1;
+				while ( ( attribute_name_end - 1 ) >= attribute_name_start )
+				{
+					if ( *( attribute_name_end - 1 ) != ' ' &&
+						 *( attribute_name_end - 1 ) != '\t' &&
+						 *( attribute_name_end - 1 ) != '\r' &&
+						 *( attribute_name_end - 1 ) != '\n' )	// Different whitespace characters for XML
+					{
+						break;
+					}
+
+					--attribute_name_end;
+				}
+
+				if ( ( attribute_name_end - attribute_name_start ) == attribute_name_length && _StrCmpNIA( attribute_name_start, attribute_name, attribute_name_length ) == 0 )	// We found the attribute.
 				{
 					// Skip whitespace that could appear after the "=", but before the attribute value.
-					while ( find_attribute < element_end )
+					while ( attribute_value_start < element_end )
 					{
-						if ( find_attribute[ 0 ] != ' ' && find_attribute[ 0 ] != '\t' && find_attribute[ 0 ] != '\r' && find_attribute[ 0 ] != '\n' )	// Different whitespace characters for XML
+						if ( attribute_value_start[ 0 ] != ' ' &&
+							 attribute_value_start[ 0 ] != '\t' &&
+							 attribute_value_start[ 0 ] != '\r' &&
+							 attribute_value_start[ 0 ] != '\n' )	// Different whitespace characters for XML
 						{
 							break;
 						}
 
-						++find_attribute;
+						++attribute_value_start;
 					}
 
-					if ( find_attribute != NULL )
+					attribute = attribute_value_start;
+				}
+
+				// Find the end of the attribute value.
+				char delimiter = attribute_value_start[ 0 ];
+				if ( delimiter == '\"' || delimiter == '\'' )
+				{
+					++attribute_value_start;
+
+					attribute_value_end = _StrChrA( attribute_value_start, delimiter );	// Find the end of the ID.
+					if ( attribute_value_end == NULL || attribute_value_end >= element_end )
 					{
-						char delimiter = find_attribute[ 0 ];
-						char *attribute_end = element_end;
-
-						if ( delimiter == '\"' || delimiter == '\'' )
-						{
-							++find_attribute;
-
-							attribute_end = _StrChrA( find_attribute, delimiter );	// Find the end of the ID.
-							if ( attribute_end == NULL || attribute_end >= element_end )
-							{
-								return NULL;
-							}
-						}
-						else	// No delimiter.
-						{
-							// Let's see if it ends with a space.
-							attribute_end = _StrChrA( find_attribute, ' ' );
-							if ( attribute_end == NULL || attribute_end >= element_end )
-							{
-								// If not, then it ends before the end of the element.
-								attribute_end = element_end;
-							}
-						}
-
-						int attribute_length = attribute_end - find_attribute;
-
-						// If we supplied an attribute value, then we'll confirm its existence.
-						if ( ( attribute_value != NULL && *attribute_value != NULL && attribute_value_length != NULL ) && \
-							 ( attribute_length != *attribute_value_length || _StrCmpNIA( find_attribute, *attribute_value, attribute_length ) != 0 ) )	// See if either the lengths or strings don't match.
-						{	
-							break;	// Attribute value did not match.
-						}
-						
-						if ( attribute_value_length != NULL && return_attribute_value == true )
-						{
-							*attribute_value_length = attribute_length;
-						}
-
-						if ( attribute_value != NULL && return_attribute_value == true )
-						{
-							*attribute_value = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( attribute_length + 1 ) );
-							_memcpy_s( *attribute_value, attribute_length + 1, find_attribute, attribute_length );
-							*( *attribute_value + attribute_length ) = 0;	// Sanity
-						}
-
-						return tree;
+						return false;
 					}
+				}
+				else	// No delimiter.
+				{
+					attribute_value_end = attribute_value_start;
+
+					while ( attribute_value_end < element_end )
+					{
+						if ( attribute_value_end[ 0 ] == ' ' ||
+							 attribute_value_end[ 0 ] == '\t' ||
+							 attribute_value_end[ 0 ] == '\r' ||
+							 attribute_value_end[ 0 ] == '\n' )	// Different whitespace characters for XML
+						{
+							break;
+						}
+
+						++attribute_value_end;
+					}
+				}
+
+				if ( attribute == NULL )
+				{
+					attribute_name_start = attribute_value_end + 1;
+
+					// We're missing the attribute.
+					if ( attribute_name_start >= element_end )
+					{
+						// If the attribute value length is -1, then we supplied a dummy value. Return the element that we last processed.
+						if ( attribute_value_length != NULL && *attribute_value_length == -1 )
+						{
+							return tree;
+						}
+					}
+				}
+				else// if ( attribute != NULL )
+				{
+					attribute = attribute_value_start;
+					attribute_end = attribute_value_end;
+
+					int attribute_length = attribute_end - attribute;
+
+					// If we supplied an attribute value, then we'll confirm its existence.
+					if ( ( attribute_value != NULL && *attribute_value != NULL && attribute_value_length != NULL ) && \
+						 ( attribute_length != *attribute_value_length || _StrCmpNIA( attribute, *attribute_value, attribute_length ) != 0 ) )	// See if either the lengths or strings don't match.
+					{
+						break;	// Attribute value did not match.
+					}
+					
+					if ( attribute_value_length != NULL && return_attribute_value )
+					{
+						*attribute_value_length = attribute_length;
+					}
+
+					if ( attribute_value != NULL && return_attribute_value )
+					{
+						*attribute_value = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( attribute_length + 1 ) );
+						_memcpy_s( *attribute_value, attribute_length + 1, attribute, attribute_length );
+						*( *attribute_value + attribute_length ) = 0;	// Sanity
+					}
+
+					return tree;
 				}
 			}
 		}
@@ -2063,7 +2238,7 @@ bool UpdateContactList( char *xml, contactinfo *ci )
 {
 	bool status = false;
 
-	if ( UpdateConactInformationIDs( xml, ci ) == true )
+	if ( UpdateConactInformationIDs( xml, ci ) )
 	{
 		EnterCriticalSection( &pe_cs );
 		if ( contact_list == NULL )

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -41,10 +41,10 @@ void ReadRequest( SOCKET_CONTEXT *socket_context, DWORD request_size )
 
 	while ( true )
 	{
-		if ( use_ssl == true )
+		if ( use_ssl )
 		{
 			// We'll need to copy the decrypted data to our wsabuf.
-			if ( read_more_data == true )
+			if ( read_more_data )
 			{
 				bytes_decrypted = socket_context->ssl->cbIoBuffer;
 			}
@@ -93,22 +93,20 @@ void ReadRequest( SOCKET_CONTEXT *socket_context, DWORD request_size )
 										"Connection: close\r\n\r\n" \
 										"<!DOCTYPE html><html><head><title>413 Request Entity Too Large</title></head><body><h1>413 Request Entity Too Large</h1></body></html>" );
 
-				bool ret = TrySend( socket_context, &( socket_context->io_context.overlapped ), ( use_ssl == true ? ClientIoShutdown : ClientIoClose ) );
-				if ( ret == false )
+				if ( !TrySend( socket_context, &( socket_context->io_context.overlapped ), ( use_ssl ? ClientIoShutdown : ClientIoClose ) ) )
 				{
 					BeginClose( socket_context );
 				}
 
 				break;
 			}
-			else if ( read_more_data == false )	// If more data can be stored in the buffer, then request it.
+			else if ( !read_more_data )	// If more data can be stored in the buffer, then request it.
 			{
 				// Adjust our buffer to decrypt/copy more data.
 				socket_context->io_context.wsabuf.len -= bytes_decrypted;
 				socket_context->io_context.wsabuf.buf += bytes_decrypted;
 
-				bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadRequest );
-				if ( ret == false )
+				if ( !TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadRequest ) )
 				{
 					BeginClose( socket_context );
 				}
@@ -184,7 +182,7 @@ void SendRedirect( SOCKET_CONTEXT *socket_context )
 
 void SendResource( SOCKET_CONTEXT *socket_context )
 {
-	IO_OPERATION io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+	IO_OPERATION io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 
 	unsigned int reply_buf_length = 0;
 
@@ -192,7 +190,7 @@ void SendResource( SOCKET_CONTEXT *socket_context )
 	socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
 
 	// If we haven't loaded a resource file, or our cached resource file, then do so below.
-	if ( socket_context->resource.hFile_resource == INVALID_HANDLE_VALUE && socket_context->resource.use_cache == false )
+	if ( socket_context->resource.hFile_resource == INVALID_HANDLE_VALUE && !socket_context->resource.use_cache )
 	{
 		// Get all the necessary values from our header.
 		GetHeaderValues( socket_context );
@@ -277,14 +275,14 @@ void SendResource( SOCKET_CONTEXT *socket_context )
 
 						if ( socket_context->resource.status_code == STATUS_CODE_200 )
 						{
-							if ( socket_context->resource.use_chunked_transfer == true )
+							if ( socket_context->resource.use_chunked_transfer )
 							{
 								reply_buf_length = __snprintf( socket_context->io_context.wsabuf.buf, MAX_BUFFER_SIZE,
 									"HTTP/1.1 200 OK\r\n" \
 									"Content-Type: %s\r\n" \
 									"Cache-Control: max-age=31536000\r\n" \
 									"Transfer-Encoding: chunked\r\n" \
-									"Connection: %s\r\n\r\n", GetMIMEByFileName( resource_path ), ( allow_keep_alive_requests == true ? "keep-alive" : "close" ) );
+									"Connection: %s\r\n\r\n", GetMIMEByFileName( resource_path ), ( allow_keep_alive_requests ? "keep-alive" : "close" ) );
 							}
 							else
 							{
@@ -293,7 +291,7 @@ void SendResource( SOCKET_CONTEXT *socket_context )
 									"Content-Type: %s\r\n" \
 									"Content-Length: %d\r\n" \
 									"Cache-Control: max-age=31536000\r\n" \
-									"Connection: %s\r\n\r\n", GetMIMEByFileName( resource_path ), socket_context->resource.file_size, ( allow_keep_alive_requests == true ? "keep-alive" : "close" ) );
+									"Connection: %s\r\n\r\n", GetMIMEByFileName( resource_path ), socket_context->resource.file_size, ( allow_keep_alive_requests ? "keep-alive" : "close" ) );
 							}
 						}
 
@@ -349,7 +347,7 @@ SEND_RESPONSE:
 				// If we read everything from our resource buffer, then read more data. Should only happen when reading from a file and not our resource cache.
 				if ( socket_context->resource.resource_buf_offset == socket_context->resource.resource_buf_size )
 				{
-					if ( socket_context->resource.use_cache == false )
+					if ( !socket_context->resource.use_cache )
 					{
 						ReadFile( socket_context->resource.hFile_resource, socket_context->resource.resource_buf, MAX_RESOURCE_BUFFER_SIZE, &( socket_context->resource.resource_buf_size ), NULL );
 						socket_context->resource.resource_buf_offset = 0;
@@ -359,7 +357,7 @@ SEND_RESPONSE:
 				unsigned int rem = 0;
 
 				// Add our chunked encoding length.
-				if ( socket_context->resource.use_chunked_transfer == true )
+				if ( socket_context->resource.use_chunked_transfer )
 				{
 					// Subtract 17 for the chunked encodings. (example: FFFFFFFF\r\n[DATA]\r\n0\r\n\r\n)
 					// rem is the amount of file data we'll be writing to the buffer.
@@ -381,7 +379,7 @@ SEND_RESPONSE:
 				socket_context->resource.total_read += rem;
 
 				// Add the end of the chunked encoding.
-				if ( socket_context->resource.use_chunked_transfer == true )
+				if ( socket_context->resource.use_chunked_transfer )
 				{
 					_memcpy_s( socket_context->io_context.wsabuf.buf + reply_buf_length, MAX_BUFFER_SIZE - reply_buf_length, "\r\n", 2 );
 					reply_buf_length += 2;
@@ -390,20 +388,20 @@ SEND_RESPONSE:
 				// If we've read and copied the entire file, then clean up our resource information.
 				if ( socket_context->resource.total_read >= socket_context->resource.file_size )
 				{
-					if ( socket_context->resource.use_chunked_transfer == true )
+					if ( socket_context->resource.use_chunked_transfer )
 					{
 						// Add the terminating chunk value.
 						_memcpy_s( socket_context->io_context.wsabuf.buf + reply_buf_length, MAX_BUFFER_SIZE - reply_buf_length, "0\r\n\r\n", 5 );
 						reply_buf_length += 5;
 					}
 
-					if ( allow_keep_alive_requests == true )
+					if ( allow_keep_alive_requests )
 					{
 						io_operation = ClientIoReadMoreRequest;	// Keep reading if our connection is to be kept alive.
 					}
 					else
 					{
-						io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+						io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 					}
 
 					// We've ended up writing the entire file to our buffer. Clean up our resources and shutdown/close the connection.
@@ -420,7 +418,7 @@ SEND_RESPONSE:
 
 					if ( socket_context->resource.resource_buf != NULL )
 					{
-						if ( socket_context->resource.use_cache == false )
+						if ( !socket_context->resource.use_cache )
 						{
 							GlobalFree( socket_context->resource.resource_buf );
 						}
@@ -444,7 +442,7 @@ SEND_RESPONSE:
 									"Connection: close\r\n\r\n" \
 									"<!DOCTYPE html><html><head><title>400 Bad Request</title></head><body><h1>400 Bad Request</h1></body></html>" );
 
-			io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+			io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 		}
 		break;
 
@@ -458,7 +456,7 @@ SEND_RESPONSE:
 									"Connection: close\r\n\r\n" \
 									"<!DOCTYPE html><html><head><title>401 Unauthorized</title></head><body><h1>401 Unauthorized</h1></body></html>" );
 
-			io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+			io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 		}
 		break;
 
@@ -471,7 +469,7 @@ SEND_RESPONSE:
 									"Connection: close\r\n\r\n" \
 									"<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>403 Forbidden</h1></body></html>" );
 
-			io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+			io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 		}
 		break;
 
@@ -484,7 +482,7 @@ SEND_RESPONSE:
 									"Connection: close\r\n\r\n" \
 									"<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>" );
 
-			io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+			io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 		}
 		break;
 
@@ -497,7 +495,7 @@ SEND_RESPONSE:
 									"Connection: close\r\n\r\n" \
 									"<!DOCTYPE html><html><head><title>500 Internal Server Error</title></head><body><h1>500 Internal Server Error</h1></body></html>" );
 
-			io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+			io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 		}
 		break;
 
@@ -510,7 +508,7 @@ SEND_RESPONSE:
 									"Connection: close\r\n\r\n" \
 									"<!DOCTYPE html><html><head><title>501 Not Implemented</title></head><body><h1>501 Not Implemented</h1></body></html>" );
 
-			io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+			io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 		}
 		break;
 	}
@@ -520,15 +518,14 @@ SEND_RESPONSE:
 	// If we have something to write.
 	if ( reply_buf_length > 0 )
 	{
-		bool ret = TrySend( socket_context, &( socket_context->io_context.overlapped ), io_operation );
-		if ( ret == false )
+		if ( !TrySend( socket_context, &( socket_context->io_context.overlapped ), io_operation ) )
 		{
 			BeginClose( socket_context );
 		}
 	}
 	else	// Something went wrong, close the connection.
 	{
-		BeginClose( socket_context, ( use_ssl == true ? ClientIoShutdown : ClientIoClose ) );
+		BeginClose( socket_context, ( use_ssl ? ClientIoShutdown : ClientIoClose ) );
 	}
 }
 
@@ -539,7 +536,7 @@ void GetResource( SOCKET_CONTEXT *socket_context, char *resource_path, unsigned 
 	// No reason to lock if the resource cache is disabled.
 	if ( maximum_resource_cache_size > 0 )
 	{
-		if ( use_rwl_library == true )
+		if ( use_rwl_library )
 		{
 			_AcquireSRWLockSharedFairly( &g_fairness_mutex, &g_srwlock );
 		}
@@ -551,7 +548,7 @@ void GetResource( SOCKET_CONTEXT *socket_context, char *resource_path, unsigned 
 		// See if our tree has the phone number to add the node to.
 		rci = ( RESOURCE_CACHE_ITEM * )dllrbt_find( g_resource_cache, ( void * )resource_path, true );
 
-		if ( use_rwl_library == true )
+		if ( use_rwl_library )
 		{
 			_ReleaseSRWLockShared( &g_srwlock );
 		}
@@ -574,7 +571,7 @@ void GetResource( SOCKET_CONTEXT *socket_context, char *resource_path, unsigned 
 	}
 	else if ( g_resource_cache_size <= maximum_resource_cache_size && maximum_resource_cache_size > 0 )	// Write the resource to our cache.
 	{
-		if ( use_rwl_library == true )
+		if ( use_rwl_library )
 		{
 			_AcquireSRWLockExclusiveFairly( &g_fairness_mutex, &g_srwlock );
 		}
@@ -665,7 +662,7 @@ void GetResource( SOCKET_CONTEXT *socket_context, char *resource_path, unsigned 
 			socket_context->resource.resource_buf_size = rci->resource_data_size;
 		}
 
-		if ( use_rwl_library == true )
+		if ( use_rwl_library )
 		{
 			_ReleaseSRWLockExclusive( &g_srwlock );
 		}
@@ -787,7 +784,7 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 		socket_context->resource.is_authorized = true;
 
 		// This has priority over the other fields. If the authorization fails, then we exit immediately.
-		if ( use_authentication == true )
+		if ( use_authentication )
 		{
 			// This must be reset every time so that we can verify any possible changes.
 			socket_context->resource.is_authorized = false;
@@ -832,7 +829,7 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 				}
 			}
 
-			if ( socket_context->resource.is_authorized == false )
+			if ( !socket_context->resource.is_authorized )
 			{
 				return;
 			}
@@ -950,10 +947,10 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 				}
 			}
 
-			if ( websocket_upgrade == true )
+			if ( websocket_upgrade )
 			{
 				// Optionally check to see if our orgin matches the server host.
-				if ( verify_origin == true )
+				if ( verify_origin )
 				{
 					char *origin_header = _StrStrA( request_buffer, "origin:" );
 					if ( origin_header != NULL )
@@ -999,7 +996,7 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 				}
 
 				// If the origin is valid, whether we accepted one or not, the get our websocket key.
-				if ( socket_context->resource.has_valid_origin == true )
+				if ( socket_context->resource.has_valid_origin )
 				{
 					// Get our websocket request key and create our response key.
 					char *websocket_key = _StrStrA( request_buffer, "sec-websocket-key:" );
@@ -1069,7 +1066,7 @@ void GetHeaderValues( SOCKET_CONTEXT *socket_context )
 		}
 
 		// Determine the transfer encoding.
-		if ( socket_context->resource.use_chunked_transfer == false )
+		if ( !socket_context->resource.use_chunked_transfer )
 		{
 			char *transfer_encoding_header = _StrStrA( request_buffer, "transfer-encoding:" );
 			if ( transfer_encoding_header != NULL )
@@ -1116,7 +1113,7 @@ bool VerifyOrigin( char *origin, int origin_length )
 	char *origin_position = origin;
 
 	// Check the protocol.
-	if ( use_ssl == true )
+	if ( use_ssl )
 	{
 		if ( origin_length >= 8 && _memcmp( origin_position, "https://", 8 ) != 0 )
 		{
@@ -1165,7 +1162,7 @@ bool VerifyOrigin( char *origin, int origin_length )
 	if ( has_colon == NULL )
 	{
 		// Make sure the domain is using default ports.
-		if ( ( use_ssl == false && g_port == 80 ) || ( use_ssl == true && g_port == 443 ) )
+		if ( ( !use_ssl && g_port == 80 ) || ( use_ssl && g_port == 443 ) )
 		{
 			int origin_string_length = ( origin_length - ( origin_position - origin ) );
 

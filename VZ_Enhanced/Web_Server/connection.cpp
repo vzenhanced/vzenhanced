@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "connection_websocket.h"
 
 #include "lite_user32.h"
+#include "lite_normaliz.h"
 
 #include "menus.h"
 
@@ -236,7 +237,7 @@ bool TrySend( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, I
 	socket_context->io_context.IOOperation = ClientIoWrite;
 	socket_context->io_context.NextIOOperation = next_operation;
 
-	if ( use_ssl == true )
+	if ( use_ssl )
 	{
 		SEND_BUFFER *sb = NULL;
 
@@ -258,11 +259,11 @@ bool TrySend( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, I
 
 		LeaveCriticalSection( &socket_context->write_cs );
 
-		nRet = SSL_WSASend( socket_context, &( socket_context->io_context.wsabuf ), sb, sent );
-		if ( nRet != SEC_E_OK )
+		/*nRet =*/ SSL_WSASend( socket_context, &( socket_context->io_context.wsabuf ), sb, sent );
+		/*if ( nRet != SEC_E_OK )
 		{
 			sent = false;
-		}
+		}*/
 	}
 	else
 	{
@@ -273,7 +274,7 @@ bool TrySend( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped, I
 		}
 	}
 
-	if ( sent == false )
+	if ( !sent )
 	{
 		InterlockedDecrement( &socket_context->io_context.ref_count );
 	}
@@ -292,13 +293,13 @@ bool TryReceive( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped
 
 	socket_context->io_context.IOOperation = next_operation;
 
-	if ( use_ssl == true )
+	if ( use_ssl )
 	{
-		nRet = SSL_WSARecv( socket_context, lpWSAOverlapped, sent );
-		if ( nRet != SEC_E_OK )
+		/*nRet =*/ SSL_WSARecv( socket_context, lpWSAOverlapped, sent );
+		/*if ( nRet != SEC_E_OK )
 		{
 			sent = false;
-		}
+		}*/
 	}
 	else
 	{
@@ -309,7 +310,7 @@ bool TryReceive( SOCKET_CONTEXT *socket_context, LPWSAOVERLAPPED lpWSAOverlapped
 		}
 	}
 
-	if ( sent == false )
+	if ( !sent )
 	{
 		InterlockedDecrement( &socket_context->io_context.ref_count );
 	}
@@ -385,7 +386,7 @@ SECURITY_STATUS DecryptRecv( SOCKET_CONTEXT *socket_context, DWORD &dwIoSize, bo
 				InterlockedIncrement( &socket_context->io_context.ref_count );
 				SSL_WSAAccept( socket_context, &( socket_context->io_context.overlapped ), sent );
 
-				if ( sent == false )
+				if ( !sent )
 				{
 					InterlockedDecrement( &socket_context->io_context.ref_count );
 				}
@@ -438,7 +439,7 @@ void SendPing( SOCKET_CONTEXT *socket_context )
 	socket_context->io_context.wsapingbuf.buf = ping_buffer;
 	socket_context->io_context.wsapingbuf.len = 2;
 
-	if ( use_ssl == true )
+	if ( use_ssl )
 	{
 		SEND_BUFFER *sb = NULL;
 
@@ -460,11 +461,11 @@ void SendPing( SOCKET_CONTEXT *socket_context )
 
 		LeaveCriticalSection( &socket_context->write_cs );
 
-		nRet = SSL_WSASend( socket_context, &( socket_context->io_context.wsapingbuf ), sb, sent );
-		if ( nRet != SEC_E_OK )
+		/*nRet =*/ SSL_WSASend( socket_context, &( socket_context->io_context.wsapingbuf ), sb, sent );
+		/*if ( nRet != SEC_E_OK )
 		{
 			sent = false;
-		}
+		}*/
 	}
 	else
 	{
@@ -475,7 +476,7 @@ void SendPing( SOCKET_CONTEXT *socket_context )
 		}
 	}
 
-	if ( sent == false )
+	if ( !sent )
 	{
 		InterlockedDecrement( &socket_context->io_context.ref_ping_count );
 		BeginClose( socket_context );
@@ -487,11 +488,11 @@ void SendPing( SOCKET_CONTEXT *socket_context )
 // WebSocket connections will be closed if a ping request fails.
 DWORD WINAPI Poll( LPVOID WorkThreadContext )
 {
-	while ( g_bEndServer == false )
+	while ( !g_bEndServer )
 	{
 		WaitForSingleObject( ping_semaphore, 30000 );
 
-		if ( g_bEndServer == true )
+		if ( g_bEndServer )
 		{
 			break;
 		}
@@ -502,7 +503,7 @@ DWORD WINAPI Poll( LPVOID WorkThreadContext )
 
 		while ( context_node != NULL )
 		{
-			if ( g_bEndServer == true )
+			if ( g_bEndServer )
 			{
 				break;
 			}
@@ -552,7 +553,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 	if ( ws2_32_state == WS2_32_STATE_SHUTDOWN )
 	{
 		#ifndef WS2_32_USE_STATIC_LIB
-			if ( InitializeWS2_32() == false ){ _ExitThread( 0 ); return 0; }
+			if ( !InitializeWS2_32() ){ _ExitThread( 0 ); return 0; }
 		#else
 			StartWS2_32();
 		#endif
@@ -569,7 +570,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 	InitializeCriticalSection( &close_connection_cs );
 	InitializeCriticalSection( &g_update_buffer_pool_cs );
 
-	if ( use_rwl_library == true )
+	if ( use_rwl_library )
 	{
 		InitializeCriticalSection( &g_fairness_mutex );
 		_InitializeSRWLock( &g_srwlock );
@@ -579,7 +580,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 		InitializeReaderWriterLock( &g_reader_writer_lock );
 	}
 
-	HANDLE *g_ThreadHandles = ( HANDLE * )GlobalAlloc( GMEM_FIXED, sizeof ( HANDLE ) * max_threads );
+	HANDLE *g_ThreadHandles = ( HANDLE * )GlobalAlloc( GMEM_FIXED, sizeof( HANDLE ) * max_threads );
 
 	for ( unsigned int i = 0; i < max_threads; ++i )
 	{
@@ -596,7 +597,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 	ping_buffer[ 0 ] = -119;	// 0x89; Ping byte
 	ping_buffer[ 1 ] = 0;		// Sanity.
 
-	while ( g_bRestart == true )
+	while ( g_bRestart )
 	{
 		g_bRestart = false;
 		g_bEndServer = false;
@@ -612,7 +613,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 
 		dwThreadCount = cfg_thread_count;
 
-		if ( use_ssl == true )
+		if ( use_ssl )
 		{
 			if ( ssl_state == SSL_STATE_SHUTDOWN )
 			{
@@ -626,7 +627,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 			break;
 		}
 
-		if ( use_ssl == true && g_pCertContext == NULL )
+		if ( use_ssl && g_pCertContext == NULL )
 		{
 			if ( cfg_certificate_type == 1 )	// Public/Private Key Pair.
 			{
@@ -645,7 +646,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 
 		if ( document_root_directory == NULL )
 		{
-			document_root_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * ( g_document_root_directory_length + 1 ) );
+			document_root_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( g_document_root_directory_length + 1 ) );
 			_wmemcpy_s( document_root_directory, g_document_root_directory_length + 1, cfg_document_root_directory, g_document_root_directory_length );
 			document_root_directory[ g_document_root_directory_length ] = 0;	// Sanity.
 			document_root_directory_length = g_document_root_directory_length;
@@ -678,7 +679,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 			hThread = INVALID_HANDLE_VALUE;
 		}
 
-		if ( CreateListenSocket() == true && CreateAcceptSocket() == true )
+		if ( CreateListenSocket() && CreateAcceptSocket() )
 		{
 			_WSAWaitForMultipleEvents( 1, g_hCleanupEvent, TRUE, WSA_INFINITE, FALSE );
 		}
@@ -755,7 +756,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 		CleanupResourceCache( &g_resource_cache );	// g_resource_cache is set to NULL. 
 		g_resource_cache_size = 0;
 
-		if ( use_ssl == true )
+		if ( use_ssl )
 		{
 			if ( g_pCertContext != NULL )
 			{
@@ -776,7 +777,7 @@ THREAD_RETURN Server( LPVOID pArguments )
 		g_hCleanupEvent[ 0 ] = WSA_INVALID_EVENT;
 	}
 
-	if ( use_rwl_library == true )
+	if ( use_rwl_library )
 	{
 		DeleteCriticalSection( &g_fairness_mutex );
 		// The SRWLOCK g_srwlock does not need to be deleted/uninitialized.
@@ -859,15 +860,17 @@ bool CreateListenSocket()
 	// Use Hostname or IPv6 Address.
 	if ( cfg_address_type == 0 )
 	{
-		g_domain = GetUTF8Domain( cfg_hostname );
+		wchar_t *hostname = ( g_punycode_hostname != NULL ? g_punycode_hostname : cfg_hostname );
 
-		nRet = _GetAddrInfoW( cfg_hostname, cport, &hints, &addrlocal );
+		g_domain = GetUTF8Domain( hostname );
+
+		nRet = _GetAddrInfoW( hostname, cport, &hints, &addrlocal );
 		if ( nRet == WSAHOST_NOT_FOUND )
 		{
 			g_use_ipv6 = true;
 
 			hints.ai_family = AF_INET6;	// Try IPv6
-			nRet = _GetAddrInfoW( cfg_hostname, cport, &hints, &addrlocal );
+			nRet = _GetAddrInfoW( hostname, cport, &hints, &addrlocal );
 		}
 
 		if ( nRet != 0 )
@@ -945,7 +948,8 @@ bool CreateListenSocket()
 	// We need only do this once.
 	if ( fpAcceptEx == NULL )
 	{
-		// Load the AcceptEx extension function from the provider for this socket.
+		// Load the AcceptEx extension function from the provider.
+		// It doesn't matter what socket we use so long as it's valid.
 		nRet = _WSAIoctl( g_sdListen, SIO_GET_EXTENSION_FUNCTION_POINTER, &acceptex_guid, sizeof( acceptex_guid ), &fpAcceptEx, sizeof( fpAcceptEx ), &bytes, NULL, NULL );
 		if ( nRet == SOCKET_ERROR )
 		{
@@ -1019,7 +1023,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 		// Service io completion packets
 		bSuccess = GetQueuedCompletionStatus( hIOCP, &dwIoSize, ( PDWORD_PTR )&socket_context, ( LPOVERLAPPED * )&overlapped, INFINITE );
 
-		if ( g_bEndServer == true )
+		if ( g_bEndServer )
 		{
 			break;
 		}
@@ -1076,7 +1080,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 				// The connection was either shutdown by the client, or closed abruptly.
 				if ( *io_operation != ClientIoShutdown && *io_operation != ClientIoClose )
 				{
-					*io_operation = ( use_ssl == true ? ClientIoShutdown : ClientIoClose );
+					*io_operation = ( use_ssl ? ClientIoShutdown : ClientIoClose );
 				}
 			}
 		}
@@ -1108,7 +1112,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 
 				InterlockedIncrement( &socket_context->io_context.ref_count );
 				
-				if ( use_ssl == true )
+				if ( use_ssl )
 				{
 					socket_context->io_context.IOOperation = ClientIoHandshakeReply;
 					SSL_WSAAccept( socket_context, &( socket_context->io_context.overlapped ), sent );
@@ -1123,7 +1127,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					}
 				}
 
-				if ( sent == false )
+				if ( !sent )
 				{
 					InterlockedDecrement( &socket_context->io_context.ref_count );
 					BeginClose( socket_context );
@@ -1139,14 +1143,17 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					{
 						ping_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
-						CloseHandle( _CreateThread( NULL, 0, Poll, NULL, 0, NULL ) );
+						//CloseHandle( _CreateThread( NULL, 0, Poll, NULL, 0, NULL ) );
+						HANDLE poll_handle = _CreateThread( NULL, 0, Poll, NULL, 0, NULL );
+						SetThreadPriority( poll_handle, THREAD_PRIORITY_LOWEST );
+						CloseHandle( poll_handle );
 					}
 
 					LeaveCriticalSection( &context_list_cs );
 				}
 
 				// Post another outstanding AcceptEx.
-				if ( CreateAcceptSocket() == false )
+				if ( !CreateAcceptSocket() )
 				{
 					_WSASetEvent( g_hCleanupEvent[ 0 ] );
 					ExitThread( 0 );
@@ -1168,7 +1175,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 				*next_io_operation = ClientIoHandshakeResponse;
 				SECURITY_STATUS sRet = SSL_WSAAccept_Reply( socket_context, &( socket_context->io_context.overlapped ), sent );
 
-				if ( sent == false )
+				if ( !sent )
 				{
 					InterlockedDecrement( ref_count );
 				}
@@ -1188,8 +1195,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 						socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
 
 						// Read the request from the client.
-						bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), *io_operation );
-						if ( ret == false )
+						if ( !TryReceive( socket_context, &( socket_context->io_context.overlapped ), *io_operation ) )
 						{
 							BeginClose( socket_context );
 						}
@@ -1215,7 +1221,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 				*io_operation = ClientIoHandshakeReply;
 				SECURITY_STATUS sRet = SSL_WSAAccept_Response( socket_context, &( socket_context->io_context.overlapped ), sent );
 
-				if ( sent == false )
+				if ( !sent )
 				{
 					InterlockedDecrement( ref_count );
 				}
@@ -1235,8 +1241,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 						socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
 
 						// Read the request from the client.
-						bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), *io_operation );
-						if ( ret == false )
+						if ( !TryReceive( socket_context, &( socket_context->io_context.overlapped ), *io_operation ) )
 						{
 							BeginClose( socket_context );
 						}
@@ -1271,7 +1276,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					*io_operation = *next_io_operation;
 
 					// Allow our SSL send buffer to be reused.
-					if ( use_ssl == true )
+					if ( use_ssl )
 					{
 						EnterCriticalSection( &socket_context->write_cs );
 
@@ -1333,8 +1338,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 				socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
 				socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
 
-				bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadRequest );
-				if ( ret == false )
+				if ( !TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadRequest ) )
 				{
 					BeginClose( socket_context );
 				}
@@ -1356,8 +1360,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 				socket_context->io_context.wsabuf.buf = socket_context->io_context.buffer;
 				socket_context->io_context.wsabuf.len = MAX_BUFFER_SIZE;
 
-				bool ret = TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest );
-				if ( ret == false )
+				if ( !TryReceive( socket_context, &( socket_context->io_context.overlapped ), ClientIoReadWebSocketRequest ) )
 				{
 					BeginClose( socket_context );
 				}
@@ -1368,7 +1371,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 			{
 				socket_context->connection_type = CON_TYPE_HTTP;
 
-				if ( use_ssl == true )
+				if ( use_ssl )
 				{
 					bool sent = false;
 
@@ -1377,7 +1380,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					InterlockedIncrement( ref_count );
 					SECURITY_STATUS sRet = SSL_WSAShutdown( socket_context, &( socket_context->io_context.overlapped ), sent );
 
-					if ( sent == false )
+					if ( !sent )
 					{
 						InterlockedDecrement( ref_count );
 					}
@@ -1408,6 +1411,7 @@ DWORD WINAPI Connection( LPVOID WorkThreadContext )
 					{
 						SOCKET s = socket_context->Socket;
 						socket_context->Socket = INVALID_SOCKET;
+						_shutdown( s, SD_BOTH );
 						_closesocket( s );	// Saves us from having to post if there's already a pending IO operation. Should force the operation to complete.
 					}
 				}
@@ -1439,7 +1443,7 @@ SOCKET_CONTEXT *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool bIs
 
 		socket_context->resource.hFile_resource = INVALID_HANDLE_VALUE;
 
-		if ( bIsListen == false && use_ssl == true )
+		if ( !bIsListen && use_ssl )
 		{
 			DWORD protocol = 0;
 			switch ( ssl_version )
@@ -1482,7 +1486,7 @@ SOCKET_CONTEXT *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool bIs
 		else
 		{
 			// Add all socket contexts (except the listening one) to our linked list.
-			if ( bIsListen == false )
+			if ( !bIsListen )
 			{
 				socket_context->context_node.data = socket_context;
 
@@ -1526,7 +1530,7 @@ void CloseClient( SOCKET_CONTEXT *socket_context, bool bGraceful )
 
 		LeaveCriticalSection( &context_list_cs );
 
-		if ( bGraceful == false )
+		if ( !bGraceful )
 		{
 			// Force the subsequent closesocket to be abortive.
 			LINGER  lingerStruct;
@@ -1568,7 +1572,7 @@ void CloseClient( SOCKET_CONTEXT *socket_context, bool bGraceful )
 
 		if ( socket_context->resource.resource_buf != NULL )
 		{
-			if ( socket_context->resource.use_cache == false )
+			if ( !socket_context->resource.use_cache )
 			{
 				GlobalFree( socket_context->resource.resource_buf );
 			}

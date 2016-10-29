@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -224,6 +224,11 @@ void create_settings()
 	
 	POPUP_SETTINGS *ls1 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
 	ls1->shared_settings = shared_settings;
+	ls1->window_settings.drag_position.x = 0;
+	ls1->window_settings.drag_position.y = 0;
+	ls1->window_settings.window_position.x = 0;
+	ls1->window_settings.window_position.y = 0;
+	ls1->window_settings.is_dragging = false;
 	ls1->popup_line_order = cfg_popup_line_order1;
 	ls1->popup_justify = cfg_popup_justify_line1;
 	ls1->font_color = cfg_popup_font_color1;
@@ -258,6 +263,11 @@ void create_settings()
 
 	POPUP_SETTINGS *ls2 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
 	ls2->shared_settings = shared_settings;
+	ls2->window_settings.drag_position.x = 0;
+	ls2->window_settings.drag_position.y = 0;
+	ls2->window_settings.window_position.x = 0;
+	ls2->window_settings.window_position.y = 0;
+	ls2->window_settings.is_dragging = false;
 	ls2->popup_line_order = cfg_popup_line_order2;
 	ls2->popup_justify = cfg_popup_justify_line2;
 	ls2->font_color = cfg_popup_font_color2;
@@ -292,6 +302,11 @@ void create_settings()
 
 	POPUP_SETTINGS *ls3 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
 	ls3->shared_settings = shared_settings;
+	ls3->window_settings.drag_position.x = 0;
+	ls3->window_settings.drag_position.y = 0;
+	ls3->window_settings.window_position.x = 0;
+	ls3->window_settings.window_position.y = 0;
+	ls3->window_settings.is_dragging = false;
 	ls3->popup_line_order = cfg_popup_line_order3;
 	ls3->popup_justify = cfg_popup_justify_line3;
 	ls3->font_color = cfg_popup_font_color3;
@@ -362,6 +377,11 @@ void reset_settings()
 
 	POPUP_SETTINGS *ps = ( POPUP_SETTINGS * )temp_ll->data;
 	ps->shared_settings = shared_settings;
+	ps->window_settings.drag_position.x = 0;
+	ps->window_settings.drag_position.y = 0;
+	ps->window_settings.window_position.x = 0;
+	ps->window_settings.window_position.y = 0;
+	ps->window_settings.is_dragging = false;
 	ps->popup_line_order = cfg_popup_line_order1;
 	ps->popup_justify = cfg_popup_justify_line1;
 	ps->font_color = cfg_popup_font_color1;
@@ -411,6 +431,11 @@ void reset_settings()
 
 	ps = ( POPUP_SETTINGS * )temp_ll->data;
 	ps->shared_settings = shared_settings;
+	ps->window_settings.drag_position.x = 0;
+	ps->window_settings.drag_position.y = 0;
+	ps->window_settings.window_position.x = 0;
+	ps->window_settings.window_position.y = 0;
+	ps->window_settings.is_dragging = false;
 	ps->popup_line_order = cfg_popup_line_order2;
 	ps->popup_justify = cfg_popup_justify_line2;
 	ps->font_color = cfg_popup_font_color2;
@@ -460,6 +485,11 @@ void reset_settings()
 
 	ps = ( POPUP_SETTINGS * )temp_ll->data;
 	ps->shared_settings = shared_settings;
+	ps->window_settings.drag_position.x = 0;
+	ps->window_settings.drag_position.y = 0;
+	ps->window_settings.window_position.x = 0;
+	ps->window_settings.window_position.y = 0;
+	ps->window_settings.is_dragging = false;
 	ps->popup_line_order = cfg_popup_line_order3;
 	ps->popup_justify = cfg_popup_justify_line3;
 	ps->font_color = cfg_popup_font_color3;
@@ -551,7 +581,7 @@ void Enable_Disable_Windows( POPUP_SETTINGS *ps )
 {
 	if ( ps->popup_line_order > 0 )
 	{
-		_EnableWindow( g_hWnd_btn_font_shadow_color, ( ps->font_shadow == true ? TRUE : FALSE ) );
+		_EnableWindow( g_hWnd_btn_font_shadow_color, ( ps->font_shadow ? TRUE : FALSE ) );
 
 		_EnableWindow( g_hWnd_chk_shadow, TRUE );
 		_EnableWindow( g_hWnd_static_example, TRUE );
@@ -622,7 +652,7 @@ void Enable_Disable_Popup_Windows( BOOL enable )
 	if ( enable == TRUE && g_ll != NULL &&
 						   g_ll->data != NULL &&
 						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings != NULL &&
-						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings->popup_play_sound == true )
+						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings->popup_play_sound )
 	{
 		_EnableWindow( g_hWnd_sound_location, TRUE );
 		_EnableWindow( g_hWnd_sound, TRUE );
@@ -663,7 +693,7 @@ void Enable_Disable_Popup_Windows( BOOL enable )
 	if ( enable == TRUE && g_ll != NULL &&
 						   g_ll->data != NULL &&
 						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings != NULL &&
-						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings->popup_gradient == true )
+						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings->popup_gradient )
 	{
 		_EnableWindow( g_hWnd_btn_background_color2, TRUE );
 		_EnableWindow( g_hWnd_group_gradient_direction, TRUE );
@@ -731,7 +761,7 @@ void Enable_Disable_Popup_Windows( BOOL enable )
 
 void Set_Window_Settings()
 {
-	if ( check_settings() == false )
+	if ( !check_settings() )
 	{
 		// Bad list, recreate.
 
@@ -781,6 +811,10 @@ void Set_Window_Settings()
 	_SendMessageW( g_hWnd_font_settings, TVM_SELECTITEM, TVGN_CARET, ( LPARAM )hti_selected );
 
 	_SendMessageW( g_hWnd_ud_timeout, UDM_SETPOS, 0, cfg_connection_timeout );
+	if ( cfg_connection_timeout == 0 )
+	{
+		_SendMessageW( g_hWnd_timeout, WM_SETTEXT, 0, ( LPARAM )L"0" );
+	}
 	_SendMessageW( g_hWnd_ud_retries, UDM_SETPOS, 0, cfg_connection_retries );
 	_SendMessageW( g_hWnd_ud_width, UDM_SETPOS, 0, cfg_popup_width );
 	_SendMessageW( g_hWnd_ud_height, UDM_SETPOS, 0, cfg_popup_height );
@@ -790,17 +824,17 @@ void Set_Window_Settings()
 
 	_SendMessageW( g_hWnd_ssl_version, CB_SETCURSEL, cfg_connection_ssl_version, 0 );
 
-	_SendMessageW( g_hWnd_chk_minimize, BM_SETCHECK, ( cfg_minimize_to_tray == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
-	_SendMessageW( g_hWnd_chk_close, BM_SETCHECK, ( cfg_close_to_tray == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
-	_SendMessageW( g_hWnd_chk_silent_startup, BM_SETCHECK, ( cfg_silent_startup == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_minimize, BM_SETCHECK, ( cfg_minimize_to_tray ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_close, BM_SETCHECK, ( cfg_close_to_tray ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_silent_startup, BM_SETCHECK, ( cfg_silent_startup ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_always_on_top, BM_SETCHECK, ( cfg_always_on_top == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_always_on_top, BM_SETCHECK, ( cfg_always_on_top ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_enable_history, BM_SETCHECK, ( cfg_enable_call_log_history == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_enable_history, BM_SETCHECK, ( cfg_enable_call_log_history ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, ( cfg_enable_message_log == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, ( cfg_enable_message_log ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	if ( cfg_tray_icon == true )
+	if ( cfg_tray_icon )
 	{
 		_SendMessageW( g_hWnd_chk_tray_icon, BM_SETCHECK, BST_CHECKED, 0 );
 		_EnableWindow( g_hWnd_chk_minimize, TRUE );
@@ -815,15 +849,15 @@ void Set_Window_Settings()
 		_EnableWindow( g_hWnd_chk_silent_startup, FALSE );
 	}
 
-	_SendMessageW( g_hWnd_chk_download_pictures, BM_SETCHECK, ( cfg_download_pictures == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_download_pictures, BM_SETCHECK, ( cfg_download_pictures ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_check_for_updates, BM_SETCHECK, ( cfg_check_for_updates == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_check_for_updates, BM_SETCHECK, ( cfg_check_for_updates ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_auto_login, BM_SETCHECK, ( cfg_connection_auto_login == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_auto_login, BM_SETCHECK, ( cfg_connection_auto_login ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_EnableWindow( g_hWnd_chk_auto_login, ( cfg_remember_login == true ? TRUE : FALSE ) );
+	_EnableWindow( g_hWnd_chk_auto_login, ( cfg_remember_login ? TRUE : FALSE ) );
 
-	if ( cfg_connection_reconnect == true )
+	if ( cfg_connection_reconnect )
 	{
 		_SendMessageW( g_hWnd_chk_reconnect, BM_SETCHECK, BST_CHECKED, 0 );
 		_EnableWindow( g_hWnd_static_retry, TRUE );
@@ -838,7 +872,7 @@ void Set_Window_Settings()
 		_EnableWindow( g_hWnd_ud_retries, FALSE );
 	}
 
-	if ( cfg_popup_gradient == true )
+	if ( cfg_popup_gradient )
 	{
 		_SendMessageW( g_hWnd_chk_gradient, BM_SETCHECK, BST_CHECKED, 0 );
 		_EnableWindow( g_hWnd_btn_background_color2, TRUE );
@@ -855,11 +889,11 @@ void Set_Window_Settings()
 		_EnableWindow( g_hWnd_rad_gradient_vert, FALSE );
 	}
 
-	_EnableWindow( g_hWnd_btn_font_shadow_color, ( cfg_popup_font_shadow1 == true ? TRUE : FALSE ) );
+	_EnableWindow( g_hWnd_btn_font_shadow_color, ( cfg_popup_font_shadow1 ? TRUE : FALSE ) );
 
-	_SendMessageW( g_hWnd_chk_border, BM_SETCHECK, ( cfg_popup_hide_border == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_border, BM_SETCHECK, ( cfg_popup_hide_border ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
-	_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, ( cfg_popup_font_shadow1 == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+	_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, ( cfg_popup_font_shadow1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	if ( cfg_popup_justify_line1 == 2 )
 	{
@@ -916,7 +950,7 @@ void Set_Window_Settings()
 	}
 
 	_SendMessageW( g_hWnd_sound_location, WM_SETTEXT, 0, ( LPARAM )cfg_popup_sound );
-	if ( cfg_popup_play_sound == true )
+	if ( cfg_popup_play_sound )
 	{
 		_SendMessageW( g_hWnd_chk_play_sound, BM_SETCHECK, BST_CHECKED, 0 );
 		_EnableWindow( g_hWnd_sound_location, TRUE );
@@ -929,7 +963,7 @@ void Set_Window_Settings()
 		_EnableWindow( g_hWnd_sound, FALSE );
 	}
 
-	if ( cfg_enable_popups == true )
+	if ( cfg_enable_popups )
 	{
 		_SendMessageW( g_hWnd_chk_enable_popups, BM_SETCHECK, BST_CHECKED, 0 );
 		Enable_Disable_Popup_Windows( TRUE );
@@ -1046,32 +1080,22 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 				{
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
+						DWORD sel_start = 0;
+
 						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 3, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						unsigned long num = _strtoul( value, NULL, 10 );
 
 						if ( num > 10 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"10" );
 
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
-
-						options_state_changed = true;
-						_EnableWindow( g_hWnd_apply, TRUE );
-					}
-					else if ( HIWORD( wParam ) == EN_KILLFOCUS )
-					{
-						char value[ 11 ];
-						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 3, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
-
-						if ( num < 1 )
+						else if ( num == 0 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"1" );
@@ -1090,15 +1114,16 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
 				case EDIT_TIMEOUT:
 				{
+					DWORD sel_start = 0;
+					char value[ 11 ];
+
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
-						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 4, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						unsigned long num = _strtoul( value, NULL, 10 );
 
 						if ( num > 300 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"300" );
@@ -1106,18 +1131,19 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
 
-						options_state_changed = true;
-						_EnableWindow( g_hWnd_apply, TRUE );
+						if ( num != cfg_connection_timeout )
+						{
+							options_state_changed = true;
+							_EnableWindow( g_hWnd_apply, TRUE );
+						}
 					}
 					else if ( HIWORD( wParam ) == EN_KILLFOCUS )
 					{
-						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 4, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						unsigned long num = _strtoul( value, NULL, 10 );
 
 						if ( num > 0 && num < 60 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"60" );
@@ -1515,7 +1541,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 							_SendMessageW( g_hWnd_rad_left_justify, BM_SETCHECK, BST_CHECKED, 0 );
 						}
 
-						_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, ( ps->font_shadow == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+						_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, ( ps->font_shadow ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 						if ( _abs( ps->popup_line_order ) == LINE_TIME )
 						{
@@ -1532,7 +1558,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 						Enable_Disable_Windows( ps );
 
-						if ( line_state_changed == true )
+						if ( line_state_changed )
 						{
 							options_state_changed = true;
 							_EnableWindow( g_hWnd_apply, TRUE );
@@ -1859,13 +1885,14 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				{
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
+						DWORD sel_start = 0;
+
 						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 4, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						unsigned long num = _strtoul( value, NULL, 10 );
 
 						if ( num > 255 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"255" );
@@ -1873,8 +1900,11 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
 
-						options_state_changed = true;
-						_EnableWindow( g_hWnd_apply, TRUE );
+						if ( num != cfg_popup_transparency )
+						{
+							options_state_changed = true;
+							_EnableWindow( g_hWnd_apply, TRUE );
+						}
 					}
 				}
 				break;
@@ -1882,16 +1912,16 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				case EDIT_WIDTH:
 				case EDIT_HEIGHT:
 				{
+					DWORD sel_start = 0;
+					char value[ 11 ];
+
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
-						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 5, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						LONG num = _strtoul( value, NULL, 10 );
 
 						RECT wa;
 						_SystemParametersInfoW( SPI_GETWORKAREA, 0, &wa, 0 );
-
-						DWORD sel_start = 0;
 
 						if ( ( HWND )lParam == g_hWnd_height && num > wa.bottom )
 						{
@@ -1912,18 +1942,19 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
 
-						options_state_changed = true;
-						_EnableWindow( g_hWnd_apply, TRUE );
+						if ( ( ( HWND )lParam == g_hWnd_height && num != cfg_popup_height ) || ( ( HWND )lParam == g_hWnd_width && num != cfg_popup_width ) )
+						{
+							options_state_changed = true;
+							_EnableWindow( g_hWnd_apply, TRUE );
+						}
 					}
 					else if ( HIWORD( wParam ) == EN_KILLFOCUS )
 					{
-						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 5, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						unsigned long num = _strtoul( value, NULL, 10 );
 
 						if ( ( ( HWND )lParam == g_hWnd_height || ( HWND )lParam == g_hWnd_width ) && num < 20 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"20" );
@@ -1943,7 +1974,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				case BTN_PREVIEW:
 				{
 					// Ensures that ps and ss below are valid and not NULL.
-					if ( check_settings() == false )
+					if ( !check_settings() )
 					{
 						break;
 					}
@@ -2006,7 +2037,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					bool popup_hide_border = ( _SendMessageW( g_hWnd_chk_border, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 					unsigned char popup_time_format = ( _SendMessageW( g_hWnd_rad_24_hour, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? 1 : 0 );
 
-					HWND hWnd_popup = _CreateWindowExW( WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( popup_hide_border == true ? NULL : WS_THICKFRAME ), left, top, width, height, NULL, NULL, NULL, NULL );
+					HWND hWnd_popup = _CreateWindowExW( WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( popup_hide_border ? NULL : WS_THICKFRAME ), left, top, width, height, NULL, NULL, NULL, NULL );
 
 					_SetWindowLongW( hWnd_popup, GWL_EXSTYLE, _GetWindowLongW( hWnd_popup, GWL_EXSTYLE ) | WS_EX_LAYERED );
 					_SetLayeredWindowAttributes( hWnd_popup, 0, transparency, LWA_ALPHA );
@@ -2030,7 +2061,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 						}
 					#endif
 
-					if ( get_username == true )
+					if ( get_username )
 					{
 						_GetUserNameW( caller_id_line, &size );
 					}
@@ -2069,6 +2100,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 						POPUP_SETTINGS *ls = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
 						ls->shared_settings = shared_settings;
+						ls->window_settings = ps->window_settings;
 						ls->popup_line_order = ps->popup_line_order;
 						ls->popup_justify = ps->popup_justify;
 						ls->font_color = ps->font_color;
@@ -2279,7 +2311,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 								POPUP_SETTINGS *ps = ( POPUP_SETTINGS * )ll->data;
 								ps->font_shadow = ( _SendMessageW( g_hWnd_chk_shadow, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
-								if ( ps->font_shadow == true )
+								if ( ps->font_shadow )
 								{
 									_EnableWindow( g_hWnd_btn_font_shadow_color, TRUE );
 								}
@@ -2304,16 +2336,12 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					{
 						SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings;
 
-						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
+						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 						if ( shared_settings->popup_sound != NULL )
 						{
 							_wcsncpy_s( file_name, MAX_PATH, shared_settings->popup_sound, MAX_PATH );
 							file_name[ MAX_PATH - 1 ] = 0;	// Sanity.
-						}
-						else
-						{
-							_memzero( file_name, sizeof ( wchar_t ) * MAX_PATH );
 						}
 
 						OPENFILENAME ofn;
@@ -2388,7 +2416,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 						shared_settings->popup_gradient = ( _SendMessageW( g_hWnd_chk_gradient, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
-						if ( shared_settings->popup_gradient == true )
+						if ( shared_settings->popup_gradient )
 						{
 							_EnableWindow( g_hWnd_btn_background_color2, TRUE );
 							_EnableWindow( g_hWnd_group_gradient_direction, TRUE );
@@ -2415,13 +2443,14 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				{
 					if ( HIWORD( wParam ) == EN_UPDATE )
 					{
+						DWORD sel_start = 0;
+
 						char value[ 11 ];
 						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 4, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
+						unsigned long num = _strtoul( value, NULL, 10 );
 
 						if ( num > MAX_POPUP_TIME )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							__snprintf( value, 11, "%d", MAX_POPUP_TIME );
@@ -2429,19 +2458,8 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 							_SendMessageA( ( HWND )lParam, EM_SETSEL, sel_start, sel_start );
 						}
-
-						options_state_changed = true;
-						_EnableWindow( g_hWnd_apply, TRUE );
-					}
-					else if ( HIWORD( wParam ) == EN_KILLFOCUS )
-					{
-						char value[ 11 ];
-						_SendMessageA( ( HWND )lParam, WM_GETTEXT, 4, ( LPARAM )value );
-						int num = _strtoul( value, NULL, 10 );
-
-						if ( num < 1 )
+						else if ( num == 0 )
 						{
-							DWORD sel_start = 0;
 							_SendMessageA( ( HWND )lParam, EM_GETSEL, ( WPARAM )&sel_start, NULL );
 
 							_SendMessageA( ( HWND )lParam, WM_SETTEXT, 0, ( LPARAM )"1" );
@@ -2499,7 +2517,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 									SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )ll->data )->shared_settings;
 
-									if ( shared_settings->popup_gradient == false )
+									if ( !shared_settings->popup_gradient )
 									{
 										HBRUSH background = _CreateSolidBrush( shared_settings->popup_background_color1 );
 										_FillRect( hdcMem, &dis->rcItem, background );
@@ -2546,7 +2564,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 									rc_line.top = ( dis->rcItem.bottom - ( rc_line.bottom - rc_line.top ) - 5 ) / 2;
 									rc_line.bottom = rc_line.top + tmp_height;
 
-									if ( p_s->font_shadow == true )
+									if ( p_s->font_shadow )
 									{
 										RECT rc_shadow_line = rc_line;
 										rc_shadow_line.left += 2;
@@ -2622,7 +2640,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 			if ( hil != NULL )
 			{
-				if ( destroy == true )
+				if ( destroy )
 				{
 					_ImageList_Destroy( hil );
 				}
@@ -2631,6 +2649,8 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					MESSAGE_LOG_OUTPUT( ML_WARNING, ST_TreeView_leak )
 				}
 			}
+
+			return 0;
 		}
 		break;
 
@@ -2891,7 +2911,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 				case BTN_OK:
 				case BTN_APPLY:
 				{
-					if ( options_state_changed == false )
+					if ( !options_state_changed )
 					{
 						_SendMessageW( hWnd, WM_CLOSE, 0, 0 );
 						break;
@@ -2989,7 +3009,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						current_node = current_node->next;
 					}
 
-					if ( error_saving == false )
+					if ( !error_saving )
 					{
 						char value[ 5 ];
 						_SendMessageA( g_hWnd_width, WM_GETTEXT, 5, ( LPARAM )value );
@@ -3029,14 +3049,14 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						bool tray_icon = ( _SendMessageW( g_hWnd_chk_tray_icon, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
 						// We don't want to allow a silent startup if the tray icon is hidden.
-						if ( tray_icon == false && cfg_silent_startup == true )
+						if ( !tray_icon && cfg_silent_startup )
 						{
 							cfg_silent_startup = false;
 							_SendMessageW( g_hWnd_chk_silent_startup, BM_SETCHECK, BST_UNCHECKED, 0 );
 						}
 
 						// Add the tray icon if it was not previously enabled.
-						if ( tray_icon == true && cfg_tray_icon == false )
+						if ( tray_icon && !cfg_tray_icon )
 						{
 							g_nid.cbSize = sizeof( g_nid );
 							g_nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
@@ -3048,7 +3068,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							g_nid.szTip[ 24 ] = 0;	// Sanity.
 							_Shell_NotifyIconW( NIM_ADD, &g_nid );
 						}
-						else if ( tray_icon == false && cfg_tray_icon == true )	// Remove the tray icon if it was previously enabled.
+						else if ( !tray_icon && cfg_tray_icon )	// Remove the tray icon if it was previously enabled.
 						{
 							// Make sure that the main window is not hidden before we delete the tray icon.
 							if ( _IsWindowVisible( g_hWnd_main ) == FALSE )
@@ -3068,26 +3088,26 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						{
 							cfg_always_on_top = always_on_top;
 
-							if ( g_hWnd_main != NULL ){ _SetWindowPos( g_hWnd_main, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_login != NULL ){ _SetWindowPos( g_hWnd_login, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_columns != NULL ){ _SetWindowPos( g_hWnd_columns, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_contact != NULL ){ _SetWindowPos( g_hWnd_contact, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_account != NULL ){ _SetWindowPos( g_hWnd_account, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_dial != NULL ){ _SetWindowPos( g_hWnd_dial, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_forward != NULL ){ _SetWindowPos( g_hWnd_forward, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_ignore_phone_number != NULL ){ _SetWindowPos( g_hWnd_ignore_phone_number, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_forward_cid != NULL ){ _SetWindowPos( g_hWnd_forward_cid, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_ignore_cid != NULL ){ _SetWindowPos( g_hWnd_ignore_cid, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_message_log != NULL ){ _SetWindowPos( g_hWnd_message_log, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL ){ _SetWindowPos( g_hWnd_connection_manager, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
-							if ( g_hWnd_options != NULL ){ _SetWindowPos( g_hWnd_options, ( cfg_always_on_top == true ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_main != NULL ){ _SetWindowPos( g_hWnd_main, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_login != NULL ){ _SetWindowPos( g_hWnd_login, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_columns != NULL ){ _SetWindowPos( g_hWnd_columns, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_contact != NULL ){ _SetWindowPos( g_hWnd_contact, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_account != NULL ){ _SetWindowPos( g_hWnd_account, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_dial != NULL ){ _SetWindowPos( g_hWnd_dial, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_forward != NULL ){ _SetWindowPos( g_hWnd_forward, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_ignore_phone_number != NULL ){ _SetWindowPos( g_hWnd_ignore_phone_number, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_forward_cid != NULL ){ _SetWindowPos( g_hWnd_forward_cid, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_ignore_cid != NULL ){ _SetWindowPos( g_hWnd_ignore_cid, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_message_log != NULL ){ _SetWindowPos( g_hWnd_message_log, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( web_server_state == WEB_SERVER_STATE_RUNNING && g_hWnd_connection_manager != NULL ){ _SetWindowPos( g_hWnd_connection_manager, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_options != NULL ){ _SetWindowPos( g_hWnd_options, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 						}
 
 						bool enable_message_log = ( _SendMessageW( g_hWnd_chk_message_log, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
-						if ( enable_message_log == true && cfg_enable_message_log == false )	// We want to enable message logging.
+						if ( enable_message_log && !cfg_enable_message_log )	// We want to enable message logging.
 						{
-							if ( in_ml_update_thread == false )		// Thread isn't running.
+							if ( !in_ml_update_thread )				// Thread isn't running.
 							{
 								cleanup_message_log_queue();		// Clean up any remnant events before we start logging.
 
@@ -3095,11 +3115,14 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 								kill_ml_update_thread_flag = false;	// Ensure the thread waits for events.
 
-								CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL ) );
+								//CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL ) );
+								HANDLE update_message_log_handle = _CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL );
+								SetThreadPriority( update_message_log_handle, THREAD_PRIORITY_LOWEST );
+								CloseHandle( update_message_log_handle );
 							}
 							else	// Thread is running (for some reason).
 							{
-								if ( kill_ml_update_thread_flag == true )	// Thread is in the process of exiting.
+								if ( kill_ml_update_thread_flag )	// Thread is in the process of exiting.
 								{
 									_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, BST_UNCHECKED, 0 );
 
@@ -3111,11 +3134,11 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 								}
 							}
 						}
-						else if ( enable_message_log == false && cfg_enable_message_log == true )	// We want to disable message logging.
+						else if ( !enable_message_log && cfg_enable_message_log )	// We want to disable message logging.
 						{
-							if ( in_ml_update_thread == true )				// Thread is running.
+							if ( in_ml_update_thread )						// Thread is running.
 							{
-								if ( kill_ml_update_thread_flag == false )	// Thread has not been triggered to exit.
+								if ( !kill_ml_update_thread_flag )			// Thread has not been triggered to exit.
 								{
 									cfg_enable_message_log = false;			// Stop events from queuing.
 
@@ -3207,6 +3230,8 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 		case WM_CLOSE:
 		{
 			_DestroyWindow( hWnd );
+
+			return 0;
 		}
 		break;
 
@@ -3217,6 +3242,8 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			delete_settings();
 
 			g_hWnd_options = NULL;
+
+			return 0;
 		}
 		break;
 

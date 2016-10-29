@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include "file_operations.h"
 #include "utilities.h"
+#include "message_log_utilities.h"
 #include "string_tables.h"
 
 RANGE *ignore_range_list[ 16 ];
@@ -527,15 +528,15 @@ char read_config()
 
 				// Set the default values for bad configuration values.
 
-				if ( cfg_tray_icon == false )
+				if ( !cfg_tray_icon )
 				{
 					cfg_silent_startup = false;
 				}
 
 				// These should never be negative.
-				if ( cfg_popup_time > 300 ) cfg_popup_time = 10;
-				if ( cfg_connection_retries > 10 ) cfg_connection_retries = 3;
-				if ( cfg_connection_timeout > 300 || ( cfg_connection_timeout > 0 && cfg_connection_timeout < 60 ) ) cfg_connection_timeout = 60;
+				if ( cfg_popup_time > 300 ) { cfg_popup_time = 10; }
+				if ( cfg_connection_retries > 10 ) { cfg_connection_retries = 3; }
+				if ( cfg_connection_timeout > 300 || ( cfg_connection_timeout > 0 && cfg_connection_timeout < 60 ) ) { cfg_connection_timeout = 60; }
 
 				CheckColumnOrders( 0, call_log_columns, NUM_COLUMNS1 );
 				CheckColumnOrders( 1, contact_list_columns, NUM_COLUMNS2 );
@@ -940,7 +941,7 @@ char save_config()
 		char *utf8_cfg_val = NULL;
 
 		// Only save the username and password if we are set to remember them.
-		if ( cfg_remember_login == true )
+		if ( cfg_remember_login )
 		{
 			if ( cfg_username != NULL )
 			{
@@ -948,12 +949,12 @@ char save_config()
 				utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 				cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_username, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
-				int length = cfg_val_length - 1;
+				int length = cfg_val_length - 1;	// Exclude the NULL terminator.
 				_memcpy_s( utf8_cfg_val, cfg_val_length, &length, sizeof( char ) );
 
 				encode_cipher( utf8_cfg_val + sizeof( char ), length );
 
-				WriteFile( hFile_cfg, utf8_cfg_val, cfg_val_length, &write, NULL );	// Do not write the NULL terminator.
+				WriteFile( hFile_cfg, utf8_cfg_val, length + sizeof( char ), &write, NULL );	// Do not write the NULL terminator.
 			
 				GlobalFree( utf8_cfg_val );
 			}
@@ -968,12 +969,12 @@ char save_config()
 				utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 				cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_password, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
-				int length = cfg_val_length - 1;
+				int length = cfg_val_length - 1;	// Exclude the NULL terminator.
 				_memcpy_s( utf8_cfg_val, cfg_val_length, &length, sizeof( char ) );
 
 				encode_cipher( utf8_cfg_val + sizeof( char ), length );
 
-				WriteFile( hFile_cfg, utf8_cfg_val, cfg_val_length, &write, NULL );	// Do not write the NULL terminator.
+				WriteFile( hFile_cfg, utf8_cfg_val, length + sizeof( char ), &write, NULL );	// Do not write the NULL terminator.
 
 				GlobalFree( utf8_cfg_val );
 			}
@@ -1057,7 +1058,6 @@ char save_config()
 	return status;
 }
 
-
 char read_ignore_list( wchar_t *file_path, dllrbt_tree *list )
 {
 	char status = 0;
@@ -1089,7 +1089,7 @@ char read_ignore_list( wchar_t *file_path, dllrbt_tree *list )
 				while ( p != NULL && *s != NULL )
 				{
 					// If we read a partial number and it was too long.
-					if ( skip_next_newline == true )
+					if ( skip_next_newline )
 					{
 						skip_next_newline = false;
 
@@ -1276,7 +1276,7 @@ char read_ignore_cid_list( wchar_t *file_path, dllrbt_tree *list )
 				while ( p != NULL && *s != NULL )
 				{
 					// If we read a partial number and it was too long.
-					if ( skip_next_newline == true )
+					if ( skip_next_newline )
 					{
 						skip_next_newline = false;
 
@@ -1371,7 +1371,7 @@ char read_ignore_cid_list( wchar_t *file_path, dllrbt_tree *list )
 								icidi->match_case = match_case;
 								icidi->match_whole_word = match_whole_word;
 
-								if ( icidi->match_case == false )
+								if ( !icidi->match_case )
 								{
 									icidi->c_match_case = GlobalStrDupA( "No" );
 									icidi->w_match_case = GlobalStrDupW( ST_No );
@@ -1382,7 +1382,7 @@ char read_ignore_cid_list( wchar_t *file_path, dllrbt_tree *list )
 									icidi->w_match_case = GlobalStrDupW( ST_Yes );
 								}
 
-								if ( icidi->match_whole_word == false )
+								if ( !icidi->match_whole_word )
 								{
 									icidi->c_match_whole_word = GlobalStrDupA( "No" );
 									icidi->w_match_whole_word = GlobalStrDupW( ST_No );
@@ -1584,7 +1584,7 @@ char save_ignore_cid_list( wchar_t *file_path )
 					_memcpy_s( write_buf + pos, size - pos, icidi->c_caller_id, caller_id_length );
 					pos += caller_id_length;
 					write_buf[ pos++ ] = '\x1f';
-					write_buf[ pos++ ] = 0x80 | ( icidi->match_case == true ? 0x02 : 0x00 ) | ( icidi->match_whole_word == true ? 0x01 : 0x00 );
+					write_buf[ pos++ ] = 0x80 | ( icidi->match_case ? 0x02 : 0x00 ) | ( icidi->match_whole_word ? 0x01 : 0x00 );
 					write_buf[ pos++ ] = '\x1f';
 					_memcpy_s( write_buf + pos, size - pos, icidi->c_total_calls, total_calls_length );
 					pos += total_calls_length;
@@ -1644,7 +1644,7 @@ char read_forward_list( wchar_t *file_path, dllrbt_tree *list )
 				while ( p != NULL && *s != NULL )
 				{
 					// If we read a partial number and it was too long.
-					if ( skip_next_newline == true )
+					if ( skip_next_newline )
 					{
 						skip_next_newline = false;
 
@@ -1860,7 +1860,7 @@ char read_forward_cid_list( wchar_t *file_path, dllrbt_tree *list )
 				while ( p != NULL && *s != NULL )
 				{
 					// If we read a partial number and it was too long.
-					if ( skip_next_newline == true )
+					if ( skip_next_newline )
 					{
 						skip_next_newline = false;
 
@@ -1969,7 +1969,7 @@ char read_forward_cid_list( wchar_t *file_path, dllrbt_tree *list )
 									fcidi->match_case = match_case;
 									fcidi->match_whole_word = match_whole_word;
 
-									if ( fcidi->match_case == false )
+									if ( !fcidi->match_case )
 									{
 										fcidi->c_match_case = GlobalStrDupA( "No" );
 										fcidi->w_match_case = GlobalStrDupW( ST_No );
@@ -1980,7 +1980,7 @@ char read_forward_cid_list( wchar_t *file_path, dllrbt_tree *list )
 										fcidi->w_match_case = GlobalStrDupW( ST_Yes );
 									}
 
-									if ( fcidi->match_whole_word == false )
+									if ( !fcidi->match_whole_word )
 									{
 										fcidi->c_match_whole_word = GlobalStrDupA( "No" );
 										fcidi->w_match_whole_word = GlobalStrDupW( ST_No );
@@ -2205,7 +2205,7 @@ char save_forward_cid_list( wchar_t *file_path )
 					_memcpy_s( write_buf + pos, size - pos, fcidi->c_forward_to, phone_number_length );
 					pos += phone_number_length;
 					write_buf[ pos++ ] = '\x1f';
-					write_buf[ pos++ ] = 0x80 | ( fcidi->match_case == true ? 0x02 : 0x00 ) | ( fcidi->match_whole_word == true ? 0x01 : 0x00 );
+					write_buf[ pos++ ] = 0x80 | ( fcidi->match_case ? 0x02 : 0x00 ) | ( fcidi->match_whole_word ? 0x01 : 0x00 );
 					write_buf[ pos++ ] = '\x1f';
 					_memcpy_s( write_buf + pos, size - pos, fcidi->c_total_calls, total_calls_length );
 					pos += total_calls_length;
@@ -2267,7 +2267,7 @@ char read_call_log_history( wchar_t *file_path )
 			while ( total_read < fz )
 			{
 				// Stop processing and exit the function.
-				/*if ( kill_worker_thread_flag == true )
+				/*if ( kill_worker_thread_flag )
 				{
 					break;
 				}*/
@@ -2299,7 +2299,7 @@ char read_call_log_history( wchar_t *file_path )
 				while ( offset < read )
 				{
 					// Stop processing and exit the function.
-					/*if ( kill_worker_thread_flag == true )
+					/*if ( kill_worker_thread_flag )
 					{
 						break;
 					}*/
@@ -2452,7 +2452,7 @@ char read_call_log_history( wchar_t *file_path )
 						int range_index = call_from_length;
 						range_index = ( range_index > 0 ? range_index - 1 : 0 );
 
-						if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+						if ( RangeSearch( &ignore_range_list[ range_index ], di->ci.call_from, range_number ) )
 						{
 							ii = ( ignoreinfo * )dllrbt_find( ignore_list, ( void * )range_number, true );
 						}
@@ -2477,7 +2477,7 @@ char read_call_log_history( wchar_t *file_path )
 						int range_index = call_from_length;
 						range_index = ( range_index > 0 ? range_index - 1 : 0 );
 
-						if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) == true )
+						if ( RangeSearch( &forward_range_list[ range_index ], di->ci.call_from, range_number ) )
 						{
 							fi = ( forwardinfo * )dllrbt_find( forward_list, ( void * )range_number, true );
 						}
@@ -2506,7 +2506,7 @@ char read_call_log_history( wchar_t *file_path )
 					if ( total_read < fz )
 					{
 						total_read -= ( read - last_entry );
-						SetFilePointer( hFile_read, total_read, NULL, FILE_BEGIN );
+						SetFilePointer( hFile_read, total_read + 4, NULL, FILE_BEGIN );	// Offset past the magic identifier.
 					}
 
 					break;
@@ -2639,7 +2639,7 @@ char save_call_log_csv_file( wchar_t *file_path )
 		while ( node != NULL )
 		{
 			// Stop processing and exit the function.
-			/*if ( kill_worker_thread_flag == true )
+			/*if ( kill_worker_thread_flag )
 			{
 				break;
 			}*/
@@ -2648,7 +2648,7 @@ char save_call_log_csv_file( wchar_t *file_path )
 			while ( di_node != NULL )
 			{
 				// Stop processing and exit the function.
-				/*if ( kill_worker_thread_flag == true )
+				/*if ( kill_worker_thread_flag )
 				{
 					break;
 				}*/
@@ -2662,8 +2662,8 @@ char save_call_log_csv_file( wchar_t *file_path )
 					int phone_number_length2 = lstrlenA( di->ci.forward_to );
 					int phone_number_length3 = lstrlenA( di->ci.call_to );
 
-					wchar_t *w_ignore = ( di->ignore_phone_number == true ? ST_Yes : ST_No );
-					wchar_t *w_forward = ( di->forward_phone_number == true ? ST_Yes : ST_No );
+					wchar_t *w_ignore = ( di->ignore_phone_number ? ST_Yes : ST_No );
+					wchar_t *w_forward = ( di->forward_phone_number ? ST_Yes : ST_No );
 					wchar_t *w_ignore_cid = ( di->ignore_cid_match_count > 0 ? ST_Yes : ST_No );
 					wchar_t *w_forward_cid = ( di->forward_cid_match_count > 0 ? ST_Yes : ST_No );
 
@@ -2807,7 +2807,12 @@ THREAD_RETURN AutoSave( void *pArguments )	// Saves our call log and lists.
 
 	EnterCriticalSection( &auto_save_cs );
 
-	if ( ignore_list_changed == true )
+	if ( return_type == 0 )
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Performing_automatic_save )
+	}
+
+	if ( ignore_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_phone_numbers\0", 22 );
 		base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
@@ -2816,7 +2821,7 @@ THREAD_RETURN AutoSave( void *pArguments )	// Saves our call log and lists.
 		ignore_list_changed = false;
 	}
 
-	if ( forward_list_changed == true )
+	if ( forward_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_phone_numbers\0", 23 );
 		base_directory[ base_directory_length + 22 ] = 0;	// Sanity.
@@ -2825,7 +2830,7 @@ THREAD_RETURN AutoSave( void *pArguments )	// Saves our call log and lists.
 		forward_list_changed = false;
 	}
 
-	if ( ignore_cid_list_changed == true )
+	if ( ignore_cid_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_caller_id_names\0", 24 );
 		base_directory[ base_directory_length + 23 ] = 0;	// Sanity.
@@ -2834,7 +2839,7 @@ THREAD_RETURN AutoSave( void *pArguments )	// Saves our call log and lists.
 		ignore_cid_list_changed = false;
 	}
 
-	if ( forward_cid_list_changed == true )
+	if ( forward_cid_list_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_caller_id_names\0", 25 );
 		base_directory[ base_directory_length + 24 ] = 0;	// Sanity.
@@ -2843,13 +2848,18 @@ THREAD_RETURN AutoSave( void *pArguments )	// Saves our call log and lists.
 		forward_cid_list_changed = false;
 	}
 
-	if ( cfg_enable_call_log_history == true && call_log_changed == true )
+	if ( cfg_enable_call_log_history && call_log_changed )
 	{
 		_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\call_log_history\0", 18 );
 		base_directory[ base_directory_length + 17 ] = 0;	// Sanity.
 
 		save_call_log_history( base_directory );
 		call_log_changed = false;
+	}
+
+	if ( return_type == 0 )
+	{
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Automatic_save_has_completed )
 	}
 
 	LeaveCriticalSection( &auto_save_cs );

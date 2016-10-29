@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,16 @@ unsigned char ws2_32_state = 0;	// 0 = Not running, 1 = running.
 	pWSAStartup		_WSAStartup;
 	pWSACleanup		_WSACleanup;
 
+	//pWSAWaitForMultipleEvents	_WSAWaitForMultipleEvents;
+	//pWSACreateEvent	_WSACreateEvent;
+	//pWSASetEvent	_WSASetEvent;
+	//pWSAResetEvent	_WSAResetEvent;
+	//pWSAEventSelect	_WSAEventSelect;
+	//pWSAEnumNetworkEvents	_WSAEnumNetworkEvents;
+	//pWSACloseEvent	_WSACloseEvent;
+
+	//pWSAGetLastError	_WSAGetLastError;
+
 	psocket			_socket;
 	pconnect		_connect;
 	pshutdown		_shutdown;
@@ -33,8 +43,12 @@ unsigned char ws2_32_state = 0;	// 0 = Not running, 1 = running.
 
 	psetsockopt		_setsockopt;
 
+	//pioctlsocket	_ioctlsocket;
+
 	psend			_send;
 	precv			_recv;
+
+	//pselect			_select;
 
 	pgetaddrinfo	_getaddrinfo;
 	pfreeaddrinfo	_freeaddrinfo;
@@ -61,6 +75,16 @@ unsigned char ws2_32_state = 0;	// 0 = Not running, 1 = running.
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSAStartup, "WSAStartup" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSACleanup, "WSACleanup" ) )
 
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSAWaitForMultipleEvents, "WSAWaitForMultipleEvents" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSACreateEvent, "WSACreateEvent" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSASetEvent, "WSASetEvent" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSAResetEvent, "WSAResetEvent" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSAEventSelect, "WSAEventSelect" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSAEnumNetworkEvents, "WSAEnumNetworkEvents" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSACloseEvent, "WSACloseEvent" ) )
+
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_WSAGetLastError, "WSAGetLastError" ) )
+
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_socket, "socket" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_connect, "connect" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_shutdown, "shutdown" ) )
@@ -68,8 +92,12 @@ unsigned char ws2_32_state = 0;	// 0 = Not running, 1 = running.
 
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_setsockopt, "setsockopt" ) )
 
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_ioctlsocket, "ioctlsocket" ) )
+
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_send, "send" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_recv, "recv" ) )
+
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_select, "select" ) )
 
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_getaddrinfo, "getaddrinfo" ) )
 		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_ws2_32, ( void ** )&_freeaddrinfo, "freeaddrinfo" ) )

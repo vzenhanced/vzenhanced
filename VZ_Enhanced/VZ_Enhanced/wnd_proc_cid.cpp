@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -181,7 +181,7 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 					char caller_id[ 16 ];
 					int length = 0;
 
-					if ( ( hWnd == g_hWnd_forward_cid && multiple_fcaller_ids == false ) || ( hWnd == g_hWnd_ignore_cid && multiple_icaller_ids == false ) )
+					if ( ( hWnd == g_hWnd_forward_cid && !multiple_fcaller_ids ) || ( hWnd == g_hWnd_ignore_cid && !multiple_icaller_ids ) )
 					{
 						length = _SendMessageA( _GetDlgItem( hWnd, EDIT_CID_VALUE ), WM_GETTEXT, 16, ( LPARAM )caller_id );
 
@@ -349,7 +349,7 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 				if ( edit_fcid_di != NULL )	// If this is not NULL, then we're adding a forwarding caller ID from the call log listview.
 				{
-					if ( multiple_fcaller_ids == false )
+					if ( !multiple_fcaller_ids )
 					{
 						_SendMessageA( _GetDlgItem( hWnd, EDIT_CID_VALUE ), WM_SETTEXT, 0, ( LPARAM )edit_fcid_di->ci.caller_id );
 					}
@@ -385,7 +385,7 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 				if ( edit_icid_di != NULL )	// If this is not NULL, then we're adding a caller ID from the call log listview.
 				{
-					if ( multiple_icaller_ids == false )
+					if ( !multiple_icaller_ids )
 					{
 						_SendMessageA( _GetDlgItem( hWnd, EDIT_CID_VALUE ), WM_SETTEXT, 0, ( LPARAM )edit_icid_di->ci.caller_id );
 					}
@@ -419,8 +419,8 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 					_SendMessageA( _GetDlgItem( hWnd, EDIT_CID_VALUE ), WM_SETTEXT, 0, ( LPARAM )edit_cid_fi->c_caller_id );
 					_SendMessageA( _GetDlgItem( hWnd, EDIT_CID_NUMBER ), WM_SETTEXT, 0, ( LPARAM )edit_cid_fi->c_forward_to );
-					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_CASE ), BM_SETCHECK, ( edit_cid_fi->match_case == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
-					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_WHOLE_WORD ), BM_SETCHECK, ( edit_cid_fi->match_whole_word == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_CASE ), BM_SETCHECK, ( edit_cid_fi->match_case ? BST_CHECKED : BST_UNCHECKED ), 0 );
+					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_WHOLE_WORD ), BM_SETCHECK, ( edit_cid_fi->match_whole_word ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 					_EnableWindow( _GetDlgItem( hWnd, EDIT_CID_VALUE ), FALSE );	// We don't want to edit this value.
 
@@ -452,8 +452,8 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 					_SendMessageW( _GetDlgItem( hWnd, BTN_CID_ACTION ), WM_SETTEXT, 0, ( LPARAM )ST_Update_Caller_ID_Name );
 
 					_SendMessageA( _GetDlgItem( hWnd, EDIT_CID_VALUE ), WM_SETTEXT, 0, ( LPARAM )edit_cid_ii->c_caller_id );
-					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_CASE ), BM_SETCHECK, ( edit_cid_ii->match_case == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
-					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_WHOLE_WORD ), BM_SETCHECK, ( edit_cid_ii->match_whole_word == true ? BST_CHECKED : BST_UNCHECKED ), 0 );
+					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_CASE ), BM_SETCHECK, ( edit_cid_ii->match_case ? BST_CHECKED : BST_UNCHECKED ), 0 );
+					_SendMessageA( _GetDlgItem( hWnd, BTN_MATCH_WHOLE_WORD ), BM_SETCHECK, ( edit_cid_ii->match_whole_word ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 					_EnableWindow( _GetDlgItem( hWnd, EDIT_CID_VALUE ), FALSE );	// We don't want to edit this value.
 
@@ -490,6 +490,8 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 		case WM_CLOSE:
 		{
 			_DestroyWindow( hWnd );
+
+			return 0;
 		}
 		break;
 
@@ -511,6 +513,8 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 				g_hWnd_ignore_cid = NULL;
 			}
+
+			return 0;
 		}
 		break;
 

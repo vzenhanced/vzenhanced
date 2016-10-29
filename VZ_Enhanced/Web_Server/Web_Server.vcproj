@@ -120,13 +120,14 @@
 				Optimization="3"
 				EnableIntrinsicFunctions="false"
 				FavorSizeOrSpeed="2"
+				OmitFramePointers="true"
 				WholeProgramOptimization="false"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;WEB_SERVER_EXPORTS"
 				StringPooling="true"
 				ExceptionHandling="0"
 				RuntimeLibrary="2"
 				BufferSecurityCheck="false"
-				EnableFunctionLevelLinking="false"
+				EnableFunctionLevelLinking="true"
 				RuntimeTypeInfo="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -148,7 +149,7 @@
 				AdditionalDependencies="kernel32.lib user32.lib $(NOINHERIT)"
 				LinkIncremental="1"
 				IgnoreAllDefaultLibraries="true"
-				GenerateDebugInformation="true"
+				GenerateDebugInformation="false"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
@@ -230,6 +231,10 @@
 			</File>
 			<File
 				RelativePath=".\lite_gdi32.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\lite_normaliz.cpp"
 				>
 			</File>
 			<File
@@ -340,6 +345,10 @@
 			</File>
 			<File
 				RelativePath=".\lite_gdi32.h"
+				>
+			</File>
+			<File
+				RelativePath=".\lite_normaliz.h"
 				>
 			</File>
 			<File

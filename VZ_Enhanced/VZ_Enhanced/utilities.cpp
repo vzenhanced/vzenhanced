@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -342,21 +342,21 @@ int dllrbt_icid_compare( void *a, void *b )
 	if ( ret == 0 )
 	{
 		// If they do, then check if the booleans differ.
-		if ( a1->match_case == true && b1->match_case == false )
+		if ( a1->match_case && !b1->match_case )
 		{
 			ret = 1;
 		}
-		else if ( a1->match_case == false && b1->match_case == true )
+		else if ( !a1->match_case && b1->match_case )
 		{
 			ret = -1;
 		}
 		else
 		{
-			if ( a1->match_whole_word == true && b1->match_whole_word == false )
+			if ( a1->match_whole_word && !b1->match_whole_word )
 			{
 				ret = 1;
 			}
-			else if ( a1->match_whole_word == false && b1->match_whole_word == true )
+			else if ( !a1->match_whole_word && b1->match_whole_word )
 			{
 				ret = -1;
 			}
@@ -377,21 +377,21 @@ int dllrbt_fcid_compare( void *a, void *b )
 	if ( ret == 0 )
 	{
 		// If they do, then check if the booleans differ.
-		if ( a1->match_case == true && b1->match_case == false )
+		if ( a1->match_case && !b1->match_case )
 		{
 			ret = 1;
 		}
-		else if ( a1->match_case == false && b1->match_case == true )
+		else if ( !a1->match_case && b1->match_case )
 		{
 			ret = -1;
 		}
 		else
 		{
-			if ( a1->match_whole_word == true && b1->match_whole_word == false )
+			if ( a1->match_whole_word && !b1->match_whole_word )
 			{
 				ret = 1;
 			}
-			else if ( a1->match_whole_word == false && b1->match_whole_word == true )
+			else if ( !a1->match_whole_word && b1->match_whole_word )
 			{
 				ret = -1;
 			}
@@ -904,8 +904,7 @@ void CheckColumnOrders( unsigned char list, char *column_arr[], unsigned char nu
 	}
 
 	// Look for duplicates, or values that are out of range.
-	unsigned char *is_set = ( unsigned char * )GlobalAlloc( GMEM_FIXED, sizeof( unsigned char ) * num_columns );
-	_memzero( is_set, sizeof( unsigned char ) * num_columns );
+	unsigned char *is_set = ( unsigned char * )GlobalAlloc( GPTR, sizeof( unsigned char ) * num_columns );
 
 	// Check ever other column.
 	for ( int i = 1; i < num_columns; ++i )
@@ -1221,7 +1220,7 @@ void CreatePopup( displayinfo *fi )
 	}
 
 
-	HWND hWnd_popup = _CreateWindowExW( WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( cfg_popup_hide_border == true ? NULL : WS_THICKFRAME ), left, top, cfg_popup_width, cfg_popup_height, NULL, NULL, NULL, NULL );
+	HWND hWnd_popup = _CreateWindowExW( WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( cfg_popup_hide_border ? NULL : WS_THICKFRAME ), left, top, cfg_popup_width, cfg_popup_height, NULL, NULL, NULL, NULL );
 
 	_SetWindowLongW( hWnd_popup, GWL_EXSTYLE, _GetWindowLongW( hWnd_popup, GWL_EXSTYLE ) | WS_EX_LAYERED );
 	_SetLayeredWindowAttributes( hWnd_popup, 0, cfg_popup_transparency, LWA_ALPHA );
@@ -1261,6 +1260,11 @@ void CreatePopup( displayinfo *fi )
 
 	POPUP_SETTINGS *ls1 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
 	ls1->shared_settings = shared_settings;
+	ls1->window_settings.drag_position.x = 0;
+	ls1->window_settings.drag_position.y = 0;
+	ls1->window_settings.window_position.x = 0;
+	ls1->window_settings.window_position.y = 0;
+	ls1->window_settings.is_dragging = false;
 	ls1->popup_line_order = cfg_popup_line_order1;
 	ls1->popup_justify = cfg_popup_justify_line1;
 	ls1->font_color = cfg_popup_font_color1;
@@ -1287,6 +1291,11 @@ void CreatePopup( displayinfo *fi )
 
 	POPUP_SETTINGS *ls2 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
 	ls2->shared_settings = shared_settings;
+	ls2->window_settings.drag_position.x = 0;
+	ls2->window_settings.drag_position.y = 0;
+	ls2->window_settings.window_position.x = 0;
+	ls2->window_settings.window_position.y = 0;
+	ls2->window_settings.is_dragging = false;
 	ls2->popup_line_order = cfg_popup_line_order2;
 	ls2->popup_justify = cfg_popup_justify_line2;
 	ls2->font_color = cfg_popup_font_color2;
@@ -1313,6 +1322,11 @@ void CreatePopup( displayinfo *fi )
 
 	POPUP_SETTINGS *ls3 = ( POPUP_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( POPUP_SETTINGS ) );
 	ls3->shared_settings = shared_settings;
+	ls3->window_settings.drag_position.x = 0;
+	ls3->window_settings.drag_position.y = 0;
+	ls3->window_settings.window_position.x = 0;
+	ls3->window_settings.window_position.y = 0;
+	ls3->window_settings.is_dragging = false;
 	ls3->popup_line_order = cfg_popup_line_order3;
 	ls3->popup_justify = cfg_popup_justify_line3;
 	ls3->font_color = cfg_popup_font_color3;
@@ -1352,7 +1366,7 @@ void CreatePopup( displayinfo *fi )
 
 void Processing_Window( HWND hWnd, bool enable )
 {
-	if ( enable == false )
+	if ( !enable )
 	{
 		//_SetWindowTextW( g_hWnd_main, L"VZ Enhanced - Please wait..." );	// Update the window title.
 		_EnableWindow( hWnd, FALSE );										// Prevent any interaction with the listview while we're processing.
@@ -1371,7 +1385,7 @@ void Processing_Window( HWND hWnd, bool enable )
 
 void kill_worker_thread()
 {
-	if ( in_worker_thread == true )
+	if ( in_worker_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		worker_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
@@ -1419,7 +1433,7 @@ ignorecidinfo *find_ignore_caller_id_name_match( displayinfo *di )
 	{
 		ignorecidinfo *icidi = ( ignorecidinfo * )node->val;
 		
-		if ( icidi->match_case == true && icidi->match_whole_word == true )
+		if ( icidi->match_case && icidi->match_whole_word )
 		{
 			if ( lstrcmpA( di->ci.caller_id, icidi->c_caller_id ) == 0 )
 			{
@@ -1433,7 +1447,7 @@ ignorecidinfo *find_ignore_caller_id_name_match( displayinfo *di )
 				}
 			}
 		}
-		else if ( icidi->match_case == false && icidi->match_whole_word == true )
+		else if ( !icidi->match_case && icidi->match_whole_word )
 		{
 			if ( lstrcmpiA( di->ci.caller_id, icidi->c_caller_id ) == 0 )
 			{
@@ -1447,7 +1461,7 @@ ignorecidinfo *find_ignore_caller_id_name_match( displayinfo *di )
 				}
 			}
 		}
-		else if ( icidi->match_case == true && icidi->match_whole_word == false )
+		else if ( icidi->match_case && !icidi->match_whole_word )
 		{
 			if ( _StrStrA( di->ci.caller_id, icidi->c_caller_id ) != NULL )
 			{
@@ -1461,7 +1475,7 @@ ignorecidinfo *find_ignore_caller_id_name_match( displayinfo *di )
 				}
 			}
 		}
-		else if ( icidi->match_case == false && icidi->match_whole_word == false )
+		else if ( !icidi->match_case && !icidi->match_whole_word )
 		{
 			if ( _StrStrIA( di->ci.caller_id, icidi->c_caller_id ) != NULL )
 			{
@@ -1498,7 +1512,7 @@ forwardcidinfo *find_forward_caller_id_name_match( displayinfo *di )
 	{
 		forwardcidinfo *fcidi = ( forwardcidinfo * )node->val;
 		
-		if ( fcidi->match_case == true && fcidi->match_whole_word == true )
+		if ( fcidi->match_case && fcidi->match_whole_word )
 		{
 			if ( lstrcmpA( di->ci.caller_id, fcidi->c_caller_id ) == 0 )
 			{
@@ -1512,7 +1526,7 @@ forwardcidinfo *find_forward_caller_id_name_match( displayinfo *di )
 				}
 			}
 		}
-		else if ( fcidi->match_case == false && fcidi->match_whole_word == true )
+		else if ( !fcidi->match_case && fcidi->match_whole_word )
 		{
 			if ( lstrcmpiA( di->ci.caller_id, fcidi->c_caller_id ) == 0 )
 			{
@@ -1526,7 +1540,7 @@ forwardcidinfo *find_forward_caller_id_name_match( displayinfo *di )
 				}
 			}
 		}
-		else if ( fcidi->match_case == true && fcidi->match_whole_word == false )
+		else if ( fcidi->match_case && !fcidi->match_whole_word )
 		{
 			if ( _StrStrA( di->ci.caller_id, fcidi->c_caller_id ) != NULL )
 			{
@@ -1540,7 +1554,7 @@ forwardcidinfo *find_forward_caller_id_name_match( displayinfo *di )
 				}
 			}
 		}
-		else if ( fcidi->match_case == false && fcidi->match_whole_word == false )
+		else if ( !fcidi->match_case && !fcidi->match_whole_word )
 		{
 			if ( _StrStrIA( di->ci.caller_id, fcidi->c_caller_id ) != NULL )
 			{
@@ -1911,8 +1925,8 @@ void FormatDisplayInfo( displayinfo *di )
 
 	__snwprintf( di->w_time, buffer_length, L"%s, %s %d, %04d %d:%02d:%02d %s", GetDay( st.wDayOfWeek ), GetMonth( st.wMonth ), st.wDay, st.wYear, ( st.wHour > 12 ? st.wHour - 12 : ( st.wHour != 0 ? st.wHour : 12 ) ), st.wMinute, st.wSecond, ( st.wHour >= 12 ? L"PM" : L"AM" ) );
 
-	di->w_forward_phone_number = ( di->forward_phone_number == true ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
-	di->w_ignore_phone_number = ( di->ignore_phone_number == true ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
+	di->w_forward_phone_number = ( di->forward_phone_number ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
+	di->w_ignore_phone_number = ( di->ignore_phone_number ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
 
 	di->w_forward_caller_id = ( di->forward_cid_match_count > 0 ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );
 	di->w_ignore_caller_id = ( di->ignore_cid_match_count > 0 ? GlobalStrDupW( ST_Yes ) : GlobalStrDupW( ST_No ) );

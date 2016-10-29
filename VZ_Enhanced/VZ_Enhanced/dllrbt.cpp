@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -534,7 +534,7 @@ dllrbt_iterator *dllrbt_find( dllrbt_tree *tree, void *key, bool return_value )
 		int rc = rbt->compare( key, current->key );
 		if ( rc == 0 )
 		{
-			return ( return_value == true ? current->val : current );
+			return ( return_value ? current->val : current );
 		}
 		current = ( rc < 0 ) ? current->left : current->right;
 	}

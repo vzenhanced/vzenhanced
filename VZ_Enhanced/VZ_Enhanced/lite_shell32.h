@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -51,6 +51,10 @@
 
 	#define	_CommandLineToArgvW	CommandLineToArgvW
 
+	#define _DragAcceptFiles	DragAcceptFiles
+	#define _DragQueryFileW		DragQueryFileW
+	#define _DragFinish			DragFinish
+
 #else
 
 	#define SHELL32_STATE_SHUTDOWN		0
@@ -72,6 +76,10 @@
 
 	typedef LPWSTR * ( WINAPI *pCommandLineToArgvW )( LPCWSTR lpCmdLine, int *pNumArgs );
 
+	typedef VOID ( WINAPI *pDragAcceptFiles )( HWND hWnd, BOOL fAccept );
+	typedef UINT ( WINAPI *pDragQueryFileW )( HDROP hDrop, UINT iFile, LPTSTR lpszFile, UINT cch );
+	typedef VOID ( WINAPI *pDragFinish )( HDROP hDrop );
+
 	extern pShell_NotifyIconW	_Shell_NotifyIconW;
 	extern pShellExecuteW		_ShellExecuteW;
 
@@ -87,6 +95,10 @@
 	extern pSHGetFolderPathW	_SHGetFolderPathW;
 
 	extern pCommandLineToArgvW	_CommandLineToArgvW;
+
+	extern pDragAcceptFiles		_DragAcceptFiles;
+	extern pDragQueryFileW		_DragQueryFileW;
+	extern pDragFinish			_DragFinish;
 
 	extern unsigned char shell32_state;
 

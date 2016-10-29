@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -38,6 +38,16 @@
 	#define _WSAStartup		WSAStartup
 	#define _WSACleanup		WSACleanup
 
+	//#define _WSAWaitForMultipleEvents	WSAWaitForMultipleEvents
+	//#define _WSACreateEvent	WSACreateEvent
+	//#define _WSASetEvent	WSASetEvent
+	//#define _WSAResetEvent	WSAResetEvent
+	//#define _WSAEventSelect WSAEventSelect
+	//#define _WSAEnumNetworkEvents	WSAEnumNetworkEvents
+	//#define _WSACloseEvent	WSACloseEvent
+
+	//#define _WSAGetLastError	WSAGetLastError
+
 	#define _socket			socket
 	#define _connect		connect
 	#define _shutdown		shutdown
@@ -45,8 +55,12 @@
 
 	#define _setsockopt		setsockopt
 
+	//#define _ioctlsocket	ioctlsocket
+
 	#define _send			send
 	#define _recv			recv
+
+	//#define _select			select
 
 	#define _getaddrinfo	getaddrinfo
 	#define _freeaddrinfo	freeaddrinfo
@@ -59,6 +73,16 @@
 	typedef int ( WSAAPI *pWSAStartup )( WORD wVersionRequested, LPWSADATA lpWSAData );
 	typedef int ( WSAAPI *pWSACleanup )( void );
 
+	//typedef DWORD ( WSAAPI *pWSAWaitForMultipleEvents )( DWORD cEvents, const WSAEVENT *lphEvents, BOOL fWaitAll, DWORD dwTimeout, BOOL fAlertable );
+	//typedef WSAEVENT ( WSAAPI *pWSACreateEvent )( void );
+	//typedef BOOL ( WSAAPI *pWSASetEvent )( WSAEVENT hEvent );
+	//typedef BOOL ( WSAAPI *pWSAResetEvent )( WSAEVENT hEvent );
+	//typedef int ( WSAAPI *pWSAEventSelect )( SOCKET s, WSAEVENT hEventObject, long lNetworkEvents );
+	//typedef int ( WSAAPI *pWSAEnumNetworkEvents )( SOCKET s, WSAEVENT hEventObject, LPWSANETWORKEVENTS lpNetworkEvents );
+	//typedef BOOL ( WSAAPI *pWSACloseEvent )( WSAEVENT hEvent );
+
+	//typedef int ( WSAAPI *pWSAGetLastError )( void );
+
 	typedef SOCKET ( WSAAPI *psocket )( int af, int type, int protocol );
 	typedef int ( WSAAPI *pconnect )( SOCKET s, const struct sockaddr *name, int namelen );
 	typedef int ( WSAAPI *pshutdown )( SOCKET s, int how );
@@ -66,8 +90,12 @@
 
 	typedef int ( WSAAPI *psetsockopt )( SOCKET s, int level, int optname, const char *optval, int optlen );
 
+	//typedef int ( WSAAPI *pioctlsocket )( SOCKET s, long cmd, u_long *argp );
+
 	typedef int ( WSAAPI *psend )( SOCKET s, const char *buf, int len, int flags );
 	typedef int ( WSAAPI *precv )( SOCKET s, const char *buf, int len, int flags );
+
+	//typedef int ( WSAAPI *pselect )( int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, const struct timeval *timeout );
 
 	typedef int ( WSAAPI *pgetaddrinfo )( PCSTR pNodeName, PCSTR pServiceName, const ADDRINFOA *pHints, PADDRINFOA *ppResult );
 	typedef void ( WSAAPI *pfreeaddrinfo )( struct addrinfo *ai );
@@ -78,6 +106,16 @@
 	extern pWSAStartup		_WSAStartup;
 	extern pWSACleanup		_WSACleanup;
 
+	//extern pWSAWaitForMultipleEvents	_WSAWaitForMultipleEvents;
+	//extern pWSACreateEvent	_WSACreateEvent;
+	//extern pWSASetEvent		_WSASetEvent;
+	//extern pWSAResetEvent	_WSAResetEvent;
+	//extern pWSAEventSelect	_WSAEventSelect;
+	//extern pWSAEnumNetworkEvents	_WSAEnumNetworkEvents;
+	//extern pWSACloseEvent	_WSACloseEvent;
+
+	//extern pWSAGetLastError	_WSAGetLastError;
+
 	extern psocket			_socket;
 	extern pconnect			_connect;
 	extern pshutdown		_shutdown;
@@ -85,8 +123,12 @@
 
 	extern psetsockopt		_setsockopt;
 
+	//extern pioctlsocket		_ioctlsocket;
+
 	extern psend			_send;
 	extern precv			_recv;
+
+	//extern pselect			_select;
 
 	extern pgetaddrinfo		_getaddrinfo;
 	extern pfreeaddrinfo	_freeaddrinfo;

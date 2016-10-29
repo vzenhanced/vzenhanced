@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -30,12 +30,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.4"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.5"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.2.4"
+#define USER_AGENT			"VZ-Enhanced/1.0.2.5"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -45,13 +45,14 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1024
+#define CURRENT_VERSION		1025
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
 CRITICAL_SECTION cwt_cs;			// Queues additional connection worker threads.
 CRITICAL_SECTION cit_cs;			// Queues additional connection incoming threads.
 CRITICAL_SECTION cut_cs;			// Queues additional update check threads.
+CRITICAL_SECTION cuc_cs;			// Blocks the CleanupConnection().
 
 HANDLE connection_semaphore = NULL;			// Blocks shutdown while the connection thread is active.
 HANDLE connection_worker_semaphore = NULL;
@@ -248,7 +249,7 @@ void CreateMACAddress( char *buffer )
 		}
 	#endif
 
-	if ( generate == true )
+	if ( generate )
 	{
 		HCRYPTPROV hProvider = NULL;
 		_CryptAcquireContextW( &hProvider, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_SILENT );
@@ -261,23 +262,14 @@ void CreateMACAddress( char *buffer )
 
 void kill_connection_thread()
 {
-	if ( in_connection_thread == true )
+	if ( in_connection_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		connection_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
 		main_con.state = CONNECTION_KILL;		// Causes the connection thread to cease processing and release the semaphore.
-
 		//main_con.state = LOGGED_OUT;			// Set login state to logged off.
-		if ( main_con.ssl_socket != NULL )
-		{
-			_shutdown( main_con.ssl_socket->s, SD_BOTH );	// Force any blocked calls to exit.
-		}
-
-		if ( main_con.socket != INVALID_SOCKET )
-		{
-			_shutdown( main_con.socket, SD_BOTH );
-		}
+		CleanupConnection( &main_con, NULL, false );
 
 		// If we're in the reconnect loop, then exit.
 		if ( reconnect_semaphore != NULL )
@@ -300,23 +292,14 @@ void kill_connection_thread()
 
 void kill_connection_worker_thread()
 {
-	if ( in_connection_worker_thread == true )
+	if ( in_connection_worker_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		connection_worker_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
 		worker_con.state = CONNECTION_KILL;			// Causes the connection thread to cease processing and release the semaphore.
-
 		//worker_con.state = LOGGED_OUT;			// Set login state to logged off.
-		if ( worker_con.ssl_socket != NULL )
-		{
-			_shutdown( worker_con.ssl_socket->s, SD_BOTH );	// Force any blocked calls to exit.
-		}
-
-		if ( worker_con.socket != INVALID_SOCKET )
-		{
-			_shutdown( worker_con.socket, SD_BOTH );
-		}
+		CleanupConnection( &worker_con, NULL, false );
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
 		WaitForSingleObject( connection_worker_semaphore, 5000 );
@@ -327,23 +310,14 @@ void kill_connection_worker_thread()
 
 void kill_connection_incoming_thread()
 {
-	if ( in_connection_incoming_thread == true )
+	if ( in_connection_incoming_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		connection_incoming_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
 		incoming_con.state = CONNECTION_KILL;		// Causes the connection thread to cease processing and release the semaphore.
-
 		//incoming_con.state = LOGGED_OUT;			// Set login state to logged off.
-		if ( incoming_con.ssl_socket != NULL )
-		{
-			_shutdown( incoming_con.ssl_socket->s, SD_BOTH );	// Force any blocked calls to exit.
-		}
-
-		if ( incoming_con.socket != INVALID_SOCKET )
-		{
-			_shutdown( incoming_con.socket, SD_BOTH );
-		}
+		CleanupConnection( &incoming_con, NULL, false );
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
 		WaitForSingleObject( connection_incoming_semaphore, 5000 );
@@ -354,22 +328,13 @@ void kill_connection_incoming_thread()
 
 void kill_update_check_thread()
 {
-	if ( in_update_check_thread == true )
+	if ( in_update_check_thread )
 	{
 		// This semaphore will be released when the thread gets killed.
 		update_check_semaphore = CreateSemaphore( NULL, 0, 1, NULL );
 
 		update_con.state = CONNECTION_KILL;			// Causes the connection thread to cease processing and release the semaphore.
-
-		if ( update_con.ssl_socket != NULL )
-		{
-			_shutdown( update_con.ssl_socket->s, SD_BOTH );	// Force any blocked calls to exit.
-		}
-
-		if ( update_con.socket != INVALID_SOCKET )
-		{
-			_shutdown( update_con.socket, SD_BOTH );
-		}
+		CleanupConnection( &update_con, NULL, false );
 
 		// Wait for any active threads to complete. 5 second timeout in case we miss the release.
 		WaitForSingleObject( update_check_semaphore, 5000 );
@@ -388,7 +353,7 @@ SOCKET Client_Connection( const char *server, unsigned short port, int timeout )
 	if ( ws2_32_state == WS2_32_STATE_SHUTDOWN )
 	{
 		#ifndef WS2_32_USE_STATIC_LIB
-			if ( InitializeWS2_32() == false ){ return INVALID_SOCKET; }
+			if ( !InitializeWS2_32() ){ return INVALID_SOCKET; }
 		#else
 			StartWS2_32();
 		#endif
@@ -421,6 +386,7 @@ SOCKET Client_Connection( const char *server, unsigned short port, int timeout )
 		{
 			_closesocket( client_socket );
 			client_socket = INVALID_SOCKET;
+
 			break;
 		}
 
@@ -432,6 +398,7 @@ SOCKET Client_Connection( const char *server, unsigned short port, int timeout )
 			{
 				_closesocket( client_socket );
 				client_socket = INVALID_SOCKET;
+
 				break;
 			}
 		}
@@ -441,6 +408,7 @@ SOCKET Client_Connection( const char *server, unsigned short port, int timeout )
 		{
 			_closesocket( client_socket );
 			client_socket = INVALID_SOCKET;
+
 			continue;
 		}
 
@@ -473,6 +441,7 @@ SSL *Client_Connection_Secure( const char *server, unsigned short port, int time
 		{
 			_shutdown( client_socket, SD_BOTH );
 			_closesocket( client_socket );
+
 			return NULL;
 		}
 	}
@@ -492,12 +461,13 @@ SSL *Client_Connection_Secure( const char *server, unsigned short port, int time
 	{
 		_shutdown( client_socket, SD_BOTH );
 		_closesocket( client_socket );
+
 		return NULL;
 	}
 
 	ssl->s = client_socket;
 
-	if ( SSL_connect( ssl ) != 1 )
+	if ( SSL_connect( ssl, server ) != 1 )
 	{
 		SSL_shutdown( ssl );
 		SSL_free( ssl );
@@ -511,9 +481,11 @@ SSL *Client_Connection_Secure( const char *server, unsigned short port, int time
 	return ssl;
 }
 
-void CleanupConnection( CONNECTION *con, char *host = NULL )
+void CleanupConnection( CONNECTION *con, char *host, bool write_to_log )
 {
 	char message_log[ 320 ];
+
+	EnterCriticalSection( &cuc_cs );
 
 	if ( con->ssl_socket != NULL )
 	{
@@ -524,11 +496,11 @@ void CleanupConnection( CONNECTION *con, char *host = NULL )
 		_shutdown( s, SD_BOTH );
 		_closesocket( s );
 
-		if ( cfg_enable_message_log == true )
+		if ( write_to_log && cfg_enable_message_log )
 		{
 			if ( host != NULL )
 			{
-				__snprintf( message_log, 320, "Closed connection to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+				__snprintf( message_log, 320, "Closed connection to: %.253s:%d", host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
 				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 			}
 			else
@@ -544,11 +516,11 @@ void CleanupConnection( CONNECTION *con, char *host = NULL )
 		_closesocket( con->socket );
 		con->socket = INVALID_SOCKET;
 
-		if ( cfg_enable_message_log == true )
+		if ( write_to_log && cfg_enable_message_log )
 		{
 			if ( host != NULL )
 			{
-				__snprintf( message_log, 320, "Closed connection: to %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+				__snprintf( message_log, 320, "Closed connection: to %.253s:%d", host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
 				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 			}
 			else
@@ -557,11 +529,13 @@ void CleanupConnection( CONNECTION *con, char *host = NULL )
 			}
 		}
 	}
+
+	LeaveCriticalSection( &cuc_cs );
 }
 
 int SendHTTPRequest( CONNECTION *con, char *request_buffer, int request_buffer_length )
 {
-	if ( con == NULL || ( con->secure == true && con->ssl_socket == NULL ) || ( con->secure == false && con->socket == INVALID_SOCKET ) )
+	if ( con == NULL || ( con->secure && con->ssl_socket == NULL ) || ( !con->secure && con->socket == INVALID_SOCKET ) )
 	{
 		return SOCKET_ERROR;
 	}
@@ -571,7 +545,7 @@ int SendHTTPRequest( CONNECTION *con, char *request_buffer, int request_buffer_l
 		return 0;
 	}
 
-	if ( con->secure == true )
+	if ( con->secure )
 	{
 		return SSL_write( con->ssl_socket, request_buffer, request_buffer_length );
 	}
@@ -587,7 +561,7 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 	http_status = 0;
 	content_length = 0;
 
-	if ( con == NULL || ( con->secure == true && con->ssl_socket == NULL ) || ( con->secure == false && con->socket == INVALID_SOCKET ) )
+	if ( con == NULL || ( con->secure && con->ssl_socket == NULL ) || ( !con->secure && con->socket == INVALID_SOCKET ) )
 	{
 		if ( *response_buffer != NULL )
 		{
@@ -632,7 +606,7 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 
 	while ( true )
 	{
-		if ( con->secure == true )
+		if ( con->secure )
 		{
 			read = SSL_read( con->ssl_socket, *response_buffer + response_buffer_length, DEFAULT_BUFLEN );
 		}
@@ -776,7 +750,7 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 
 		response_buffer_length += read;
 
-		if ( chunked_encoding_set == true )
+		if ( chunked_encoding_set )
 		{
 			// If we've receive the end of a chunked transfer, then exit the loop.
 			if ( _StrCmpNA( *response_buffer + response_buffer_length - 4, "\r\n\r\n", 4 ) == 0 )
@@ -785,7 +759,7 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 			}
 		}
 			
-		if ( content_length_set == true )
+		if ( content_length_set )
 		{
 			// If there is content, see how much we've received and compare it to the content length.
 			if ( content_length + header_offset == response_buffer_length )
@@ -831,7 +805,7 @@ int GetHTTPResponse( CONNECTION *con, char **response_buffer, unsigned int &resp
 
 
 
-	if ( chunked_encoding_set == true )
+	if ( chunked_encoding_set )
 	{
 		// Beginning of the first chunk. (After the header)
 		char *find_chunk = *response_buffer + header_offset;
@@ -904,15 +878,15 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 {
 	int total_retries = 0;
 
-	if ( cfg_connection_reconnect == true && retry == true )
+	if ( cfg_connection_reconnect && retry )
 	{
 		total_retries = cfg_connection_retries;
 	}
 
 	char message_log[ 320 ];
-	if ( cfg_enable_message_log == true )
+	if ( cfg_enable_message_log )
 	{
-		__snprintf( message_log, 320, "Connecting to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+		__snprintf( message_log, 320, "Connecting to: %.253s:%d", host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
 		_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 	}
 
@@ -926,7 +900,7 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 		}
 
 		// Connect to server.
-		if ( con->secure == true )
+		if ( con->secure )
 		{
 			con->ssl_socket = Client_Connection_Secure( host, DEFAULT_PORT_SECURE, timeout );
 		}
@@ -936,7 +910,7 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 		}
 
 		// If the connection failed, try again.
-		if ( ( con->secure == true && con->ssl_socket == NULL ) || ( con->secure == false && con->socket == INVALID_SOCKET ) )
+		if ( ( con->secure && con->ssl_socket == NULL ) || ( !con->secure && con->socket == INVALID_SOCKET ) )
 		{
 			// If the connection failed our first attempt, and then the subsequent number of retries, then we exit.
 			if ( retry == total_retries )
@@ -944,9 +918,9 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 				break;
 			}
 
-			if ( cfg_enable_message_log == true )
+			if ( cfg_enable_message_log )
 			{
-				__snprintf( message_log, 320, "Retrying connection to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+				__snprintf( message_log, 320, "Retrying connection to: %.253s:%d", host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
 				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_WARNING, ( LPARAM )message_log );
 			}
 
@@ -954,9 +928,9 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 			continue;
 		}
 
-		if ( cfg_enable_message_log == true )
+		if ( cfg_enable_message_log )
 		{
-			__snprintf( message_log, 320, "Connected to: %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+			__snprintf( message_log, 320, "Connected to: %.253s:%d", host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
 			_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 		}
 
@@ -964,9 +938,9 @@ bool Try_Connect( CONNECTION *con, char *host, int timeout = 0, bool retry = tru
 		return true;
 	}
 
-	if ( cfg_enable_message_log == true )
+	if ( cfg_enable_message_log )
 	{
-		__snprintf( message_log, 320, "Failed to connect to %.253s:%d", host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
+		__snprintf( message_log, 320, "Failed to connect to %.253s:%d", host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ) );
 		_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_ERROR, ( LPARAM )message_log );
 	}
 
@@ -985,7 +959,7 @@ int Try_Send_Receive( CONNECTION *con, char *host, char *resource /*for logging 
 	int total_retries = 0;
 	http_status = 0;
 
-	if ( cfg_connection_reconnect == true && retry == true )
+	if ( cfg_connection_reconnect && retry )
 	{
 		total_retries = cfg_connection_retries;
 	}
@@ -1002,9 +976,9 @@ int Try_Send_Receive( CONNECTION *con, char *host, char *resource /*for logging 
 		response_code = 0;
 
 		char message_log[ 2430 ];
-		if ( cfg_enable_message_log == true )
+		if ( cfg_enable_message_log )
 		{
-			__snprintf( message_log, 2430, "Sending %lu byte request for: http%s://%.253s:%d%.2048s", request_buffer_length, ( con->secure == true ? "s" : "" ), host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
+			__snprintf( message_log, 2430, "Sending %lu byte request for: http%s://%.253s:%d%.2048s", request_buffer_length, ( con->secure ? "s" : "" ), host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
 			_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 		}
 
@@ -1013,9 +987,9 @@ int Try_Send_Receive( CONNECTION *con, char *host, char *resource /*for logging 
 			response_code = GetHTTPResponse( con, response_buffer, response_buffer_length, http_status, content_length, last_buffer_size );
 		}
 
-		if ( cfg_enable_message_log == true )
+		if ( cfg_enable_message_log )
 		{
-			__snprintf( message_log, 2430, "Received %lu byte response with status code %lu from: http%s://%.253s:%d%.2048s", response_buffer_length, http_status, ( con->secure == true ? "s" : "" ), host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
+			__snprintf( message_log, 2430, "Received %lu byte response with status code %lu from: http%s://%.253s:%d%.2048s", response_buffer_length, http_status, ( con->secure ? "s" : "" ), host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
 			_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_NOTICE, ( LPARAM )message_log );
 		}
 
@@ -1041,9 +1015,9 @@ int Try_Send_Receive( CONNECTION *con, char *host, char *resource /*for logging 
 				break;
 			}
 
-			if ( cfg_enable_message_log == true )
+			if ( cfg_enable_message_log )
 			{
-				__snprintf( message_log, 2430, "Retrying %lu byte request for: http%s://%.253s:%d%.2048s", request_buffer_length, ( con->secure == true ? "s" : "" ), host, ( con->secure == true ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
+				__snprintf( message_log, 2430, "Retrying %lu byte request for: http%s://%.253s:%d%.2048s", request_buffer_length, ( con->secure ? "s" : "" ), host, ( con->secure ? DEFAULT_PORT_SECURE : DEFAULT_PORT ), resource );
 				_SendMessageW( g_hWnd_message_log, WM_ALERT, ML_WRITE_OUTPUT_A | ML_WARNING, ( LPARAM )message_log );
 			}
 
@@ -1051,7 +1025,7 @@ int Try_Send_Receive( CONNECTION *con, char *host, char *resource /*for logging 
 			CleanupConnection( con, host );
 
 			// Establish the connection again.
-			if ( Try_Connect( con, host, timeout ) == false )
+			if ( !Try_Connect( con, host, timeout ) )
 			{
 				break;
 			}
@@ -1085,7 +1059,7 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 
 	_SetWindowTextW( g_hWnd_main, L"VZ Enhanced - Checking for updates..." );
 
-	if ( ParseURL( version_url, &host, &resource ) == false )
+	if ( !ParseURL( version_url, &host, &resource ) )
 	{
 		goto CLEANUP;
 	}
@@ -1111,7 +1085,7 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 		"Host: %s\r\n" \
 		"Connection: keep-alive\r\n\r\n", resource, host );
 
-		if ( Try_Connect( &update_con, host, cfg_connection_timeout ) == false )
+		if ( !Try_Connect( &update_con, host, cfg_connection_timeout ) )
 		{
 			goto CLEANUP;
 		}
@@ -1131,7 +1105,7 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 		
 		if ( http_status == 302 )	// Redirect
 		{
-			if ( ParseRedirect( response, &host, &resource ) == false )
+			if ( !ParseRedirect( response, &host, &resource ) )
 			{
 				break;
 			}
@@ -1203,7 +1177,7 @@ bool DownloadUpdate( char *download_url )
 
 	_SetWindowTextW( g_hWnd_main, L"VZ Enhanced - Downloading update..." );
 
-	if ( ParseURL( download_url, &host, &resource ) == false )
+	if ( !ParseURL( download_url, &host, &resource ) )
 	{
 		goto CLEANUP;
 	}
@@ -1237,8 +1211,7 @@ bool DownloadUpdate( char *download_url )
 	wchar_t *val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * val_length );
 	MultiByteToWideChar( CP_UTF8, 0, file_name, -1, val, val_length );
 
-	file_path = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-	_memzero( file_path, sizeof ( wchar_t ) * MAX_PATH );
+	file_path = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 	_wmemcpy_s( file_path, MAX_PATH, val, val_length );
 
 	GlobalFree( val );
@@ -1252,7 +1225,7 @@ bool DownloadUpdate( char *download_url )
 		"Host: %s\r\n" \
 		"Connection: keep-alive\r\n\r\n", resource, host );
 
-		if ( Try_Connect( &update_con, host, cfg_connection_timeout ) == false )
+		if ( !Try_Connect( &update_con, host, cfg_connection_timeout ) )
 		{
 			goto CLEANUP;
 		}
@@ -1272,7 +1245,7 @@ bool DownloadUpdate( char *download_url )
 		
 		if ( http_status == 302 )	// Redirect
 		{
-			if ( ParseRedirect( response, &host, &resource ) == false )
+			if ( !ParseRedirect( response, &host, &resource ) )
 			{
 				break;
 			}
@@ -1369,7 +1342,7 @@ THREAD_RETURN CheckForUpdates( void *pArguments )
 
 		if ( new_version == CURRENT_VERSION )
 		{
-			if ( update_info->notify == true )
+			if ( update_info->notify )
 			{
 				// Up to date
 				if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 0, NULL ); }
@@ -1413,7 +1386,7 @@ THREAD_RETURN CheckForUpdates( void *pArguments )
 		mii.fState = MFS_ENABLED;
 		_SetMenuItemInfoW( g_hMenu, MENU_CHECK_FOR_UPDATES, FALSE, &mii );
 
-		if ( DownloadUpdate( update_info->download_url ) == false )
+		if ( !DownloadUpdate( update_info->download_url ) )
 		{
 			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 3, NULL ); }
 
@@ -1479,7 +1452,7 @@ bool CheckAuthorization( char *response )
 	bool authorization_status = false;
 	char *error_code = NULL;
 
-	if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+	if ( ParseXApplicationErrorCode( response, &error_code ) )
 	{
 		// Set the error code string to lower case.
 		_CharLowerA( ( LPSTR )error_code );
@@ -1573,7 +1546,7 @@ bool UploadMedia( wchar_t *file_path, HWND hWnd_update, unsigned char media_type
 			upload_buffer_offset += upload_buffer_length;	// Update our offset for each chunk sent.
 
 			// Update our contact window with the upload progress.
-			if ( hWnd_update != NULL && read_file == true )
+			if ( hWnd_update != NULL && read_file )
 			{
 				upload_info.sent += upload_buffer_length;
 				_SendMessageW( hWnd_update, WM_PROPAGATE, MAKEWPARAM( CW_UPDATE, UPDATE_PROGRESS ), ( LPARAM )&upload_info );
@@ -1671,7 +1644,7 @@ THREAD_RETURN ImportContactList( void *pArguments )
 		goto CLEANUP;
 	}
 
-	if ( iei->file_path == NULL )
+	if ( iei->file_paths == NULL )
 	{
 		goto CLEANUP;
 	}
@@ -1682,14 +1655,14 @@ THREAD_RETURN ImportContactList( void *pArguments )
 
 	// Establish a connection to the server and keep it active until shutdown.
 	// Use a 60 second timeout in case the file has a lot of entries. The server seems to take a while to process them.
-	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, 60/*cfg_connection_timeout*/ ) == false )
+	if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, 60/*cfg_connection_timeout*/ ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
 	// Media type = 0 for contact list.
-	if ( UploadMedia( iei->file_path, g_hWnd_main, 0 ) == false )
+	if ( !UploadMedia( iei->file_paths, g_hWnd_main, 0 ) )
 	{
 		goto CLEANUP;
 	}
@@ -1700,7 +1673,7 @@ THREAD_RETURN ImportContactList( void *pArguments )
 		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -1717,14 +1690,14 @@ THREAD_RETURN ImportContactList( void *pArguments )
 
 		// If we got an import list location, then request it be imported to the server.
 		char *import_list_location = NULL;
-		if ( GetMediaLocation( xml, &import_list_location ) == true )
+		if ( GetMediaLocation( xml, &import_list_location ) )
 		{
 			int send_buffer_length = 0;
 
 			// Get the file name from the import file.
-			int cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, iei->file_path, -1, NULL, 0, NULL, NULL );	// Size includes NULL character.
+			int cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, iei->file_paths, -1, NULL, 0, NULL, NULL );	// Size includes NULL character.
 			char *utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the NULL character.
-			WideCharToMultiByte( CP_UTF8, 0, iei->file_path, -1, utf8_cfg_val, cfg_val_length, NULL, NULL );
+			WideCharToMultiByte( CP_UTF8, 0, iei->file_paths, -1, utf8_cfg_val, cfg_val_length, NULL, NULL );
 
 			char *filename = GetFileName( utf8_cfg_val );
 
@@ -1756,7 +1729,7 @@ THREAD_RETURN ImportContactList( void *pArguments )
 				if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 				{
 					char *error_code = NULL;	// POST requests only.
-					if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+					if ( ParseXApplicationErrorCode( response, &error_code ) )
 					{
 						MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 					}
@@ -1777,7 +1750,7 @@ THREAD_RETURN ImportContactList( void *pArguments )
 				char *response_message = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * 128 );
 				__snprintf( response_message, 128, "%d out of %d contacts were imported successfully.", success_count, success_count + failure_count );
 
-				_SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ( cfg_enable_message_log == true ? ML_WRITE_OUTPUT_A : 0 ) | ML_FREE_INPUT | ML_MESSAGE_BOX_A | ML_NOTICE, ( LPARAM )response_message );	// response_message will be freed.
+				_SendNotifyMessageW( g_hWnd_message_log, WM_ALERT, ( cfg_enable_message_log ? ML_WRITE_OUTPUT_A : 0 ) | ML_FREE_INPUT | ML_MESSAGE_BOX_A | ML_NOTICE, ( LPARAM )response_message );	// response_message will be freed.
 
 				// We imported at least 1 contact. Add them to our contact list.
 				if ( success_count > 0 )
@@ -1803,7 +1776,7 @@ CLEANUP:
 
 	if ( iei != NULL )
 	{
-		GlobalFree( iei->file_path );
+		GlobalFree( iei->file_paths );
 		GlobalFree( iei );
 	}
 
@@ -1815,8 +1788,7 @@ CLEANUP:
 
 	if ( g_hWnd_main != NULL )
 	{
-
-		_SendMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_UPDATE, ( ( import_status == false && contact_update_in_progress != UPDATE_FAIL ) ? UPDATE_FAIL : UPDATE_END ) ), 0 );
+		_SendMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_UPDATE, ( ( !import_status && contact_update_in_progress != UPDATE_FAIL ) ? UPDATE_FAIL : UPDATE_END ) ), 0 );
 	}
 
 	in_connection_worker_thread = false;
@@ -1842,7 +1814,7 @@ THREAD_RETURN ExportContactList( void *pArguments )
 		goto CLEANUP;
 	}
 
-	if ( iei->file_path == NULL )
+	if ( iei->file_paths == NULL )
 	{
 		goto CLEANUP;
 	}
@@ -1861,7 +1833,7 @@ THREAD_RETURN ExportContactList( void *pArguments )
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Exporting_contact_list )
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -1883,7 +1855,7 @@ THREAD_RETURN ExportContactList( void *pArguments )
 		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -1898,14 +1870,14 @@ THREAD_RETURN ExportContactList( void *pArguments )
 		xml += 4;
 
 		char *contact_list_location = NULL;
-		if ( GetContactListLocation( xml, &contact_list_location ) == true )
+		if ( GetContactListLocation( xml, &contact_list_location ) )
 		{
 			// Download the file.
 
 			char *list_host = NULL;
 			char *list_resource = NULL;
 
-			if ( ParseURL( contact_list_location, &list_host, &list_resource ) == true )
+			if ( ParseURL( contact_list_location, &list_host, &list_resource ) )
 			{
 				// If ci is not NULL, then request that specific contact's information. Otherwise, request all the contacts information.
 				send_buffer_length = __snprintf( worker_send_buffer, DEFAULT_BUFLEN * 2,
@@ -1934,7 +1906,7 @@ THREAD_RETURN ExportContactList( void *pArguments )
 
 					// Save file.
 					DWORD write = 0;
-					HANDLE hFile = CreateFile( iei->file_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
+					HANDLE hFile = CreateFile( iei->file_paths, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 					if ( hFile != INVALID_HANDLE_VALUE )
 					{
 						WriteFile( hFile, xml, content_length, &write, NULL );
@@ -1963,7 +1935,7 @@ CLEANUP:
 
 	if ( iei != NULL )
 	{
-		GlobalFree( iei->file_path );
+		GlobalFree( iei->file_paths );
 		GlobalFree( iei );
 	}
 
@@ -2048,7 +2020,7 @@ void DownloadContactPictures( updateinfo *ui )
 			ci = ( contactinfo * )node->val;
 
 			// Make sure the contact/s we're processing aren't already displayed.
-			if ( ci != NULL && ci->displayed == true )
+			if ( ci != NULL && ci->displayed )
 			{
 				node = node->next;
 				continue;
@@ -2094,10 +2066,10 @@ void DownloadContactPictures( updateinfo *ui )
 				resource = NULL;
 			}
 
-			if ( ParseURL( ci->contact.picture_location, &host, &resource ) == true )
+			if ( ParseURL( ci->contact.picture_location, &host, &resource ) )
 			{
 				// Establish a connection to the server and keep it active until shutdown.
-				if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+				if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 				{
 					// Don't keep the path if connecting to the server failed.
 					GlobalFree( ci->picture_path );
@@ -2150,10 +2122,7 @@ void DownloadContactPictures( updateinfo *ui )
 
 						CloseHandle( hFile );
 
-						if ( downloaded_picture == false )
-						{
-							downloaded_picture = true;
-						}
+						downloaded_picture = true;
 					}
 					else	// Don't keep the path if saving the file failed.
 					{
@@ -2179,7 +2148,7 @@ void DownloadContactPictures( updateinfo *ui )
 		}
 	}
 
-	if ( downloaded_picture == true )
+	if ( downloaded_picture )
 	{
 		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloaded_contact_picture_s_ )
 	}
@@ -2236,14 +2205,14 @@ bool UploadContactPicture( updateinfo *ui )
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Uploading_contact_picture )
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
 	// Media type = 1 for picture.
-	if ( UploadMedia( new_ci->picture_path, g_hWnd_contact, 1 ) == false )
+	if ( !UploadMedia( new_ci->picture_path, g_hWnd_contact, 1 ) )
 	{
 		goto CLEANUP;
 	}
@@ -2254,7 +2223,7 @@ bool UploadContactPicture( updateinfo *ui )
 		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -2271,7 +2240,7 @@ bool UploadContactPicture( updateinfo *ui )
 
 		// If we got a picture location, then update the old contact's picture location.
 		char *picture_location = NULL;
-		if ( GetMediaLocation( xml, &picture_location ) == true )
+		if ( GetMediaLocation( xml, &picture_location ) )
 		{
 			if ( old_ci->contact.picture_location != NULL )
 			{
@@ -2318,7 +2287,7 @@ bool UploadContactPicture( updateinfo *ui )
 			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 			{
 				char *error_code = NULL;	// POST requests only.
-				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+				if ( ParseXApplicationErrorCode( response, &error_code ) )
 				{
 					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
@@ -2329,7 +2298,7 @@ bool UploadContactPicture( updateinfo *ui )
 
 
 		// Now, download the new image from the server. This will also update the file_path for the old contact information.
-		if ( cfg_download_pictures == true )
+		if ( cfg_download_pictures )
 		{
 			// old_ci picture_path will be updated in here.
 			DownloadContactPictures( ui );
@@ -2368,7 +2337,7 @@ CLEANUP:
 	GlobalFree( response );
 
 	// If we never updated the old_ci picture_path to the new_ci picture_path, then free the new_ci picture_path.
-	if ( new_ci != NULL && new_ci->picture_path != NULL && upload_status == false )
+	if ( new_ci != NULL && new_ci->picture_path != NULL && !upload_status )
 	{
 		GlobalFree( new_ci->picture_path );
 
@@ -2433,7 +2402,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		"Connection: close\r\n\r\n", orignialResourceUri, encoded_username, encoded_password, host, REFERER, USER_AGENT );
 	}
 
-	if ( Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		// Alert the user when logging in (not reauthorizing) if we failed to connect.
 		if ( wayfarer_cookies == NULL )
@@ -2444,7 +2413,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		goto CLEANUP;
 	}
 
-	if ( cfg_enable_message_log == true )
+	if ( cfg_enable_message_log )
 	{
 		__snprintf( ml_resource, 256, "/wayfarer?originalResourceUri=%s&Ecom%%5FUser%%5FID=[REDACTED]&Ecom%%5FPassword=[REDACTED]", orignialResourceUri );
 	}
@@ -2462,7 +2431,7 @@ THREAD_RETURN Authorization( void *pArguments )
 
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Parsing_SAML_request )
 
-	if ( ParseSAMLForm( response, &host, &resource, &saml_parameters, saml_parameter_length ) == false )	// This will parse the SAML request.
+	if ( !ParseSAMLForm( response, &host, &resource, &saml_parameters, saml_parameter_length ) )	// This will parse the SAML request.
 	{
 		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_SAML_request ) )
 		goto CLEANUP;
@@ -2499,7 +2468,7 @@ THREAD_RETURN Authorization( void *pArguments )
 	GlobalFree( saml_parameters );
 	saml_parameters = NULL;
 
-	if ( Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_SAML_server ) )
 		goto CLEANUP;
@@ -2513,7 +2482,7 @@ THREAD_RETURN Authorization( void *pArguments )
 
 	char *new_saml_cookies = NULL;
 
-	if ( ParseCookies( response, &saml_cookie_tree, &new_saml_cookies ) == false )
+	if ( !ParseCookies( response, &saml_cookie_tree, &new_saml_cookies ) )
 	{
 		GlobalFree( new_saml_cookies );
 		new_saml_cookies = NULL;
@@ -2546,7 +2515,7 @@ THREAD_RETURN Authorization( void *pArguments )
 		GlobalFree( host );
 		host = NULL;
 
-		if ( ParseRedirect( response, &host, &resource ) == false )
+		if ( !ParseRedirect( response, &host, &resource ) )
 		{
 			CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_Incorrect_username_or_password ) )
 			goto CLEANUP;
@@ -2577,7 +2546,7 @@ THREAD_RETURN Authorization( void *pArguments )
 
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Parsing_SAML_response )
 
-	if ( ParseSAMLForm( response, &host, &resource, &saml_parameters, saml_parameter_length ) == false )	// This will parse the SAML response.
+	if ( !ParseSAMLForm( response, &host, &resource, &saml_parameters, saml_parameter_length ) )	// This will parse the SAML response.
 	{
 		CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_SAML_response ) )
 		goto CLEANUP;
@@ -2614,7 +2583,7 @@ THREAD_RETURN Authorization( void *pArguments )
 	GlobalFree( saml_parameters );
 	saml_parameters = NULL;
 
-	if ( Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -2636,7 +2605,7 @@ THREAD_RETURN Authorization( void *pArguments )
 	char *new_wayfarer_cookies = NULL;
 
 	// This value will be saved
-	if ( ParseCookies( response, &wayfarer_cookie_tree, &new_wayfarer_cookies ) == false )
+	if ( !ParseCookies( response, &wayfarer_cookie_tree, &new_wayfarer_cookies ) )
 	{
 		GlobalFree( new_wayfarer_cookies );
 		new_wayfarer_cookies = NULL;
@@ -2717,7 +2686,7 @@ THREAD_RETURN CallPhoneNumber( void *pArguments )
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Initiating_outbound_call )
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( incoming_con.ssl_socket == NULL && Try_Connect( &incoming_con, host, cfg_connection_timeout ) == false )
+	if ( incoming_con.ssl_socket == NULL && !Try_Connect( &incoming_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( incoming_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -2746,7 +2715,7 @@ THREAD_RETURN CallPhoneNumber( void *pArguments )
 		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -2814,7 +2783,7 @@ THREAD_RETURN ForwardIncomingCall( void *pArguments )
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Forwarding_incoming_call )
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( incoming_con.ssl_socket == NULL && Try_Connect( &incoming_con, host, cfg_connection_timeout ) == false )
+	if ( incoming_con.ssl_socket == NULL && !Try_Connect( &incoming_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( incoming_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -2844,7 +2813,7 @@ THREAD_RETURN ForwardIncomingCall( void *pArguments )
 		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -2905,7 +2874,7 @@ THREAD_RETURN IgnoreIncomingCall( void *pArguments )
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Ignoring_incoming_call )
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( incoming_con.ssl_socket == NULL && Try_Connect( &incoming_con, host, cfg_connection_timeout ) == false )
+	if ( incoming_con.ssl_socket == NULL && !Try_Connect( &incoming_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( incoming_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -2934,7 +2903,7 @@ THREAD_RETURN IgnoreIncomingCall( void *pArguments )
 		if ( incoming_con.state != LOGGED_OUT && incoming_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -2987,7 +2956,7 @@ THREAD_RETURN UpdateRegistration( void *pArguments )
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updating_registration )
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -3011,7 +2980,7 @@ THREAD_RETURN UpdateRegistration( void *pArguments )
 		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 		{ 
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -3075,7 +3044,7 @@ THREAD_RETURN DeleteContact( void *pArguments )
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Deleting_contact )
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -3099,7 +3068,7 @@ THREAD_RETURN DeleteContact( void *pArguments )
 		if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 		{
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				// "Error - UAB 14004:[AB-CONTACT] Contact not found."
 				char *error_number = _StrStrA( error_code, "UAB 14004:" );
@@ -3114,7 +3083,7 @@ THREAD_RETURN DeleteContact( void *pArguments )
 			}
 		}
 
-		if ( delete_status == false )
+		if ( !delete_status )
 		{
 			goto CLEANUP;
 		}
@@ -3219,20 +3188,20 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	int update_contact_reply_length = 0;
 	char update_contact[ 2048 ];
 
-	if ( picture_only == false )
+	if ( !picture_only )
 	{
 		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Updating_contact_information )
 	}
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
 	}
 
 	// Update the old contact with its new information. Skip this if we're only updating the picture.
-	if ( picture_only == false )
+	if ( !picture_only )
 	{
 		char *o_title = encode_xml_entities( old_ci->contact.title );
 		char *o_first_name = encode_xml_entities( old_ci->contact.first_name );
@@ -3362,7 +3331,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 			{
 				char *error_code = NULL;	// POST requests only.
-				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+				if ( ParseXApplicationErrorCode( response, &error_code ) )
 				{
 					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
@@ -3390,7 +3359,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 			"Cookie: %s; %s\r\n" \
 			"Connection: close\r\n\r\n", resource, account_id, old_ci->contact.contact_entry_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
 
-			if ( cfg_enable_message_log == true )
+			if ( cfg_enable_message_log )
 			{
 				__snprintf( ml_resource, 256, "%s?UserId=[REDACTED]&ContactId=%s", resource, old_ci->contact.contact_entry_id );
 			}
@@ -3427,7 +3396,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	// Here we're either uploading a picture, or removing one.
 
 	// Upload the picture if we didn't remove it instead.
-	if ( ui->remove_picture == false )
+	if ( !ui->remove_picture )
 	{
 		// Upload the new picture, and then download it from the server.
 		// old_ci picture_path will be updated here.
@@ -3461,7 +3430,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 			if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 			{
 				char *error_code = NULL;	// POST requests only.
-				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+				if ( ParseXApplicationErrorCode( response, &error_code ) )
 				{
 					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
@@ -3482,7 +3451,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 	}
 
 	// If our update succeeded, then update our contact list.
-	if ( update_status == true )
+	if ( update_status )
 	{
 		// ui and/or new_ci will be freed in the update_contact_list thread.
 		CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_contact_list, ( void * )ui, 0, NULL ) );
@@ -3495,13 +3464,13 @@ CLEANUP:
 	GlobalFree( response );
 
 	// If something went wrong and we never received a reply from the server, then free the new contactinfo structure.
-	if ( new_ci != NULL && update_status == false )
+	if ( new_ci != NULL && !update_status )
 	{
 		free_contactinfo( &new_ci );
 	}
 
 	// If something went wrong and we never received a reply from the server, then free the new updateinfo structure.
-	if ( ui != NULL && update_status == false )
+	if ( ui != NULL && !update_status )
 	{
 		GlobalFree( ui );
 	}
@@ -3514,7 +3483,7 @@ CLEANUP:
 
 	if ( g_hWnd_contact != NULL )
 	{
-		_SendMessageW( g_hWnd_contact, WM_PROPAGATE, MAKEWPARAM( CW_UPDATE, ( ( ( ( picture_only == false && update_status == false ) || picture_status == false ) && contact_update_in_progress != UPDATE_FAIL ) ? UPDATE_FAIL : UPDATE_END ) ), 0 );
+		_SendMessageW( g_hWnd_contact, WM_PROPAGATE, MAKEWPARAM( CW_UPDATE, ( ( ( ( !picture_only && !update_status ) || !picture_status ) && contact_update_in_progress != UPDATE_FAIL ) ? UPDATE_FAIL : UPDATE_END ) ), 0 );
 	}
 
 	in_connection_worker_thread = false;
@@ -3582,7 +3551,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 	}
 
 	// Establish a connection to the server and keep it active until shutdown.
-	if ( worker_con.ssl_socket == NULL && Try_Connect( &worker_con, host, cfg_connection_timeout ) == false )
+	if ( worker_con.ssl_socket == NULL && !Try_Connect( &worker_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -3602,7 +3571,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"Cookie: %s; %s\r\n" \
 		"Connection: close\r\n\r\n", resource, account_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
 
-		if ( cfg_enable_message_log == true )
+		if ( cfg_enable_message_log )
 		{
 			__snprintf( ml_resource, 256, "%s?UserId=[REDACTED]", resource );
 		}
@@ -3691,7 +3660,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 			{
 				// "Error - UAB 752: Duplicated contact"
 				char *error_code = NULL;	// POST requests only.
-				if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+				if ( ParseXApplicationErrorCode( response, &error_code ) )
 				{
 					MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 				}
@@ -3710,7 +3679,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		}
 
 		// If we get here and haven't added the contact, then exit.
-		if ( add_status == false )
+		if ( !add_status )
 		{
 			CHECK_CONNECTION_STATE( worker_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_receive_proper_reply_when_adding_contact ) )
 			goto CLEANUP;
@@ -3727,7 +3696,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		"Cookie: %s; %s\r\n" \
 		"Connection: close\r\n\r\n", resource, account_id, ci->contact.contact_entry_id, host, REFERER, APPLICATION_NAME, USER_AGENT, vpns_cookies, wayfarer_cookies );
 
-		if ( cfg_enable_message_log == true )
+		if ( cfg_enable_message_log )
 		{
 			__snprintf( ml_resource, 256, "%s?UserId=[REDACTED]&ContactId=%s", resource, ci->contact.contact_entry_id );
 		}
@@ -3767,10 +3736,10 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 	}
 
 	// If we built or updated our contact list, then download the contact/s pictures and add them to the contact listview.
-	if ( list_status == true )
+	if ( list_status )
 	{
 		// Now download any pictures the contact/s may have.
-		if ( cfg_download_pictures == true )
+		if ( cfg_download_pictures )
 		{
 			resource = "/vpnsservice/v1_5/contactsPics";
 
@@ -3794,7 +3763,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 				{
 					contactinfo *ci1 = ( contactinfo * )node->val;
 
-					if ( ci1 != NULL && ci1->contact.contact_entry_id != NULL && ci1->displayed == false )
+					if ( ci1 != NULL && ci1->contact.contact_entry_id != NULL && !ci1->displayed )
 					{
 						total_id_length += lstrlenA( ci1->contact.contact_entry_id );
 						++num_pictures;
@@ -3821,7 +3790,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 				{
 					contactinfo *ci1 = ( contactinfo * )node->val;
 
-					if ( ci1 != NULL && ci1->contact.contact_entry_id != NULL && ci1->displayed == false )
+					if ( ci1 != NULL && ci1->contact.contact_entry_id != NULL && !ci1->displayed )
 					{
 						download_reply_length += __snprintf( contact_pictures_request + download_reply_length, contact_pictures_request_length - download_reply_length,
 						"<ContactEntry id=\"%s\">" \
@@ -3864,7 +3833,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 				if ( worker_con.state != LOGGED_OUT && worker_con.state != LOGGING_OUT )
 				{
 					char *error_code = NULL;	// POST requests only.
-					if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+					if ( ParseXApplicationErrorCode( response, &error_code ) )
 					{
 						MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 					}
@@ -3879,7 +3848,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 					xml += 4;
 
 					// Update each contact's picture location.
-					if ( UpdatePictureLocations( xml ) == true )
+					if ( UpdatePictureLocations( xml ) )
 					{
 						// Download the pictures if any contact has one.
 						DownloadContactPictures( NULL );
@@ -3928,7 +3897,7 @@ CLEANUP:
 	if ( mi != NULL )
 	{
 		// If we supplied a contactinfo structure and it wasn't added for some reason, then free it and all its values.
-		if ( mi->ci != NULL && add_status == false )
+		if ( mi->ci != NULL && !add_status )
 		{
 			free_contactinfo( &( mi->ci ) );
 		}
@@ -4029,7 +3998,7 @@ THREAD_RETURN Connection( void *pArguments )
 		goto CLEANUP;
 	}
 
-	if ( Try_Connect( &main_con, host, cfg_connection_timeout ) == false )
+	if ( !Try_Connect( &main_con, host, cfg_connection_timeout ) )
 	{
 		//CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_connect_to_VPNS_server ) )
 		goto CLEANUP;
@@ -4072,7 +4041,7 @@ THREAD_RETURN Connection( void *pArguments )
 		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
 		{ 
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -4092,7 +4061,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Parsing_account_information )
 
-		if ( GetAccountInformation( xml, &client_id, &account_id, &account_status, &account_type, &principal_id, &service_type, &service_status, &service_context, &service_phone_number, &service_privacy_value, &service_notifications, &service_features, phone_lines ) == false )
+		if ( !GetAccountInformation( xml, &client_id, &account_id, &account_status, &account_type, &principal_id, &service_type, &service_status, &service_context, &service_phone_number, &service_privacy_value, &service_notifications, &service_features, phone_lines ) )
 		{
 			CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_account_information ) )
 			goto CLEANUP;
@@ -4104,7 +4073,7 @@ THREAD_RETURN Connection( void *pArguments )
 		goto CLEANUP;
 	}
 
-	if ( ParseCookies( response, &vpns_cookie_tree, &vpns_cookies ) == false )
+	if ( !ParseCookies( response, &vpns_cookie_tree, &vpns_cookies ) )
 	{
 		CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_server_cookies ) )
 		goto CLEANUP;
@@ -4174,7 +4143,7 @@ THREAD_RETURN Connection( void *pArguments )
 		if ( main_con.state != LOGGED_OUT && main_con.state != LOGGING_OUT )
 		{ 
 			char *error_code = NULL;	// POST requests only.
-			if ( ParseXApplicationErrorCode( response, &error_code ) == true )
+			if ( ParseXApplicationErrorCode( response, &error_code ) )
 			{
 				MESSAGE_LOG_OUTPUT_FREE_A( ML_ERROR, error_code )	// Frees error_code
 			}
@@ -4207,7 +4176,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 	MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Joining_notification_server )
 
-	if ( cfg_enable_message_log == true )
+	if ( cfg_enable_message_log )
 	{
 		__snprintf( ml_resource, 256, "/vpnspush/v1_5/join?id=[REDACTED]&clientId=[REDACTED]" );
 	}
@@ -4219,7 +4188,7 @@ THREAD_RETURN Connection( void *pArguments )
 		goto CLEANUP;
 	}
 
-	if ( ParseCookies( response, &session_cookie_tree, &session_cookies ) == false )
+	if ( !ParseCookies( response, &session_cookie_tree, &session_cookies ) )
 	{
 		CHECK_CONNECTION_STATE( main_con, MESSAGE_LOG_OUTPUT( ML_ERROR, ST_Failed_to_parse_notification_setup_cookies ) )
 		goto CLEANUP;
@@ -4277,7 +4246,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 				MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Reestablishing_connection )
 
-				if ( Try_Connect( &main_con, host, cfg_connection_timeout, false ) == true )
+				if ( Try_Connect( &main_con, host, cfg_connection_timeout, false ) )
 				{
 					// Rejoin the notification server. v1_5 format.
 					send_buffer_length = __snprintf( connection_send_buffer, DEFAULT_BUFLEN * 2,
@@ -4290,7 +4259,7 @@ THREAD_RETURN Connection( void *pArguments )
 					"Cookie: %s; %s\r\n" \
 					"Connection: keep-alive\r\n\r\n", ( service_phone_number != NULL ? SAFESTRA( service_phone_number[ current_phone_line ] ) : "" ), SAFESTRA( client_id ), host, REFERER, APPLICATION_NAME, USER_AGENT, session_cookies, wayfarer_cookies );
 
-					if ( cfg_enable_message_log == true )
+					if ( cfg_enable_message_log )
 					{
 						__snprintf( ml_resource, 256, "/vpnspush/v1_5/join?id=[REDACTED]&clientId=[REDACTED]" );
 					}
@@ -4299,7 +4268,7 @@ THREAD_RETURN Connection( void *pArguments )
 					if ( Try_Send_Receive( &main_con, host, ml_resource, connection_send_buffer, send_buffer_length, &response, response_length, http_status, content_length, last_buffer_size, cfg_connection_timeout, false ) != -1 )
 					{
 						// If the wayfarer cookie is bad, then http_status will probably be 403.
-						if ( http_status != 200 && CheckAuthorization( response ) == true )
+						if ( http_status != 200 && CheckAuthorization( response ) )
 						{
 							reauthorize = true;
 
@@ -4313,7 +4282,7 @@ THREAD_RETURN Connection( void *pArguments )
 
 						char *new_session_cookies = NULL;
 
-						if ( ParseCookies( response, &session_cookie_tree, &new_session_cookies ) == true )
+						if ( ParseCookies( response, &session_cookie_tree, &new_session_cookies ) )
 						{
 							// If we got a new cookie.
 							if ( new_session_cookies != NULL )
@@ -4373,7 +4342,7 @@ THREAD_RETURN Connection( void *pArguments )
 		SystemTimeToFileTime( &SystemTime, &FileTime );
 
 		// If the wayfarer cookie is bad, then http_status will probably be 403.
-		if ( http_status != 200 && reauthorize == false && CheckAuthorization( response ) == true )
+		if ( http_status != 200 && !reauthorize && CheckAuthorization( response ) )
 		{
 			reauthorize = true;
 
@@ -4394,7 +4363,7 @@ THREAD_RETURN Connection( void *pArguments )
 			char *call_reference_id = NULL;
 
 			// True only if all of the values were found.
-			if ( GetCallerIDInformation( xml, &call_to, &call_from, &caller_id, &call_reference_id ) == true )
+			if ( GetCallerIDInformation( xml, &call_to, &call_from, &caller_id, &call_reference_id ) )
 			{
 				displayinfo *di = ( displayinfo * )GlobalAlloc( GMEM_FIXED, sizeof( displayinfo ) );
 
@@ -4434,7 +4403,7 @@ THREAD_RETURN Connection( void *pArguments )
 		// More than 25 minutes have elapsed. Log in again to update the wayfarer cookie.
 		// What we're doing here is preemptively updating the wayfarer cookie before it expires.
 		// This allows us to quickly process the incoming call without the need to handle any possible authentication errors.
-		if ( ( li_current.QuadPart - li_update.QuadPart ) >= ( 25 * 60 * FILETIME_TICKS_PER_SECOND ) || reauthorize == true )
+		if ( ( li_current.QuadPart - li_update.QuadPart ) >= ( 25 * 60 * FILETIME_TICKS_PER_SECOND ) || reauthorize )
 		{
 			// Reauthorize to get a new wayfarer cookie.
 			HANDLE hThread = ( HANDLE )_CreateThread( NULL, 0, Authorization, ( void * )NULL, 0, NULL );

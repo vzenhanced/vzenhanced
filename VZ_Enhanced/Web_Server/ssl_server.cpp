@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -244,7 +244,7 @@ SECURITY_STATUS WSAAPI SSL_WSASend( SOCKET_CONTEXT *socket_context, WSABUF *send
 		SecBufferDesc Message;
 		DWORD cbMessage;
 
-		if ( ssl->sd.got_stream_sizes == false )
+		if ( !ssl->sd.got_stream_sizes )
 		{
 			scRet = g_pSSPI->QueryContextAttributesA( &ssl->hContext, SECPKG_ATTR_STREAM_SIZES, &ssl->sd.Sizes );
 			if ( scRet != SEC_E_OK )
@@ -488,18 +488,18 @@ SECURITY_STATUS SSL_WSAAccept_Reply( SOCKET_CONTEXT *socket_context, LPWSAOVERLA
 			OutBuffer.pBuffers = ssl->ad.OutBuffers;
 			OutBuffer.ulVersion = SECBUFFER_VERSION;
 
-			/*if ( ssl->ad.fInitContext == false )
+			/*if ( !ssl->ad.fInitContext )
 			{
 				dwSSPIFlags |= ASC_REQ_MUTUAL_AUTH;
 			}*/
 
 			ssl->ad.scRet = g_pSSPI->AcceptSecurityContext(
 									&g_hCreds,
-									( ssl->ad.fInitContext == true ? NULL : &ssl->hContext ),
+									( ssl->ad.fInitContext ? NULL : &ssl->hContext ),
 									&InBuffer,
 									dwSSPIFlags,
 									SECURITY_NATIVE_DREP,
-									( ssl->ad.fInitContext == true ? &ssl->hContext : NULL ),
+									( ssl->ad.fInitContext ? &ssl->hContext : NULL ),
 									&OutBuffer,
 									&dwSSPIOutFlags,
 									&tsExpiry );
@@ -622,7 +622,7 @@ SECURITY_STATUS SSL_WSAAccept_Response( SOCKET_CONTEXT *socket_context, LPWSAOVE
 			// Read client data.
 			if ( ssl->cbIoBuffer == 0 )
 			{
-				if ( ssl->ad.fDoRead == true )
+				if ( ssl->ad.fDoRead )
 				{
 					// Reallocate the buffer if it needs to be larger.
 					if ( ssl->sbIoBuffer <= ssl->cbIoBuffer )
@@ -986,7 +986,7 @@ PCCERT_CONTEXT LoadPublicPrivateKeyPair( wchar_t *cer, wchar_t *key )
 	#ifndef RPCRT4_USE_STATIC_LIB
 		if ( rpcrt4_state == RPCRT4_STATE_SHUTDOWN )
 		{
-			if ( InitializeRpcRt4() == false ){ return NULL; }
+			if ( !InitializeRpcRt4() ){ return NULL; }
 		}
 	#endif
 
@@ -1119,7 +1119,7 @@ CLEANUP:
 		_CertCloseStore( hMyCertStore, 0 );
 	}
 
-	if ( failed == true && pCertContext != NULL )
+	if ( failed && pCertContext != NULL )
 	{
 		_CertFreeCertificateContext( pCertContext );
 		pCertContext = NULL;

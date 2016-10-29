@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -196,8 +196,8 @@ char read_config()
 				if ( ( DWORD )( next - cfg_buf ) < read )
 				{
 					// Length of the string - not including the NULL character.
-					string_length = ( unsigned char )*next;
-					++next;
+					_memcpy_s( &string_length, sizeof( unsigned short ), next, sizeof( unsigned short ) );
+					next += sizeof( unsigned short );
 
 					if ( string_length > 0 )
 					{
@@ -285,8 +285,13 @@ char read_config()
 
 					next += string_length;
 				}
-				
+
 				// Set the default values for bad configuration values.
+
+				if ( cfg_port == 0 )
+				{
+					cfg_port = 1;
+				}
 
 				if ( cfg_thread_count > max_threads )
 				{
@@ -323,15 +328,14 @@ char read_config()
 
 	if ( cfg_hostname == NULL )
 	{
-		cfg_hostname = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * 10 );
+		cfg_hostname = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * 10 );
 		_wmemcpy_s( cfg_hostname, 10, L"localhost\0", 10 );
 		cfg_hostname[ 9 ] = 0;	// Sanity.
 	}
 
 	if ( cfg_document_root_directory == NULL )
 	{
-		cfg_document_root_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-		_memzero( cfg_document_root_directory, sizeof ( wchar_t ) * MAX_PATH );
+		cfg_document_root_directory = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 		g_document_root_directory_length = GetCurrentDirectoryW( MAX_PATH, cfg_document_root_directory );
 		if ( g_document_root_directory_length + 8 <= MAX_PATH )
 		{
@@ -423,12 +427,12 @@ char save_config()
 			utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_authentication_username, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
-			int length = cfg_val_length - 1;
+			int length = cfg_val_length - 1;	// Exclude the NULL terminator.
 			_memcpy_s( utf8_cfg_val, cfg_val_length, &length, sizeof( char ) );
 
 			encode_cipher( utf8_cfg_val + sizeof( char ), length );
 
-			WriteFile( hFile_cfg, utf8_cfg_val, cfg_val_length, &write, NULL );	// Do not write the NULL terminator.
+			WriteFile( hFile_cfg, utf8_cfg_val, length + sizeof( char ), &write, NULL );	// Do not write the NULL terminator.
 
 			GlobalFree( utf8_cfg_val );
 		}
@@ -443,12 +447,12 @@ char save_config()
 			utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_authentication_password, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
-			int length = cfg_val_length - 1;
+			int length = cfg_val_length - 1;	// Exclude the NULL terminator.
 			_memcpy_s( utf8_cfg_val, cfg_val_length, &length, sizeof( char ) );
 
 			encode_cipher( utf8_cfg_val + sizeof( char ), length );
 
-			WriteFile( hFile_cfg, utf8_cfg_val, cfg_val_length, &write, NULL );	// Do not write the NULL terminator.
+			WriteFile( hFile_cfg, utf8_cfg_val, length + sizeof( char ), &write, NULL );	// Do not write the NULL terminator.
 
 			GlobalFree( utf8_cfg_val );
 		}
@@ -459,22 +463,22 @@ char save_config()
 
 		if ( cfg_certificate_pkcs_password != NULL )
 		{
-			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_certificate_pkcs_password, -1, NULL, 0, NULL, NULL ) + sizeof( char );	// Add 1 byte for our encoded length.
+			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_certificate_pkcs_password, -1, NULL, 0, NULL, NULL ) + sizeof( unsigned short );	// Add 2 bytes for our encoded length.
 			utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_certificate_pkcs_password, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
+			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_certificate_pkcs_password, -1, utf8_cfg_val + sizeof( unsigned short ), cfg_val_length - sizeof( unsigned short ), NULL, NULL );
 
-			int length = cfg_val_length - 1;
-			_memcpy_s( utf8_cfg_val, cfg_val_length, &length, sizeof( char ) );
+			int length = cfg_val_length - 1;	// Exclude the NULL terminator.
+			_memcpy_s( utf8_cfg_val, cfg_val_length, &length, sizeof( unsigned short ) );
 
-			encode_cipher( utf8_cfg_val + sizeof( char ), length );
+			encode_cipher( utf8_cfg_val + sizeof( unsigned short ), length );
 
-			WriteFile( hFile_cfg, utf8_cfg_val, cfg_val_length, &write, NULL );	// Do not write the NULL terminator.
+			WriteFile( hFile_cfg, utf8_cfg_val, length + sizeof( unsigned short ), &write, NULL );	// Do not write the NULL terminator.
 
 			GlobalFree( utf8_cfg_val );
 		}
 		else
 		{
-			WriteFile( hFile_cfg, "\0", 1, &write, NULL );
+			WriteFile( hFile_cfg, "\0\0", 2, &write, NULL );
 		}
 
 		if ( cfg_hostname != NULL )

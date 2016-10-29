@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -259,10 +259,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					unsigned int text_length = _SendMessageW( g_hWnd_title, WM_GETTEXTLENGTH, 0, 0 );
+					unsigned int text_length = _SendMessageW( g_hWnd_title, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					wchar_t *text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_title, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					wchar_t *text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_title, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->title == NULL || ( edit_ci->title != NULL && lstrcmpW( text_val, edit_ci->title ) ) ) != 0 ) )
 					{
@@ -282,10 +282,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_first_name, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_first_name, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_first_name, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_first_name, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->first_name == NULL || ( edit_ci->first_name != NULL && lstrcmpW( text_val, edit_ci->first_name ) ) ) != 0 ) )
 					{
@@ -306,10 +306,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_last_name, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_last_name, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_last_name, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_last_name, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->last_name == NULL || ( edit_ci->last_name != NULL && lstrcmpW( text_val, edit_ci->last_name ) ) ) != 0 ) )
 					{
@@ -330,10 +330,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_nickname, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_nickname, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_nickname, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_nickname, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->nickname == NULL || ( edit_ci->nickname != NULL && lstrcmpW( text_val, edit_ci->nickname ) ) ) != 0 ) )
 					{
@@ -354,10 +354,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_company, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_company, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_company, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_company, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->business_name == NULL || ( edit_ci->business_name != NULL && lstrcmpW( text_val, edit_ci->business_name ) ) ) != 0 ) )
 					{
@@ -377,10 +377,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_job_title, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_job_title, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_job_title, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_job_title, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->designation == NULL || ( edit_ci->designation != NULL && lstrcmpW( text_val, edit_ci->designation ) ) ) != 0 ) )
 					{
@@ -400,10 +400,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_department, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_department, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_department, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_department, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->department == NULL || ( edit_ci->department != NULL && lstrcmpW( text_val, edit_ci->department ) ) ) != 0 ) )
 					{
@@ -423,10 +423,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_profession, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_profession, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_profession, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_profession, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->category == NULL || ( edit_ci->category != NULL && lstrcmpW( text_val, edit_ci->category ) ) ) != 0 ) )
 					{
@@ -446,10 +446,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_email_address, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_email_address, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_email_address, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_email_address, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->email_address == NULL || ( edit_ci->email_address != NULL && lstrcmpW( text_val, edit_ci->email_address ) ) ) != 0 ) )
 					{
@@ -469,10 +469,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageW( g_hWnd_web_page, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageW( g_hWnd_web_page, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * ( text_length + 1 ) );
-					_SendMessageW( g_hWnd_web_page, WM_GETTEXT, text_length + 1, ( LPARAM )text_val );
+					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
+					_SendMessageW( g_hWnd_web_page, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->web_page == NULL || ( edit_ci->web_page != NULL && lstrcmpW( text_val, edit_ci->web_page ) ) ) != 0 ) )
 					{
@@ -492,10 +492,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageA( g_hWnd_home_phone_number, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageA( g_hWnd_home_phone_number, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( text_length + 1 ) );
-					_SendMessageA( g_hWnd_home_phone_number, WM_GETTEXT, text_length + 1, ( LPARAM )utf8_val );
+					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
+					_SendMessageA( g_hWnd_home_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->home_phone_number == NULL || ( edit_ci->contact.home_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.home_phone_number ) ) ) != 0 ) )
 					{
@@ -511,10 +511,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageA( g_hWnd_cell_phone_number, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageA( g_hWnd_cell_phone_number, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( text_length + 1 ) );
-					_SendMessageA( g_hWnd_cell_phone_number, WM_GETTEXT, text_length + 1, ( LPARAM )utf8_val );
+					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
+					_SendMessageA( g_hWnd_cell_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->cell_phone_number == NULL || ( edit_ci->contact.cell_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.cell_phone_number ) ) ) != 0 ) )
 					{
@@ -530,10 +530,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageA( g_hWnd_office_phone_number, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageA( g_hWnd_office_phone_number, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( text_length + 1 ) );
-					_SendMessageA( g_hWnd_office_phone_number, WM_GETTEXT, text_length + 1, ( LPARAM )utf8_val );
+					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
+					_SendMessageA( g_hWnd_office_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->office_phone_number == NULL || ( edit_ci->contact.office_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.office_phone_number ) ) ) != 0 ) )
 					{
@@ -549,10 +549,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageA( g_hWnd_other_phone_number, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageA( g_hWnd_other_phone_number, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( text_length + 1 ) );
-					_SendMessageA( g_hWnd_other_phone_number, WM_GETTEXT, text_length + 1, ( LPARAM )utf8_val );
+					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
+					_SendMessageA( g_hWnd_other_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->other_phone_number == NULL || ( edit_ci->contact.other_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.other_phone_number ) ) ) != 0 ) )
 					{
@@ -568,10 +568,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageA( g_hWnd_work_phone_number, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageA( g_hWnd_work_phone_number, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( text_length + 1 ) );
-					_SendMessageA( g_hWnd_work_phone_number, WM_GETTEXT, text_length + 1, ( LPARAM )utf8_val );
+					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
+					_SendMessageA( g_hWnd_work_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->work_phone_number == NULL || ( edit_ci->contact.work_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.work_phone_number ) ) ) != 0 ) )
 					{
@@ -587,10 +587,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 
 
-					text_length = _SendMessageA( g_hWnd_fax_number, WM_GETTEXTLENGTH, 0, 0 );
+					text_length = _SendMessageA( g_hWnd_fax_number, WM_GETTEXTLENGTH, 0, 0 ) + 1;	// Include the NULL terminator.
 
-					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( text_length + 1 ) );
-					_SendMessageA( g_hWnd_fax_number, WM_GETTEXT, text_length + 1, ( LPARAM )utf8_val );;
+					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
+					_SendMessageA( g_hWnd_fax_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );;
 
 					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->fax_number == NULL || ( edit_ci->contact.fax_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.fax_number ) ) ) != 0 ) )
 					{
@@ -631,7 +631,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					if ( edit_ci != NULL )	// Update contact.
 					{
-						if ( info_changed == true || picture_changed == true || remove_picture == true )
+						if ( info_changed || picture_changed || remove_picture )
 						{
 							updateinfo *ui = ( updateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( updateinfo ) );
 							ui->old_ci = NULL;
@@ -689,15 +689,12 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 				case BTN_UPDATE_PICTURE:
 				{
-					wchar_t *picture_file_path = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
+					wchar_t *picture_file_path = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
+
 					if ( edit_ci != NULL && edit_ci->picture_path != NULL )
 					{
 						_wcsncpy_s( picture_file_path, MAX_PATH, edit_ci->picture_path, MAX_PATH );
 						picture_file_path[ MAX_PATH - 1 ] = 0;	// Sanity.
-					}
-					else
-					{
-						_memzero( picture_file_path, sizeof ( wchar_t ) * MAX_PATH );
 					}
 
 					OPENFILENAME ofn;
@@ -746,7 +743,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							#endif
 						}
 
-						if ( convert == true )
+						if ( convert )
 						{
 							g_hbm_picture = ImageToBitmap( g_picture_file_path, g_picture_height, g_picture_width );
 						}
@@ -811,7 +808,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 								#endif
 							}
 
-							if ( convert == true )
+							if ( convert )
 							{
 								g_hbm_picture = ImageToBitmap( edit_ci->picture_path, g_picture_height, g_picture_width );
 							}
@@ -993,6 +990,8 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			}
 
 			_DestroyWindow( hWnd );
+
+			return 0;
 		}
 		break;
 
@@ -1017,6 +1016,8 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			}
 
 			g_hWnd_contact = NULL;
+
+			return 0;
 		}
 		break;
 

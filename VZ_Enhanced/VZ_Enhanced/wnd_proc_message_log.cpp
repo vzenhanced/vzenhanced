@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -134,9 +134,12 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 			// Closed in WM_DESTROY in case we don't spawn the logging thread.
 			ml_update_trigger_semaphore = CreateSemaphore( NULL, 0, MAX_ITEM_COUNT, NULL );
 
-			if ( cfg_enable_message_log == true )
+			if ( cfg_enable_message_log )
 			{
-				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL ) );
+				//CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL ) );
+				HANDLE update_message_log_handle = _CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL );
+				SetThreadPriority( update_message_log_handle, THREAD_PRIORITY_LOWEST );
+				CloseHandle( update_message_log_handle );
 			}
 
 			return 0;
@@ -156,8 +159,7 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 
 				case BTN_SAVE_LOG:
 				{
-					wchar_t *file_path = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof ( wchar_t ) * MAX_PATH );
-					_memzero( file_path, sizeof ( wchar_t ) * MAX_PATH );
+					wchar_t *file_path = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
 
 					OPENFILENAME ofn;
 					_memzero( &ofn, sizeof( OPENFILENAME ) );
@@ -304,7 +306,7 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 				case LVN_KEYDOWN:
 				{
 					// Make sure the control key is down and that we're not already in a worker thread. Prevents threads from queuing in case the user falls asleep on their keyboard.
-					if ( _GetKeyState( VK_CONTROL ) & 0x8000 && in_ml_worker_thread == false )
+					if ( _GetKeyState( VK_CONTROL ) & 0x8000 && !in_ml_worker_thread )
 					{
 						NMLISTVIEW *nmlv = ( NMLISTVIEW * )lParam;
 
@@ -353,7 +355,7 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 				MESSAGE_LOG_INFO *mli = ( MESSAGE_LOG_INFO * )dis->itemData;
 
 				// If an item is being deleted, then don't draw it.
-				if ( skip_message_log_draw == true && dis->hwndItem == g_hWnd_message_log_list )
+				if ( skip_message_log_draw && dis->hwndItem == g_hWnd_message_log_list )
 				{
 					return TRUE;
 				}
@@ -469,7 +471,7 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 					_SetBkMode( hdcMem, TRANSPARENT );
 
 					// Draw selected text
-					if ( selected == true )
+					if ( selected )
 					{
 						// Fill the background.
 						HBRUSH color = _CreateSolidBrush( ( COLORREF )_GetSysColor( COLOR_HIGHLIGHT ) );
@@ -566,6 +568,8 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 		case WM_CLOSE:
 		{
 			_ShowWindow( hWnd, SW_HIDE );
+
+			return 0;
 		}
 		break;
 
@@ -582,6 +586,8 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 			_DestroyMenu( g_hMenuSub_message_log );
 
 			g_hWnd_message_log = NULL;
+
+			return 0;
 		}
 		break;
 

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2015 Eric Kutcher
+	Copyright (C) 2013-2016 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -211,7 +211,7 @@ static SECURITY_STATUS ClientHandshakeLoop( SSL *ssl, bool fDoInitialRead )
 		// Read server data
 		if ( ssl->cbIoBuffer == 0 || scRet == SEC_E_INCOMPLETE_MESSAGE )
 		{
-			if ( fDoRead == true )
+			if ( fDoRead )
 			{
 				// If buffer not large enough reallocate buffer
 				if ( ssl->sbIoBuffer <= ssl->cbIoBuffer )
@@ -264,7 +264,7 @@ static SECURITY_STATUS ClientHandshakeLoop( SSL *ssl, bool fDoInitialRead )
 		// garbage later.
 
 		OutBuffers[ 0 ].pvBuffer = NULL;
-		OutBuffers[ 0 ].BufferType= SECBUFFER_TOKEN;
+		OutBuffers[ 0 ].BufferType = SECBUFFER_TOKEN;
 		OutBuffers[ 0 ].cbBuffer = 0;
 
 		OutBuffer.cBuffers = 1;
@@ -375,7 +375,7 @@ static SECURITY_STATUS ClientHandshakeLoop( SSL *ssl, bool fDoInitialRead )
 	return scRet;
 }
 
-int SSL_connect( SSL *ssl )
+int SSL_connect( SSL *ssl, const char *host )
 {
 	SecBufferDesc OutBuffer;
 	SecBuffer OutBuffers[ 1 ];
@@ -407,14 +407,10 @@ int SSL_connect( SSL *ssl )
 	OutBuffer.pBuffers = OutBuffers;
 	OutBuffer.ulVersion = SECBUFFER_VERSION;
 
-	struct sockaddr_in sock;
-	int	slen = sizeof( struct sockaddr );
-	_getpeername( ssl->s, ( struct sockaddr * ) &sock, &slen );
-
 	scRet = g_pSSPI->InitializeSecurityContextA(
 					&g_hCreds,
 					NULL,
-					_inet_ntoa( sock.sin_addr ),
+					( SEC_CHAR * )host,
 					dwSSPIFlags,
 					0,
 					SECURITY_NATIVE_DREP,
@@ -597,7 +593,7 @@ int SSL_read( SSL *ssl, char *buf, int num )
 			{
 				return SOCKET_ERROR;
 			}
-			else if( cbData == 0 )
+			else if ( cbData == 0 )
 			{
 				// Server disconnected.
 				if ( ssl->cbIoBuffer )
