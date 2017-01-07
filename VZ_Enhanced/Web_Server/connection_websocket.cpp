@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -517,8 +517,12 @@ void SendListData( SOCKET_CONTEXT *socket_context )
 				DoublyLinkedList *del_node = dll;
 				dll = dll->next;
 
-				GlobalFree( ( ( PAYLOAD_INFO * )del_node->data )->payload_value );
-				GlobalFree( ( PAYLOAD_INFO * )del_node->data );
+				PAYLOAD_INFO *pi = ( PAYLOAD_INFO * )del_node->data;
+				if ( pi != NULL )
+				{
+					GlobalFree( pi->payload_value );
+					GlobalFree( pi );
+				}
 				GlobalFree( del_node );
 
 				socket_context->list_data = dll;
@@ -1264,9 +1268,10 @@ UPDATE_BUFFER *GetAvailableUpdateBuffer( DoublyLinkedList *update_buffer_pool )
 	DoublyLinkedList *node = g_update_buffer_pool;
 	while ( node != NULL )
 	{
-		if ( ( ( UPDATE_BUFFER * )node->data )->count == 0 )
+		UPDATE_BUFFER *t_ub = ( UPDATE_BUFFER * )node->data;
+		if ( t_ub != NULL && t_ub->count == 0 )
 		{
-			ub = ( UPDATE_BUFFER * )node->data;
+			ub = t_ub;
 			break;
 		}
 
@@ -1284,9 +1289,10 @@ UPDATE_BUFFER_STATE *GetAvailableUpdateBufferState( SOCKET_CONTEXT *socket_conte
 		DoublyLinkedList *node = socket_context->io_context.update_buffer_state;
 		while ( node != NULL )
 		{
-			if ( !( ( UPDATE_BUFFER_STATE * )node->data )->in_use )
+			UPDATE_BUFFER_STATE *t_ubs = ( UPDATE_BUFFER_STATE * )node->data;
+			if ( t_ubs != NULL && !t_ubs->in_use )
 			{
-				ubs = ( UPDATE_BUFFER_STATE * )node->data;
+				ubs = t_ubs;
 				break;
 			}
 
@@ -1305,9 +1311,10 @@ UPDATE_BUFFER_STATE *FindUpdateBufferState( SOCKET_CONTEXT *socket_context, LPWS
 		DoublyLinkedList *node = socket_context->io_context.update_buffer_state;
 		while ( node != NULL )
 		{
-			if ( &( ( ( UPDATE_BUFFER_STATE * )node->data )->overlapped ) == lpWSAOverlapped )
+			UPDATE_BUFFER_STATE *t_ubs = ( UPDATE_BUFFER_STATE * )node->data;
+			if ( t_ubs != NULL && &( t_ubs->overlapped ) == lpWSAOverlapped )
 			{
-				ubs = ( UPDATE_BUFFER_STATE * )node->data;
+				ubs = t_ubs;
 				break;
 			}
 
@@ -1325,8 +1332,12 @@ void CleanupUpdateBufferPool( DoublyLinkedList **update_buffer_pool )
 		DoublyLinkedList *del_node = *update_buffer_pool;
 		*update_buffer_pool = ( *update_buffer_pool )->next;
 
-		GlobalFree( ( ( UPDATE_BUFFER * )del_node->data )->buffer );
-		GlobalFree( ( UPDATE_BUFFER * )del_node->data );
+		UPDATE_BUFFER *ub = ( UPDATE_BUFFER * )del_node->data;
+		if ( ub != NULL )
+		{
+			GlobalFree( ub->buffer );
+			GlobalFree( ub );
+		}
 		GlobalFree( del_node );
 	}
 

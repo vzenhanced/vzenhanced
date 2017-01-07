@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -201,8 +201,12 @@ void SSL_free( SSL *ssl )
 		DoublyLinkedList *del_node = ssl->sd.send_buffer_pool;
 		ssl->sd.send_buffer_pool = ssl->sd.send_buffer_pool->next;
 
-		GlobalFree( ( ( SEND_BUFFER * )del_node->data )->pbDataBuffer );
-		GlobalFree( ( SEND_BUFFER * )del_node->data );
+		SEND_BUFFER *sb = ( SEND_BUFFER * )del_node->data;
+		if ( sb != NULL )
+		{
+			GlobalFree( sb->pbDataBuffer );
+			GlobalFree( sb );
+		}
 		GlobalFree( del_node );
 	}
 	ssl->sd.send_buffer_pool = NULL;

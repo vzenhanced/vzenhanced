@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -1555,12 +1555,16 @@ void CloseClient( SOCKET_CONTEXT *socket_context, bool bGraceful )
 			DoublyLinkedList *del_node = socket_context->io_context.update_buffer_state;
 			socket_context->io_context.update_buffer_state = socket_context->io_context.update_buffer_state->next;
 
-			if ( ( ( UPDATE_BUFFER_STATE * )del_node->data )->in_use )
+			UPDATE_BUFFER_STATE *ubs = ( UPDATE_BUFFER_STATE * )del_node->data;
+			if ( ubs != NULL )
 			{
-				InterlockedDecrement( ( ( UPDATE_BUFFER_STATE * )del_node->data )->count );
-			}
+				if ( ubs->in_use )
+				{
+					InterlockedDecrement( ubs->count );
+				}
 
-			GlobalFree( ( UPDATE_BUFFER * )del_node->data );
+				GlobalFree( ubs );
+			}
 			GlobalFree( del_node );
 		}
 
@@ -1596,8 +1600,12 @@ void CloseClient( SOCKET_CONTEXT *socket_context, bool bGraceful )
 			DoublyLinkedList *del_node = socket_context->list_data;
 			socket_context->list_data = socket_context->list_data->next;
 
-			GlobalFree( ( ( PAYLOAD_INFO * )del_node->data )->payload_value );
-			GlobalFree( ( PAYLOAD_INFO * )del_node->data );
+			PAYLOAD_INFO *pi = ( PAYLOAD_INFO * )del_node->data;
+			if ( pi != NULL )
+			{
+				GlobalFree( pi->payload_value );
+				GlobalFree( pi );
+			}
 			GlobalFree( del_node );
 		}
 

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "globals.h"
 #include "lite_gdi32.h"
-#include "lite_winmm.h"
+#include "ringtone_utilities.h"
 
 #define BTN_OK			1000
 
@@ -37,28 +37,19 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
     {
 		case WM_PROPAGATE:
 		{
-			_SetWindowPos( hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE );
-
 			DoublyLinkedList *ll = ( DoublyLinkedList * )_GetWindowLongW( hWnd, 0 );
 			if ( ll != NULL && ll->data != NULL && ( ( POPUP_SETTINGS * )ll->data )->shared_settings != NULL )
 			{
 				SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )ll->data )->shared_settings;
 
-				if ( shared_settings->popup_play_sound )
+				if ( shared_settings->ringtone_info != NULL && ( shared_settings->ringtone_info->ringtone_path != NULL || shared_settings->ringtone_info->ringtone_path[ 0 ] != NULL ) )
 				{
-					bool play = true;
-					#ifndef WINMM_USE_STATIC_LIB
-						if ( winmm_state == WINMM_STATE_SHUTDOWN )
-						{
-							play = InitializeWinMM();
-						}
-					#endif
-
-					if ( play )
-					{
-						_PlaySoundW( shared_settings->popup_sound, NULL, SND_ASYNC | SND_FILENAME );
-					}
+					wchar_t alias[ 11 ];
+					__snwprintf( alias, 11, L"%lu", ( unsigned int )hWnd );
+					HandleRingtone( RINGTONE_PLAY, shared_settings->ringtone_info->ringtone_path, alias );
 				}
+
+				_SetWindowPos( hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER );
 
 				_SetTimer( hWnd, IDT_TIMER, shared_settings->popup_time * 1000, ( TIMERPROC )TimerProc );
 			}
@@ -318,17 +309,28 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 		case WM_DESTROY:
 		{
+			// We can free the shared memory from the first node.
 			DoublyLinkedList *current_node = ( DoublyLinkedList * )_GetWindowLongW( hWnd, 0 );
 			if ( current_node != NULL && current_node->data != NULL )
 			{
-				( ( POPUP_SETTINGS * )current_node->data )->window_settings.is_dragging = false;
-			}
+				POPUP_SETTINGS *popup_settings = ( POPUP_SETTINGS * )current_node->data;
 
-			// We can free the shared memory from the first node.
-			if ( current_node != NULL && current_node->data != NULL && ( ( POPUP_SETTINGS * )current_node->data )->shared_settings != NULL )
-			{
-				GlobalFree( ( ( POPUP_SETTINGS * )current_node->data )->shared_settings->popup_sound );
-				GlobalFree( ( ( POPUP_SETTINGS * )current_node->data )->shared_settings );
+				popup_settings->window_settings.is_dragging = false;
+
+				if ( popup_settings->shared_settings != NULL )
+				{
+					SHARED_SETTINGS *shared_settings = popup_settings->shared_settings;
+
+					if ( shared_settings->ringtone_info != NULL && ( shared_settings->ringtone_info->ringtone_path != NULL || shared_settings->ringtone_info->ringtone_path[ 0 ] != NULL ) )
+					{
+						wchar_t alias[ 11 ];
+						__snwprintf( alias, 11, L"%lu", ( unsigned int )hWnd );
+						HandleRingtone( RINGTONE_CLOSE, NULL, alias );
+					}
+
+					// Do not free shared_settings->ringtone_info.
+					GlobalFree( shared_settings );
+				}
 			}
 
 			while ( current_node != NULL )
@@ -336,10 +338,15 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				DoublyLinkedList *del_node = current_node;
 				current_node = current_node->next;
 
-				_DeleteObject( ( ( POPUP_SETTINGS * )del_node->data )->font );
-				GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->font_face );
-				GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->line_text );
-				GlobalFree( ( POPUP_SETTINGS * )del_node->data );
+				POPUP_SETTINGS *popup_settings = ( POPUP_SETTINGS * )del_node->data;
+
+				if ( popup_settings != NULL )
+				{
+					_DeleteObject( popup_settings->font );
+					GlobalFree( popup_settings->font_face );
+					GlobalFree( popup_settings->line_text );
+					GlobalFree( popup_settings );
+				}
 				GlobalFree( del_node );
 			}
 

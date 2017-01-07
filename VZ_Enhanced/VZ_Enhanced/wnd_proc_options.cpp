@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "globals.h"
 #include "utilities.h"
 #include "message_log_utilities.h"
+#include "ringtone_utilities.h"
 #include "file_operations.h"
 #include "string_tables.h"
 
@@ -66,30 +67,31 @@
 #define BTN_APPLY				1027
 
 #define CB_POSITION				1028
-#define	BTN_PLAY_SOUND			1029
-#define EDIT_SOUND				1030
-#define BTN_SOUND				1031
+#define	BTN_ENABLE_RINGTONES	1029
+#define CB_DEFAULT_RINGTONE		1030
+#define BTN_PLAY_DEFAULT_RINGTONE	1031
+#define BTN_STOP_DEFAULT_RINGTONE	1032
 
-#define BTN_ENABLE_POPUPS		1032
-#define BTN_RECONNECT			1033
-#define EDIT_RETRIES			1034
-#define BTN_AUTO_LOGIN			1035
+#define BTN_ENABLE_POPUPS		1033
+#define BTN_RECONNECT			1034
+#define EDIT_RETRIES			1035
+#define BTN_AUTO_LOGIN			1036
 
-#define EDIT_TIMEOUT			1036
+#define EDIT_TIMEOUT			1037
 
-#define BTN_TRAY_ICON			1037
-#define BTN_DOWNLOAD_PICTURES	1038
+#define BTN_TRAY_ICON			1038
+#define BTN_DOWNLOAD_PICTURES	1039
 
-#define BTN_SILENT_STARTUP		1039
+#define BTN_SILENT_STARTUP		1040
 
-#define CB_SSL_VERSION			1040
-#define BTN_ENABLE_HISTORY		1041
+#define CB_SSL_VERSION			1041
+#define BTN_ENABLE_HISTORY		1042
 
-#define BTN_ENABLE_MESSAGE_LOG	1042
+#define BTN_ENABLE_MESSAGE_LOG	1043
 
-#define BTN_ALWAYS_ON_TOP		1043
+#define BTN_ALWAYS_ON_TOP		1044
 
-#define BTN_CHECK_FOR_UPDATES	1044
+#define BTN_CHECK_FOR_UPDATES	1045
 
 
 HWND g_hWnd_options_tab = NULL;
@@ -173,9 +175,11 @@ HWND g_hWnd_static_background_color = NULL;
 HWND g_hWnd_background_color = NULL;
 HWND g_hWnd_preview = NULL;
 
-HWND g_hWnd_chk_play_sound = NULL;
-HWND g_hWnd_sound_location = NULL;
-HWND g_hWnd_sound = NULL;
+HWND g_hWnd_chk_enable_ringtones = NULL;
+HWND g_hWnd_static_default_ringtone = NULL;
+HWND g_hWnd_default_ringtone = NULL;
+HWND g_hWnd_play_default_ringtone = NULL;
+HWND g_hWnd_stop_default_ringtone = NULL;
 
 HWND g_hWnd_apply = NULL;
 
@@ -197,6 +201,8 @@ DoublyLinkedList *g_ll = NULL;
 
 bool options_state_changed = false;
 
+bool options_ringtone_played = false;
+
 int popup_tab_height = 0;
 int popup_tab_scroll_pos = 0;
 
@@ -216,8 +222,7 @@ void create_settings()
 	shared_settings->popup_background_color2 = cfg_popup_background_color2;
 	shared_settings->popup_gradient = cfg_popup_gradient;
 	shared_settings->popup_gradient_direction = cfg_popup_gradient_direction;
-	shared_settings->popup_play_sound = cfg_popup_play_sound;
-	shared_settings->popup_sound = GlobalStrDupW( cfg_popup_sound );
+	shared_settings->ringtone_info = ( cfg_popup_enable_ringtones ? default_ringtone : NULL );
 
 	LOGFONT lf;
 	_memzero( &lf, sizeof( LOGFONT ) );
@@ -367,12 +372,7 @@ void reset_settings()
 		shared_settings->popup_background_color2 = cfg_popup_background_color2;
 		shared_settings->popup_gradient = cfg_popup_gradient;
 		shared_settings->popup_gradient_direction = cfg_popup_gradient_direction;
-		shared_settings->popup_play_sound = cfg_popup_play_sound;
-		if ( shared_settings->popup_sound != NULL )
-		{
-			GlobalFree( shared_settings->popup_sound );
-		}
-		shared_settings->popup_sound = GlobalStrDupW( cfg_popup_sound );
+		shared_settings->ringtone_info = ( cfg_popup_enable_ringtones ? default_ringtone : NULL );
 	}
 
 	POPUP_SETTINGS *ps = ( POPUP_SETTINGS * )temp_ll->data;
@@ -540,17 +540,21 @@ void delete_settings()
 		DoublyLinkedList *del_node = current_node;
 		current_node = current_node->next;
 
-		// We can free the shared memory from the first node.
-		if ( i == 0 && ( ( POPUP_SETTINGS * )del_node->data )->shared_settings != NULL )
+		POPUP_SETTINGS *popup_settings = ( POPUP_SETTINGS * )del_node->data;
+		if ( popup_settings != NULL )
 		{
-			GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->shared_settings->popup_sound );
-			GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->shared_settings );
-		}
+			// We can free the shared memory from the first node.
+			if ( i == 0 && popup_settings->shared_settings != NULL )
+			{
+				// Do not free shared_settings->ringtone_info.
+				GlobalFree( popup_settings->shared_settings );
+			}
 
-		_DeleteObject( ( ( POPUP_SETTINGS * )del_node->data )->font );
-		GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->font_face );
-		GlobalFree( ( ( POPUP_SETTINGS * )del_node->data )->line_text );
-		GlobalFree( ( POPUP_SETTINGS * )del_node->data );
+			_DeleteObject( popup_settings->font );
+			GlobalFree( popup_settings->font_face );
+			GlobalFree( popup_settings->line_text );
+			GlobalFree( popup_settings );
+		}
 		GlobalFree( del_node );
 	}
 
@@ -647,20 +651,30 @@ void Enable_Disable_Popup_Windows( BOOL enable )
 	_EnableWindow( g_hWnd_transparency, enable );
 	_EnableWindow( g_hWnd_ud_transparency, enable );
 	_EnableWindow( g_hWnd_chk_border, enable );
-	_EnableWindow( g_hWnd_chk_play_sound, enable );
+	_EnableWindow( g_hWnd_chk_enable_ringtones, enable );
 
-	if ( enable == TRUE && g_ll != NULL &&
-						   g_ll->data != NULL &&
-						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings != NULL &&
-						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings->popup_play_sound )
+	if ( enable == TRUE && _SendMessageW( g_hWnd_chk_enable_ringtones, BM_GETCHECK, 0, 0 ) == BST_CHECKED )
 	{
-		_EnableWindow( g_hWnd_sound_location, TRUE );
-		_EnableWindow( g_hWnd_sound, TRUE );
+		_EnableWindow( g_hWnd_static_default_ringtone, TRUE );
+		_EnableWindow( g_hWnd_default_ringtone, TRUE );
+
+		if ( _SendMessageW( g_hWnd_default_ringtone, CB_GETCURSEL, 0, 0 ) == 0 )
+		{
+			_EnableWindow( g_hWnd_play_default_ringtone, FALSE );
+			_EnableWindow( g_hWnd_stop_default_ringtone, FALSE );
+		}
+		else
+		{
+			_EnableWindow( g_hWnd_play_default_ringtone, TRUE );
+			_EnableWindow( g_hWnd_stop_default_ringtone, TRUE );
+		}
 	}
 	else
 	{
-		_EnableWindow( g_hWnd_sound_location, FALSE );
-		_EnableWindow( g_hWnd_sound, FALSE );
+		_EnableWindow( g_hWnd_static_default_ringtone, FALSE );
+		_EnableWindow( g_hWnd_default_ringtone, FALSE );
+		_EnableWindow( g_hWnd_play_default_ringtone, FALSE );
+		_EnableWindow( g_hWnd_stop_default_ringtone, FALSE );
 	}
 
 	_EnableWindow( g_hWnd_font_settings, enable );
@@ -690,10 +704,7 @@ void Enable_Disable_Popup_Windows( BOOL enable )
 	_EnableWindow( g_hWnd_background_color, enable );
 	_EnableWindow( g_hWnd_chk_gradient, enable );
 
-	if ( enable == TRUE && g_ll != NULL &&
-						   g_ll->data != NULL &&
-						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings != NULL &&
-						   ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings->popup_gradient )
+	if ( enable == TRUE && _SendMessageW( g_hWnd_chk_gradient, BM_GETCHECK, 0, 0 ) == BST_CHECKED )
 	{
 		_EnableWindow( g_hWnd_btn_background_color2, TRUE );
 		_EnableWindow( g_hWnd_group_gradient_direction, TRUE );
@@ -949,18 +960,59 @@ void Set_Window_Settings()
 		_ShowWindow( g_hWnd_rad_24_hour, SW_HIDE );
 	}
 
-	_SendMessageW( g_hWnd_sound_location, WM_SETTEXT, 0, ( LPARAM )cfg_popup_sound );
-	if ( cfg_popup_play_sound )
+	int set_index = CB_ERR;
+
+	node_type *node = dllrbt_get_head( ringtone_list );
+	while ( node != NULL )
 	{
-		_SendMessageW( g_hWnd_chk_play_sound, BM_SETCHECK, BST_CHECKED, 0 );
-		_EnableWindow( g_hWnd_sound_location, TRUE );
-		_EnableWindow( g_hWnd_sound, TRUE );
+		ringtoneinfo *rti = ( ringtoneinfo * )node->val;
+
+		if ( rti != NULL )
+		{
+			int add_index = _SendMessageW( g_hWnd_default_ringtone, CB_ADDSTRING, 0, ( LPARAM )rti->ringtone_file );
+
+			if ( set_index == CB_ERR && rti == default_ringtone )
+			{
+				set_index = add_index;
+			}
+
+			_SendMessageW( g_hWnd_default_ringtone, CB_SETITEMDATA, add_index, ( LPARAM )rti );
+		}
+
+		node = node->next;
+	}
+
+	if ( set_index == CB_ERR )
+	{
+		set_index = 0;
+	}
+
+	_SendMessageW( g_hWnd_default_ringtone, CB_SETCURSEL, set_index, 0 );
+
+	if ( cfg_popup_enable_ringtones )
+	{
+		_SendMessageW( g_hWnd_chk_enable_ringtones, BM_SETCHECK, BST_CHECKED, 0 );
+		_EnableWindow( g_hWnd_static_default_ringtone, TRUE );
+		_EnableWindow( g_hWnd_default_ringtone, TRUE );
+		
+		if ( set_index == 0 )
+		{
+			_EnableWindow( g_hWnd_play_default_ringtone, FALSE );
+			_EnableWindow( g_hWnd_stop_default_ringtone, FALSE );
+		}
+		else
+		{
+			_EnableWindow( g_hWnd_play_default_ringtone, TRUE );
+			_EnableWindow( g_hWnd_stop_default_ringtone, TRUE );
+		}
 	}
 	else
 	{
-		_SendMessageW( g_hWnd_chk_play_sound, BM_SETCHECK, BST_UNCHECKED, 0 );
-		_EnableWindow( g_hWnd_sound_location, FALSE );
-		_EnableWindow( g_hWnd_sound, FALSE );
+		_SendMessageW( g_hWnd_chk_enable_ringtones, BM_SETCHECK, BST_UNCHECKED, 0 );
+		_EnableWindow( g_hWnd_static_default_ringtone, FALSE );
+		_EnableWindow( g_hWnd_default_ringtone, FALSE );
+		_EnableWindow( g_hWnd_play_default_ringtone, FALSE );
+		_EnableWindow( g_hWnd_stop_default_ringtone, FALSE );
 	}
 
 	if ( cfg_enable_popups )
@@ -1173,7 +1225,7 @@ LRESULT CALLBACK ConnectionTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARA
 				{
 					if ( HIWORD( wParam ) == CBN_SELCHANGE )
 					{
-						if ( cfg_connection_ssl_version != ( unsigned char )_SendMessageW( g_hWnd_ssl_version, CB_GETCURSEL, 0, 0 ) )
+						if ( cfg_connection_ssl_version != ( unsigned char )_SendMessageW( ( HWND )lParam, CB_GETCURSEL, 0, 0 ) )
 						{
 							_MessageBoxW( hWnd, ST_must_restart_program, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 						}
@@ -1272,9 +1324,13 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			g_hWnd_chk_border = _CreateWindowW( WC_BUTTON, ST_Hide_window_border, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 110, 150, 20, hWnd, ( HMENU )BTN_BORDER, NULL, NULL );
 
 
-			g_hWnd_chk_play_sound = _CreateWindowW( WC_BUTTON, ST_Play_sound_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 130, 150, 20, hWnd, ( HMENU )BTN_PLAY_SOUND, NULL, NULL );
-			g_hWnd_sound_location = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, NULL, ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 150, 345, 20, hWnd, ( HMENU )EDIT_SOUND, NULL, NULL );
-			g_hWnd_sound = _CreateWindowW( WC_BUTTON, ST_BTN___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 350, 150, 35, 20, hWnd, ( HMENU )BTN_SOUND, NULL, NULL );
+			g_hWnd_chk_enable_ringtones = _CreateWindowW( WC_BUTTON, ST_Enable_ringtone_s_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 130, 150, 20, hWnd, ( HMENU )BTN_ENABLE_RINGTONES, NULL, NULL );
+			g_hWnd_static_default_ringtone = _CreateWindowW( WC_STATIC, ST_Default_ringtone_, WS_CHILD | WS_VISIBLE, 0, 152, 95, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_default_ringtone = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_COMBOBOX, L"", CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 95, 150, 175, 20, hWnd, ( HMENU )CB_DEFAULT_RINGTONE, NULL, NULL );
+			_SendMessageW( g_hWnd_default_ringtone, CB_ADDSTRING, 0, ( LPARAM )L"" );
+			_SendMessageW( g_hWnd_default_ringtone, CB_SETCURSEL, 0, 0 );
+			g_hWnd_play_default_ringtone = _CreateWindowW( WC_BUTTON, ST_Play, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 280, 150, 50, 20, hWnd, ( HMENU )BTN_PLAY_DEFAULT_RINGTONE, NULL, NULL );
+			g_hWnd_stop_default_ringtone = _CreateWindowW( WC_BUTTON, ST_Stop, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 335, 150, 50, 20, hWnd, ( HMENU )BTN_STOP_DEFAULT_RINGTONE, NULL, NULL );
 
 
 			g_hWnd_static_hoz2 = CreateWindowW( WC_STATIC, NULL, SS_ETCHEDHORZ | WS_CHILD | WS_VISIBLE, 0, 180, rc.right - 10, 5, hWnd, NULL, NULL, NULL );
@@ -1394,9 +1450,11 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			_SendMessageW( g_hWnd_btn_font_color, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_btn_font, WM_SETFONT, ( WPARAM )hFont, 0 );
 
-			_SendMessageW( g_hWnd_chk_play_sound, WM_SETFONT, ( WPARAM )hFont, 0 );
-			_SendMessageW( g_hWnd_sound_location, WM_SETFONT, ( WPARAM )hFont, 0 );
-			_SendMessageW( g_hWnd_sound, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_chk_enable_ringtones, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_static_default_ringtone, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_default_ringtone, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_play_default_ringtone, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_stop_default_ringtone, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			return 0;
 		}
@@ -2037,7 +2095,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					bool popup_hide_border = ( _SendMessageW( g_hWnd_chk_border, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 					unsigned char popup_time_format = ( _SendMessageW( g_hWnd_rad_24_hour, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? 1 : 0 );
 
-					HWND hWnd_popup = _CreateWindowExW( WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( popup_hide_border ? NULL : WS_THICKFRAME ), left, top, width, height, NULL, NULL, NULL, NULL );
+					HWND hWnd_popup = _CreateWindowExW( WS_EX_NOPARENTNOTIFY | WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( popup_hide_border ? NULL : WS_THICKFRAME ), left, top, width, height, g_hWnd_main, NULL, NULL, NULL );
 
 					_SetWindowLongW( hWnd_popup, GWL_EXSTYLE, _GetWindowLongW( hWnd_popup, GWL_EXSTYLE ) | WS_EX_LAYERED );
 					_SetLayeredWindowAttributes( hWnd_popup, 0, transparency, LWA_ALPHA );
@@ -2089,8 +2147,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					shared_settings->popup_background_color1 = ss->popup_background_color1;
 					shared_settings->popup_background_color2 = ss->popup_background_color2;
 					shared_settings->popup_time = popup_time;
-					shared_settings->popup_play_sound = ss->popup_play_sound;
-					shared_settings->popup_sound = GlobalStrDupW( ss->popup_sound );
+					shared_settings->ringtone_info = ss->ringtone_info;
 
 					DoublyLinkedList *t_ll = NULL;
 
@@ -2330,73 +2387,133 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				}
 				break;
 
-				case BTN_SOUND:
+				case BTN_ENABLE_RINGTONES:
 				{
 					if ( g_ll != NULL && g_ll->data != NULL && ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings != NULL )
 					{
 						SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings;
 
-						wchar_t *file_name = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
-
-						if ( shared_settings->popup_sound != NULL )
+						if ( _SendMessageW( g_hWnd_chk_enable_ringtones, BM_GETCHECK, 0, 0 ) == BST_CHECKED )
 						{
-							_wcsncpy_s( file_name, MAX_PATH, shared_settings->popup_sound, MAX_PATH );
-							file_name[ MAX_PATH - 1 ] = 0;	// Sanity.
-						}
+							_EnableWindow( g_hWnd_static_default_ringtone, TRUE );
+							_EnableWindow( g_hWnd_default_ringtone, TRUE );
 
-						OPENFILENAME ofn;
-						_memzero( &ofn, sizeof( OPENFILENAME ) );
-						ofn.lStructSize = sizeof( OPENFILENAME );
-						ofn.hwndOwner = hWnd;
-						ofn.lpstrFilter = L"WAV (*.WAV;*.WAVE)\0*.wav;*.wave\0All Files (*.*)\0*.*\0";
-						ofn.lpstrTitle = ST_Popup_Sound;
-						ofn.lpstrFile = file_name;
-						ofn.nMaxFile = MAX_PATH;
-						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_READONLY;
-
-						if ( _GetOpenFileNameW( &ofn ) )
-						{
-							if ( shared_settings->popup_sound != NULL )
+							int current_ringtone_index = _SendMessageW( g_hWnd_default_ringtone, CB_GETCURSEL, 0, 0 );
+							if ( current_ringtone_index == 0 )
 							{
-								GlobalFree( shared_settings->popup_sound );
+								shared_settings->ringtone_info = NULL;
+
+								_EnableWindow( g_hWnd_play_default_ringtone, FALSE );
+								_EnableWindow( g_hWnd_stop_default_ringtone, FALSE );
 							}
+							else
+							{
+								ringtoneinfo *rti = ( ringtoneinfo * )_SendMessageW( g_hWnd_default_ringtone, CB_GETITEMDATA, current_ringtone_index, 0 );
+								if ( rti != NULL && rti != ( ringtoneinfo * )CB_ERR )
+								{
+									shared_settings->ringtone_info = rti;
+								}
+								else
+								{
+									shared_settings->ringtone_info = NULL;
+								}
 
-							shared_settings->popup_sound = file_name;
-
-							_SendMessageW( g_hWnd_sound_location, WM_SETTEXT, 0, ( LPARAM )shared_settings->popup_sound );
-
-							options_state_changed = true;
-							_EnableWindow( g_hWnd_apply, TRUE );
+								_EnableWindow( g_hWnd_play_default_ringtone, TRUE );
+								_EnableWindow( g_hWnd_stop_default_ringtone, TRUE );
+							}
 						}
 						else
 						{
-							GlobalFree( file_name );
+							shared_settings->ringtone_info = NULL;
+
+							_EnableWindow( g_hWnd_static_default_ringtone, FALSE );
+							_EnableWindow( g_hWnd_default_ringtone, FALSE );
+							_EnableWindow( g_hWnd_play_default_ringtone, FALSE );
+							_EnableWindow( g_hWnd_stop_default_ringtone, FALSE );
+						}
+
+						if ( options_ringtone_played )
+						{
+							HandleRingtone( RINGTONE_CLOSE, NULL, L"options" );
+
+							options_ringtone_played = false;
+						}
+
+						options_state_changed = true;
+						_EnableWindow( g_hWnd_apply, TRUE );
+					}
+				}
+				break;
+
+				case CB_DEFAULT_RINGTONE:
+				{
+					if ( HIWORD( wParam ) == CBN_SELCHANGE )
+					{
+						if ( g_ll != NULL && g_ll->data != NULL && ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings != NULL )
+						{
+							SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings;
+
+							int current_ringtone_index = _SendMessageW( ( HWND )lParam, CB_GETCURSEL, 0, 0 );
+							if ( current_ringtone_index == 0 )
+							{
+								shared_settings->ringtone_info = NULL;
+
+								_EnableWindow( g_hWnd_play_default_ringtone, FALSE );
+								_EnableWindow( g_hWnd_stop_default_ringtone, FALSE );
+							}
+							else
+							{
+								ringtoneinfo *rti = ( ringtoneinfo * )_SendMessageW( g_hWnd_default_ringtone, CB_GETITEMDATA, current_ringtone_index, 0 );
+								shared_settings->ringtone_info = ( ( rti != NULL && rti != ( ringtoneinfo * )CB_ERR ) ? rti : NULL );
+
+								_EnableWindow( g_hWnd_play_default_ringtone, TRUE );
+								_EnableWindow( g_hWnd_stop_default_ringtone, TRUE );
+							}
+
+							if ( options_ringtone_played )
+							{
+								HandleRingtone( RINGTONE_CLOSE, NULL, L"options" );
+
+								options_ringtone_played = false;
+							}
+
+							options_state_changed = true;
+							_EnableWindow( g_hWnd_apply, TRUE );
 						}
 					}
 				}
 				break;
 
-				case BTN_PLAY_SOUND:
+				case BTN_PLAY_DEFAULT_RINGTONE:
 				{
-					if ( g_ll != NULL && g_ll->data != NULL && ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings != NULL )
+					if ( options_ringtone_played )
 					{
-						SHARED_SETTINGS *shared_settings = ( ( POPUP_SETTINGS * )g_ll->data )->shared_settings;
+						HandleRingtone( RINGTONE_CLOSE, NULL, L"options" );
 
-						shared_settings->popup_play_sound = ( _SendMessageW( g_hWnd_chk_play_sound, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+						options_ringtone_played = false;
+					}
 
-						if ( shared_settings->popup_play_sound )
+					int current_ringtone_index = _SendMessageW( g_hWnd_default_ringtone, CB_GETCURSEL, 0, 0 );
+					if ( current_ringtone_index > 0 )
+					{
+						ringtoneinfo *rti = ( ringtoneinfo * )_SendMessageW( g_hWnd_default_ringtone, CB_GETITEMDATA, current_ringtone_index, 0 );
+						if ( rti != NULL && rti != ( ringtoneinfo * )CB_ERR )
 						{
-							_EnableWindow( g_hWnd_sound_location, TRUE );
-							_EnableWindow( g_hWnd_sound, TRUE );
-						}
-						else
-						{
-							_EnableWindow( g_hWnd_sound_location, FALSE );
-							_EnableWindow( g_hWnd_sound, FALSE );
-						}
+							HandleRingtone( RINGTONE_PLAY, rti->ringtone_path, L"options" );
 
-						options_state_changed = true;
-						_EnableWindow( g_hWnd_apply, TRUE );
+							options_ringtone_played = true;
+						}
+					}
+				}
+				break;
+
+				case BTN_STOP_DEFAULT_RINGTONE:
+				{
+					if ( options_ringtone_played )
+					{
+						HandleRingtone( RINGTONE_CLOSE, NULL, L"options" );
+
+						options_ringtone_played = false;
 					}
 				}
 				break;
@@ -2648,6 +2765,13 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				{
 					MESSAGE_LOG_OUTPUT( ML_WARNING, ST_TreeView_leak )
 				}
+			}
+
+			if ( options_ringtone_played )
+			{
+				HandleRingtone( RINGTONE_CLOSE, NULL, L"options" );
+
+				options_ringtone_played = false;
 			}
 
 			return 0;
@@ -2939,12 +3063,39 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							cfg_popup_background_color2 = shared_settings->popup_background_color2;
 							cfg_popup_gradient = shared_settings->popup_gradient;
 							cfg_popup_gradient_direction = shared_settings->popup_gradient_direction;
-							cfg_popup_play_sound = shared_settings->popup_play_sound;
-							if ( cfg_popup_sound != NULL )
+
+							ringtoneinfo *rti = NULL;
+							wchar_t *ringtone = NULL;
+							int current_ringtone_index = _SendMessageW( g_hWnd_default_ringtone, CB_GETCURSEL, 0, 0 );
+							if ( current_ringtone_index != CB_ERR )
 							{
-								GlobalFree( cfg_popup_sound );
+								if ( current_ringtone_index == 0 )
+								{
+									ringtone = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) );
+								}
+								else
+								{
+									rti = ( ringtoneinfo * )_SendMessageW( g_hWnd_default_ringtone, CB_GETITEMDATA, current_ringtone_index, 0 );
+									if ( rti != NULL )
+									{
+										if ( rti != ( ringtoneinfo * )CB_ERR )
+										{
+											ringtone = GlobalStrDupW( rti->ringtone_path );
+										}
+										else
+										{
+											rti = NULL;
+										}
+									}
+								}
 							}
-							cfg_popup_sound = GlobalStrDupW( shared_settings->popup_sound );
+
+							if ( cfg_popup_ringtone != NULL )
+							{
+								GlobalFree( cfg_popup_ringtone );
+							}
+							cfg_popup_ringtone = ringtone;
+							default_ringtone = rti;
 
 							cfg_popup_line_order1 = ps->popup_line_order;
 							cfg_popup_font_color1 = ps->font_color;
@@ -3037,7 +3188,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						cfg_minimize_to_tray = ( _SendMessageW( g_hWnd_chk_minimize, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_close_to_tray = ( _SendMessageW( g_hWnd_chk_close, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_silent_startup = ( _SendMessageW( g_hWnd_chk_silent_startup, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-						cfg_popup_play_sound = ( _SendMessageW( g_hWnd_chk_play_sound, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
+						cfg_popup_enable_ringtones = ( _SendMessageW( g_hWnd_chk_enable_ringtones, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
 						cfg_enable_call_log_history = ( _SendMessageW( g_hWnd_chk_enable_history, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
@@ -3103,64 +3254,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							if ( g_hWnd_options != NULL ){ _SetWindowPos( g_hWnd_options, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 						}
 
-						bool enable_message_log = ( _SendMessageW( g_hWnd_chk_message_log, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
-
-						if ( enable_message_log && !cfg_enable_message_log )	// We want to enable message logging.
-						{
-							if ( !in_ml_update_thread )				// Thread isn't running.
-							{
-								cleanup_message_log_queue();		// Clean up any remnant events before we start logging.
-
-								cfg_enable_message_log = true;		// Allow events to start queuing.
-
-								kill_ml_update_thread_flag = false;	// Ensure the thread waits for events.
-
-								//CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL ) );
-								HANDLE update_message_log_handle = _CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL );
-								SetThreadPriority( update_message_log_handle, THREAD_PRIORITY_LOWEST );
-								CloseHandle( update_message_log_handle );
-							}
-							else	// Thread is running (for some reason).
-							{
-								if ( kill_ml_update_thread_flag )	// Thread is in the process of exiting.
-								{
-									_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, BST_UNCHECKED, 0 );
-
-									MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_Message_Log_still_running )
-								}
-								else	// Thread has not been triggered to exit.
-								{
-									cfg_enable_message_log = true;
-								}
-							}
-						}
-						else if ( !enable_message_log && cfg_enable_message_log )	// We want to disable message logging.
-						{
-							if ( in_ml_update_thread )						// Thread is running.
-							{
-								if ( !kill_ml_update_thread_flag )			// Thread has not been triggered to exit.
-								{
-									cfg_enable_message_log = false;			// Stop events from queuing.
-
-									kill_ml_update_thread_flag = true;		// Ensure the thread exits after we stop waiting for events.
-
-									if ( ml_update_trigger_semaphore != NULL )
-									{
-										ReleaseSemaphore( ml_update_trigger_semaphore, 1, NULL );	// Stop waiting for events.
-									}
-								}
-								else	// Thread is in the process of exiting.
-								{
-									_SendMessageW( g_hWnd_chk_message_log, BM_SETCHECK, BST_UNCHECKED, 0 );
-
-									MESSAGE_LOG_OUTPUT_MB( ML_WARNING, ST_Message_Log_still_running )
-								}
-							}
-							else	// Thread is not running (for some reason).
-							{
-								cfg_enable_message_log = false;
-							}
-						}
+						cfg_enable_message_log = ( _SendMessageW( g_hWnd_chk_message_log, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
 						save_config();
 

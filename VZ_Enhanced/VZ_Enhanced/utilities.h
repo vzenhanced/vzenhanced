@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -50,8 +50,6 @@ void OffsetVirtualIndices( int *arr, char *column_arr[], unsigned char num_colum
 int GetColumnIndexFromVirtualIndex( int virtual_index, char *column_arr[], unsigned char num_columns );
 int GetVirtualIndexFromColumnIndex( int column_index, char *column_arr[], unsigned char num_columns );
 
-void initialize_contactinfo( contactinfo **ci );
-
 void free_displayinfo( displayinfo **di );
 void free_contactinfo( contactinfo **ci );
 void free_forwardinfo( forwardinfo **fi );
@@ -67,7 +65,7 @@ ignorecidinfo *find_ignore_caller_id_name_match( displayinfo *di );
 
 void add_custom_caller_id( contactinfo *ci );
 void remove_custom_caller_id( contactinfo *ci );
-char *get_custom_caller_id( char *phone_number );
+char *get_custom_caller_id( char *phone_number, contactinfo **ci );
 void cleanup_custom_caller_id();
 
 wchar_t *GetMonth( unsigned short month );
@@ -75,7 +73,8 @@ wchar_t *GetDay( unsigned short day );
 char *url_encode( char *str, unsigned int str_len, unsigned int *enc_len = 0 );
 char is_num( const char *str );
 
-int dllrbt_compare( void *a, void *b );
+int dllrbt_compare_a( void *a, void *b );
+int dllrbt_compare_w( void *a, void *b );
 int dllrbt_icid_compare( void *a, void *b );
 int dllrbt_fcid_compare( void *a, void *b );
 
@@ -86,7 +85,8 @@ void kill_connection_incoming_thread();
 void kill_update_check_thread();
 
 char *GetFileExtension( char *path );
-char *GetFileName( char *path );
+char *GetFileNameA( char *path );
+wchar_t *GetFileNameW( wchar_t *path );
 char *GetMIMEByFileName( char *filename );
 
 HWND GetCurrentListView();

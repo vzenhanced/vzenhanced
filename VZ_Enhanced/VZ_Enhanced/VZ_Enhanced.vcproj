@@ -282,6 +282,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ringtones_utilities.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\ssl_client.cpp"
 				>
 			</File>
@@ -449,6 +453,10 @@
 			</File>
 			<File
 				RelativePath=".\resource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ringtone_utilities.h"
 				>
 			</File>
 			<File

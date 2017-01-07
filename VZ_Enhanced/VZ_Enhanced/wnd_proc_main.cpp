@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "connection.h"
 #include "menus.h"
 #include "utilities.h"
-#include "message_log_utilities.h"
+#include "ringtone_utilities.h"
 #include "list_operations.h"
 #include "file_operations.h"
 #include "string_tables.h"
@@ -401,7 +401,7 @@ LRESULT CALLBACK ListsSubProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				int file_path_length = _DragQueryFileW( ( HDROP )wParam, i, file_path, MAX_PATH ) + 1;	// Include the NULL terminator.
 
 				// Skip any folders that were dropped.
-				if ( ( GetFileAttributes( file_path ) & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
+				if ( ( GetFileAttributesW( file_path ) & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
 				{
 					if ( iei->file_paths == NULL )
 					{
@@ -1100,6 +1100,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 			// fcidui is freed in the update_forward_cid_list thread.
 			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_forward_cid_list, ( void * )fcidui, 0, NULL ) );
+
+			LoadRingtones( ringtone_list );
+
+			if ( cfg_popup_ringtone != NULL )
+			{
+				wchar_t *file_name = GetFileNameW( cfg_popup_ringtone );
+				default_ringtone = ( ringtoneinfo * )dllrbt_find( ringtone_list, ( void * )file_name, true );
+			}
 
 			if ( cfg_check_for_updates )
 			{
@@ -2170,7 +2178,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						if ( g_hWnd_contact == NULL )
 						{
-							g_hWnd_contact = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"contact", ST_Contact_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 550 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 290 ) / 2 ), 550, 290, NULL, NULL, NULL, NULL );
+							g_hWnd_contact = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"contact", ST_Contact_Information, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 550 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 320 ) / 2 ), 550, 320, NULL, NULL, NULL, NULL );
 						}
 
 						if ( LOWORD( wParam ) == MENU_EDIT_CONTACT )
@@ -2512,7 +2520,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.5\r\n\r\nCopyright \xA9 2013-2016 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.6\r\n\r\nCopyright \xA9 2013-2017 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -2928,8 +2936,12 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				}
 				else
 				{
-					GlobalFree( ( ( UPDATE_CHECK_INFO * )lParam )->download_url );
-					GlobalFree( ( UPDATE_CHECK_INFO * )lParam );
+					UPDATE_CHECK_INFO *uci = ( UPDATE_CHECK_INFO * )lParam;
+					if ( uci != NULL )
+					{
+						GlobalFree( uci->download_url );
+						GlobalFree( uci );
+					}
 				}
 			}
 			else if ( wParam == 2 )
@@ -3181,7 +3193,8 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				 in_connection_incoming_thread ||
 				 in_update_check_thread ||
 				 in_ml_update_thread ||
-				 in_ml_worker_thread )
+				 in_ml_worker_thread ||
+				 in_ringtone_update_thread )
 			{
 				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, cleanup, ( void * )NULL, 0, NULL ) );
 			}
@@ -3280,7 +3293,10 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				_SendMessageW( g_hWnd_call_log, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 				displayinfo *di = ( displayinfo * )lvi.lParam;
-				free_displayinfo( &di );
+				if ( di != NULL )
+				{
+					free_displayinfo( &di );
+				}
 			}
 
 			UpdateColumnOrders();

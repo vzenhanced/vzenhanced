@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -18,6 +18,12 @@
 
 #ifndef _SHARED_OBJECTS_H
 #define _SHARED_OBJECTS_H
+
+struct ringtoneinfo
+{
+	wchar_t *ringtone_path;
+	wchar_t *ringtone_file;
+};
 
 struct callerinfo
 {
@@ -56,6 +62,8 @@ struct displayinfo
 	callerinfo ci;
 
 	ULARGE_INTEGER time;
+
+	ringtoneinfo *ringtone_info;
 
 	unsigned int forward_cid_match_count;	// Number of forward cid matches.
 	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.
@@ -139,6 +147,7 @@ struct contactinfo
 	};
 
 	wchar_t *picture_path;			// Local path to picture.
+	ringtoneinfo *ringtone_info;	// Local path and file name of the ringtone.
 
 	bool displayed;					// Set to true if it's displayed in the contact list.
 };

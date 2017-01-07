@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -30,12 +30,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.5"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.6"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.2.5"
+#define USER_AGENT			"VZ-Enhanced/1.0.2.6"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -45,7 +45,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1025
+#define CURRENT_VERSION		1026
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -1699,7 +1699,7 @@ THREAD_RETURN ImportContactList( void *pArguments )
 			char *utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the NULL character.
 			WideCharToMultiByte( CP_UTF8, 0, iei->file_paths, -1, utf8_cfg_val, cfg_val_length, NULL, NULL );
 
-			char *filename = GetFileName( utf8_cfg_val );
+			char *filename = GetFileNameA( utf8_cfg_val );
 
 			char update_location_reply[ 1024 ];
 
@@ -2048,7 +2048,7 @@ void DownloadContactPictures( updateinfo *ui )
 			__snwprintf( ci->picture_path, picture_path_length, L"%s\\%S.jpg", base_directory, ci->contact.contact_entry_id );
 
 			// See if the file already exits. Don't download if it does.
-			/*if ( GetFileAttributes( ci->picture_path ) != INVALID_FILE_ATTRIBUTES )
+			/*if ( GetFileAttributesW( ci->picture_path ) != INVALID_FILE_ATTRIBUTES )
 			{
 				if ( old_ci == NULL ){ node = node->next; continue; } else { break; }
 			}*/
@@ -2257,7 +2257,7 @@ bool UploadContactPicture( updateinfo *ui )
 		char *utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the NULL character.
 		WideCharToMultiByte( CP_UTF8, 0, new_ci->picture_path, -1, utf8_cfg_val, cfg_val_length, NULL, NULL );
 
-		char *filename = GetFileName( utf8_cfg_val );
+		char *filename = GetFileNameA( utf8_cfg_val );
 
 		char update_location_reply[ 1024 ];
 
@@ -2733,12 +2733,15 @@ CLEANUP:
 
 	GlobalFree( response );
 
-	GlobalFree( ci->call_from );
-	GlobalFree( ci->call_to );
-	GlobalFree( ci->call_reference_id );
-	GlobalFree( ci->caller_id );
-	GlobalFree( ci->forward_to );
-	GlobalFree( ci );
+	if ( ci != NULL )
+	{
+		GlobalFree( ci->call_from );
+		GlobalFree( ci->call_to );
+		GlobalFree( ci->call_reference_id );
+		GlobalFree( ci->caller_id );
+		GlobalFree( ci->forward_to );
+		GlobalFree( ci );
+	}
 
 	// Release the semaphore if we're killing the thread.
 	if ( connection_incoming_semaphore != NULL )
@@ -3216,6 +3219,8 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 		char *o_email_address = encode_xml_entities( old_ci->contact.email_address );
 		char *o_web_page = encode_xml_entities( old_ci->contact.web_page );
 
+		char *o_ringtone = encode_xml_entities( old_ci->contact.ringtone );
+
 		char *n_title = encode_xml_entities( new_ci->contact.title );
 		char *n_first_name = encode_xml_entities( new_ci->contact.first_name );
 		char *n_last_name = encode_xml_entities( new_ci->contact.last_name );
@@ -3228,6 +3233,8 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 		
 		char *n_email_address = encode_xml_entities( new_ci->contact.email_address );
 		char *n_web_page = encode_xml_entities( new_ci->contact.web_page );
+
+		char *n_ringtone = encode_xml_entities( new_ci->contact.ringtone );
 
 		// Update the contact's information.
 		// type="fax" is a dummy value.
@@ -3296,7 +3303,7 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 		SAFESTR2A( ( n_email_address != NULL ? n_email_address : new_ci->contact.email_address ), ( o_email_address != NULL ? o_email_address : old_ci->contact.email_address ) ),
 		SAFESTRA( old_ci->contact.web_page_id ),
 		SAFESTR2A( ( n_web_page != NULL ? n_web_page : new_ci->contact.web_page ), ( o_web_page != NULL ? o_web_page : old_ci->contact.web_page ) ),
-		SAFESTRA( old_ci->contact.ringtone ) );
+		SAFESTR2A( ( n_ringtone != NULL ? n_ringtone : new_ci->contact.ringtone ), ( o_ringtone != NULL ? o_ringtone : old_ci->contact.ringtone ) ) );
 
 		GlobalFree( o_title );
 		GlobalFree( o_first_name );
@@ -3311,6 +3318,8 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 		GlobalFree( o_email_address );
 		GlobalFree( o_web_page );
 
+		GlobalFree( o_ringtone );
+
 		GlobalFree( n_title );
 		GlobalFree( n_first_name );
 		GlobalFree( n_last_name );
@@ -3323,6 +3332,8 @@ THREAD_RETURN UpdateContactInformation( void *pArguments )
 
 		GlobalFree( n_email_address );
 		GlobalFree( n_web_page );
+
+		GlobalFree( n_ringtone );
 
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, update_contact, update_contact_reply_length );
 
@@ -3593,6 +3604,8 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 		char *t_email_address = encode_xml_entities( ci->contact.email_address );
 		char *t_web_page = encode_xml_entities( ci->contact.web_page );
 
+		char *t_ringtone = encode_xml_entities( ci->contact.ringtone );
+
 		// type="fax" is a dummy value.
 		int add_contact_length = __snprintf( add_contact, 2048,
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
@@ -3637,7 +3650,7 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 			SAFESTRA( account_id ), SAFESTR2A( t_title, ci->contact.title ), SAFESTR2A( t_first_name, ci->contact.first_name ), SAFESTR2A( t_last_name, ci->contact.last_name ), SAFESTR2A( t_nickname, ci->contact.nickname ),
 			SAFESTR2A( t_business_name, ci->contact.business_name ), SAFESTR2A( t_designation, ci->contact.designation ), SAFESTR2A( t_department, ci->contact.department ), SAFESTR2A( t_category, ci->contact.category ),
 			SAFESTRA( ci->contact.home_phone_number ), SAFESTRA( ci->contact.work_phone_number ), SAFESTRA( ci->contact.office_phone_number ), SAFESTRA( ci->contact.cell_phone_number ), SAFESTRA( ci->contact.fax_number ), SAFESTRA( ci->contact.other_phone_number ),
-			SAFESTR2A( t_email_address, ci->contact.email_address ), SAFESTR2A( t_web_page, ci->contact.web_page ), SAFESTRA( ci->contact.ringtone ) );
+			SAFESTR2A( t_email_address, ci->contact.email_address ), SAFESTR2A( t_web_page, ci->contact.web_page ), SAFESTR2A( t_ringtone, ci->contact.ringtone ) );
 
 		GlobalFree( t_title );
 		GlobalFree( t_first_name );
@@ -3651,6 +3664,8 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 
 		GlobalFree( t_email_address );
 		GlobalFree( t_web_page );
+
+		GlobalFree( t_ringtone );
 
 		send_buffer_length = ConstructVPNSPOST( worker_send_buffer, resource, add_contact, add_contact_length );
 
@@ -3754,7 +3769,6 @@ THREAD_RETURN ManageContactInformation( void *pArguments )
 			{
 				int num_pictures = 0;
 				int total_id_length = 0;
-
 
 				EnterCriticalSection( &pe_cs );
 				// Go through the contact_list tree that BuildContactList created and get the total length of each ID.
@@ -4365,32 +4379,15 @@ THREAD_RETURN Connection( void *pArguments )
 			// True only if all of the values were found.
 			if ( GetCallerIDInformation( xml, &call_to, &call_from, &caller_id, &call_reference_id ) )
 			{
-				displayinfo *di = ( displayinfo * )GlobalAlloc( GMEM_FIXED, sizeof( displayinfo ) );
+				displayinfo *di = ( displayinfo * )GlobalAlloc( GPTR, sizeof( displayinfo ) );
 
 				di->ci.call_to = call_to;
 				di->ci.call_from = call_from;
 				di->ci.call_reference_id = call_reference_id;
 				di->ci.caller_id = caller_id;
-				di->ci.forward_to = NULL;
-				di->ci.ignored = false;
-				di->ci.forwarded = false;
-				di->caller_id = NULL;
-				di->phone_number = NULL;
-				di->reference = NULL;
-				di->forward_to = NULL;
-				di->sent_to = NULL;
-				di->w_forward_caller_id = NULL;
-				di->w_forward_phone_number = NULL;
-				di->w_ignore_caller_id = NULL;
-				di->w_ignore_phone_number = NULL;
-				di->w_time = NULL;
 				di->time.LowPart = FileTime.dwLowDateTime;
 				di->time.HighPart = FileTime.dwHighDateTime;
 				di->process_incoming = true;
-				di->ignore_phone_number = false;
-				di->forward_phone_number = false;
-				di->ignore_cid_match_count = 0;
-				di->forward_cid_match_count = 0;
 
 				// This will also ignore or forward the call if it's in our lists.
 				CloseHandle( ( HANDLE )_CreateThread( NULL, 0, update_call_log, ( void * )di, 0, NULL ) );

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ CRITICAL_SECTION ml_update_cs;
 CRITICAL_SECTION ml_queue_cs;
 
 DoublyLinkedList *message_log_queue = NULL;
+
+unsigned char update_message_log_state = 0;
 
 // Overwrites the string argument and returns it when done.
 wchar_t *decode_message_event_w( wchar_t *string )
@@ -102,10 +104,13 @@ void cleanup_message_log_queue()
 		mlq_node = mlq_node->next;
 
 		MESSAGE_LOG_INFO *mli = ( MESSAGE_LOG_INFO * )del_mlq_node->data;
-		GlobalFree( mli->w_date_and_time );
-		GlobalFree( mli->w_level );
-		GlobalFree( mli->message );
-		GlobalFree( mli );
+		if ( mli != NULL )
+		{
+			GlobalFree( mli->w_date_and_time );
+			GlobalFree( mli->w_level );
+			GlobalFree( mli->message );
+			GlobalFree( mli );
+		}
 
 		GlobalFree( del_mlq_node );
 	}
@@ -126,10 +131,13 @@ void cleanup_message_log()
 		_SendMessageW( g_hWnd_message_log_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 		MESSAGE_LOG_INFO *mli = ( MESSAGE_LOG_INFO * )lvi.lParam;
-		GlobalFree( mli->w_date_and_time );
-		GlobalFree( mli->w_level );
-		GlobalFree( mli->message );
-		GlobalFree( mli );
+		if ( mli != NULL )
+		{
+			GlobalFree( mli->w_date_and_time );
+			GlobalFree( mli->w_level );
+			GlobalFree( mli->message );
+			GlobalFree( mli );
+		}
 	}
 }
 
@@ -170,7 +178,7 @@ void kill_ml_worker_thread()
 	}
 }
 
-THREAD_RETURN UpdateMessageLog( void *pArguments )
+THREAD_RETURN MessageLogManager( void *pArguments )
 {
 	// This will block every other thread from entering until the first thread is complete.
 	EnterCriticalSection( &ml_update_cs );
@@ -184,9 +192,9 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 	lvi.mask = LVIF_PARAM; // Our listview items will display the text contained the lParam value.
 	lvi.iSubItem = 0;
 
-	while ( !kill_ml_update_thread_flag )
+	while ( !kill_ml_update_thread_flag && update_message_log_state == 1 )
 	{
-		WaitForSingleObject( ml_update_trigger_semaphore, INFINITE );
+		DWORD wait_status = WaitForSingleObject( ml_update_trigger_semaphore, 300000 );	// Five minute timeout.
 
 		if ( kill_ml_update_thread_flag )
 		{
@@ -208,7 +216,17 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 
 			mlq_node = message_log_queue;
 
-			DLL_RemoveNode( &message_log_queue, mlq_node );
+			if ( mlq_node != NULL )
+			{
+				DLL_RemoveNode( &message_log_queue, mlq_node );
+			}
+			else if ( wait_status == WAIT_TIMEOUT )
+			{
+				CloseHandle( ml_update_trigger_semaphore );
+				ml_update_trigger_semaphore = NULL;
+
+				update_message_log_state = 2;	// Thread will be exiting/exited.
+			}
 
 			LeaveCriticalSection( &ml_queue_cs );
 
@@ -242,10 +260,13 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 					BOOL test = _SendMessageW( g_hWnd_message_log_list, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
 					MESSAGE_LOG_INFO *mli = ( MESSAGE_LOG_INFO * )lvi.lParam;
-					GlobalFree( mli->w_date_and_time );
-					GlobalFree( mli->w_level );
-					GlobalFree( mli->message );
-					GlobalFree( mli );
+					if ( mli != NULL )
+					{
+						GlobalFree( mli->w_date_and_time );
+						GlobalFree( mli->w_level );
+						GlobalFree( mli->message );
+						GlobalFree( mli );
+					}
 
 					_SendMessageW( g_hWnd_message_log_list, LVM_DELETEITEM, lvi.iItem, 0 );
 				}
@@ -277,6 +298,14 @@ THREAD_RETURN UpdateMessageLog( void *pArguments )
 
 		// We're done. Let other threads continue.
 		LeaveCriticalSection( &ml_cs );
+	}
+
+	if ( kill_ml_update_thread_flag )
+	{
+		CloseHandle( ml_update_trigger_semaphore );
+		ml_update_trigger_semaphore = NULL;
+
+		cleanup_message_log_queue();
 	}
 
 	// Release the semaphore if we're killing the thread.
@@ -700,17 +729,44 @@ void HandleMessageLogInput( DWORD type, void *data )
 
 		EnterCriticalSection( &ml_queue_cs );
 
-		// Add the new entry to the tail end of the queue.
-		DLL_AddNode( &message_log_queue, ml_node, -1 );
+		if ( update_message_log_state != 1 )
+		{
+			update_message_log_state = 1;	// Thread will be running.
 
-		LeaveCriticalSection( &ml_queue_cs );
+			// Make sure the semaphore is not in use.
+			if ( ml_update_trigger_semaphore != NULL )
+			{
+				CloseHandle( ml_update_trigger_semaphore );
+			}
+
+			// Create the semaphore before we spawn the ringtone thread so that it can queue up messages. (Unlikely to occur)
+			ml_update_trigger_semaphore = CreateSemaphore( NULL, 0, MAX_ITEM_COUNT, NULL );
+
+			//CloseHandle( ( HANDLE )_CreateThread( NULL, 0, MessageLogManager, ( void * )NULL, 0, NULL ) );
+			HANDLE update_message_log_handle = _CreateThread( NULL, 0, MessageLogManager, ( void * )NULL, 0, NULL );
+			SetThreadPriority( update_message_log_handle, THREAD_PRIORITY_LOWEST );
+			CloseHandle( update_message_log_handle );
+		}
 
 		if ( ml_update_trigger_semaphore != NULL )
 		{
+			// Add the new entry to the tail end of the queue.
+			DLL_AddNode( &message_log_queue, ml_node, -1 );
+
 			// This may fail if too many calls are made in a short amount of time.
-			// UpdateMessageLog will process the message log queue in chunks of 32 if there's a backlog.
+			// MessageLogManager will process the message log queue in chunks of 32 if there's a backlog.
 			ReleaseSemaphore( ml_update_trigger_semaphore, 1, NULL );
 		}
+		else
+		{
+			GlobalFree( mli->w_date_and_time );
+			GlobalFree( mli->w_level );
+			GlobalFree( mli->message );
+			GlobalFree( mli );
+			GlobalFree( ml_node );
+		}
+
+		LeaveCriticalSection( &ml_queue_cs );
 	}
 
 	if ( type & ML_MESSAGE_BOX_W )

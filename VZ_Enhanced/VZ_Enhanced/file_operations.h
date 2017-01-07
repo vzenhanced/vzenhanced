@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #define MAGIC_ID_FORWARD_PN		"VZE\x12"
 #define MAGIC_ID_FORWARD_CNAM	"VZE\x13"
 #define MAGIC_ID_CALL_LOG		"VZE\x20"
+
+void LoadRingtones( dllrbt_tree *list );
 
 char read_config();
 char save_config();

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -207,6 +207,8 @@ wchar_t *common_message_string_table[] =
 	L"Phone number is already in the forward phone number list.",
 	L"Please enter a valid caller ID name.",
 	L"Please enter a valid phone number.",
+	L"Popup windows and ringtones must be enable to play per-contact ringtones.\r\n\r\nWould you like to enable these settings?",
+	L"Ringtones must be enable to play per-contact ringtones.\r\n\r\nWould you like to enable this setting?",
 	L"There was an error while saving the settings.",
 	L"Selected caller ID name is forwarded using multiple keywords.\r\n\r\nPlease remove it from the forward caller ID name list.",
 	L"Selected caller ID name is ignored using multiple keywords.\r\n\r\nPlease remove it from the ignore caller ID name list.",
@@ -214,7 +216,7 @@ wchar_t *common_message_string_table[] =
 	L"Selected phone number is ignored using wildcard digit(s).\r\n\r\nPlease remove it from the ignore phone number list.",
 	L"The download could not be completed.\r\n\r\nWould you like to visit the VZ Enhanced home page instead?",
 	L"The file(s) could not be imported because the format is incorrect.",
-	L"The Message Log thread is still running.\r\n\r\nPlease wait for it to terminate, or restart the program.",
+	/*L"The Message Log thread is still running.\r\n\r\nPlease wait for it to terminate, or restart the program.",*/
 	L"The update check could not be completed.\r\n\r\nWould you like to visit the VZ Enhanced home page instead?",
 	L"Tree-View image list was not destroyed.",
 	L"VZ Enhanced is up to date.",
@@ -244,8 +246,11 @@ wchar_t *contact_string_table[] =
 	L"Nickname:",
 	L"Office Phone:",
 	L"Other Phone:",
+	L"Play",
 	L"Profession:",
 	L"Remove Picture",
+	L"Ringtone:",
+	L"Stop",
 	L"Title:",
 	L"Update Contact",
 	L"Update Contact - Canceled",
@@ -298,11 +303,13 @@ wchar_t *options_string_table[] =
 	L"Check for updates upon startup",
 	L"Close to System Tray",
 	L"Connection",
+	L"Default ringtone:",
 	L"Delay Time (seconds):",
 	/*L"Down",*/
 	L"Enable Call Log history",
 	L"Enable contact picture downloads",
 	L"Enable popup windows:",
+	L"Enable ringtone(s)",
 	L"Enable System Tray icon:",
 	L"Font:",
 	L"Font color:",
@@ -317,9 +324,7 @@ wchar_t *options_string_table[] =
 	L"Left",
 	L"Log events to Message Log",
 	L"Minimize to System Tray",
-	L"Play sound:",
 	L"Popup",
-	L"Popup Sound",
 	L"Preview Popup",
 	L"Reconnect upon connection loss:",
 	L"Retries:",
@@ -572,6 +577,7 @@ wchar_t *list_string_table[] =
 	L"Loaded forward phone number list.",
 	L"Loaded ignore caller ID name list.",
 	L"Loaded ignore phone number list.",
+	L"Loaded ringtone directory.",
 	L"Performing automatic save.",
 	L"Removed call log entry / entries.",
 	L"Removed caller ID name(s) from forward caller ID name list.",

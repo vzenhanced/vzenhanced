@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "globals.h"
 #include "connection.h"
 #include "utilities.h"
+#include "ringtone_utilities.h"
 #include "string_tables.h"
 
 #include "lite_comdlg32.h"
@@ -28,6 +29,10 @@
 #define BTN_EXIT_INFO		1000
 #define BTN_UPDATE_PICTURE	1001
 #define BTN_REMOVE_PICTURE	1002
+
+#define CB_RINGTONES		1003
+#define BTN_PLAY_RINGTONE	1004
+#define BTN_STOP_RINGTONE	1005
 
 HWND g_hWnd_title = NULL;
 HWND g_hWnd_first_name = NULL;
@@ -50,6 +55,9 @@ HWND g_hWnd_fax_number = NULL;
 HWND g_hWnd_email_address = NULL;
 HWND g_hWnd_web_page = NULL;
 
+HWND g_hWnd_ringtones = NULL;
+HWND g_hWnd_play_ringtone = NULL;
+HWND g_hWnd_stop_ringtone = NULL;
 
 HWND g_hWnd_remove_picture = NULL;
 
@@ -66,6 +74,8 @@ HBITMAP g_hbm_picture = NULL;
 wchar_t *g_picture_file_path = NULL;
 bool remove_picture = false;
 
+bool contact_ringtone_played = false;
+
 LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     switch ( msg )
@@ -78,58 +88,64 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			HWND hWnd_static = _CreateWindowW( WC_STATIC, NULL, SS_GRAYFRAME | WS_CHILD | WS_VISIBLE, 10, 10, rc.right - 20, rc.bottom - 50, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static1 = _CreateWindowW( WC_STATIC, ST_Title_, WS_CHILD | WS_VISIBLE, 20, 22, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_title = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 20, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_title = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 20, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static2 = _CreateWindowW( WC_STATIC, ST_First_Name_, WS_CHILD | WS_VISIBLE, 20, 47, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_first_name = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 45, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_first_name = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 45, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static3 = _CreateWindowW( WC_STATIC, ST_Last_Name_, WS_CHILD | WS_VISIBLE, 20, 72, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_last_name = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 70, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_last_name = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 70, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static4 = _CreateWindowW( WC_STATIC, ST_Nickname_, WS_CHILD | WS_VISIBLE, 20, 97, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_nickname = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 95, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_nickname = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 95, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static5 = _CreateWindowW( WC_STATIC, ST_Company_, WS_CHILD | WS_VISIBLE, 20, 122, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_company = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 120, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_company = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 120, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static6 = _CreateWindowW( WC_STATIC, ST_Job_Title_, WS_CHILD | WS_VISIBLE, 20, 147, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_job_title = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 145, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_job_title = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 145, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static7 = _CreateWindowW( WC_STATIC, ST_Department_, WS_CHILD | WS_VISIBLE, 20, 172, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_department = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 170, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_department = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 170, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static8 = _CreateWindowW( WC_STATIC, ST_Profession_, WS_CHILD | WS_VISIBLE, 20, 197, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_profession = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 195, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_profession = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 100, 195, 105, 20, hWnd, NULL, NULL, NULL );
 
 
 
 			HWND g_hWnd_static9 = _CreateWindowW( WC_STATIC, ST_Home_Phone_, WS_CHILD | WS_VISIBLE, 220, 22, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_home_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 20, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_home_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 20, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static10 = _CreateWindowW( WC_STATIC, ST_Cell_Phone_, WS_CHILD | WS_VISIBLE, 220, 47, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_cell_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 45, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_cell_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 45, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static11 = _CreateWindowW( WC_STATIC, ST_Office_Phone_, WS_CHILD | WS_VISIBLE, 220, 72, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_office_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 70, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_office_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 70, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static12 = _CreateWindowW( WC_STATIC, ST_Other_Phone_, WS_CHILD | WS_VISIBLE, 220, 97, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_other_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 95, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_other_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 95, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static13 = _CreateWindowW( WC_STATIC, ST_Work_Phone_, WS_CHILD | WS_VISIBLE, 220, 122, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_work_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 120, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_work_phone_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 120, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static14 = _CreateWindowW( WC_STATIC, ST_Fax_, WS_CHILD | WS_VISIBLE, 220, 147, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_fax_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 145, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_fax_number = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | ES_CENTER | ES_NUMBER | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 145, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static15 = _CreateWindowW( WC_STATIC, ST_Email_Address_, WS_CHILD | WS_VISIBLE, 220, 172, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_email_address = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 170, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_email_address = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 170, 105, 20, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_static16 = _CreateWindowW( WC_STATIC, ST_Web_Page_, WS_CHILD | WS_VISIBLE, 220, 197, 75, 15, hWnd, NULL, NULL, NULL );
-			g_hWnd_web_page = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 195, 100, 20, hWnd, NULL, NULL, NULL );
+			g_hWnd_web_page = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_EDIT, L"", ES_AUTOHSCROLL | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 195, 105, 20, hWnd, NULL, NULL, NULL );
 
 
+			HWND g_hWnd_static17 = _CreateWindowW( WC_STATIC, ST_Ringtone_, WS_CHILD | WS_VISIBLE, 20, 222, 75, 15, hWnd, NULL, NULL, NULL );
+			g_hWnd_ringtones = _CreateWindowExW( WS_EX_CLIENTEDGE, WC_COMBOBOX, L"", CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_CHILD | WS_TABSTOP | WS_VSCROLL | WS_VISIBLE, 100, 222, 190, 20, hWnd, ( HMENU )CB_RINGTONES, NULL, NULL );
+			_SendMessageW( g_hWnd_ringtones, CB_ADDSTRING, 0, ( LPARAM )L"" );
+			_SendMessageW( g_hWnd_ringtones, CB_SETCURSEL, 0, 0 );
+			g_hWnd_play_ringtone = _CreateWindowW( WC_BUTTON, ST_Play, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 300, 222, 50, 20, hWnd, ( HMENU )BTN_PLAY_RINGTONE, NULL, NULL );
+			g_hWnd_stop_ringtone = _CreateWindowW( WC_BUTTON, ST_Stop, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 355, 222, 50, 20, hWnd, ( HMENU )BTN_STOP_RINGTONE, NULL, NULL );
 
-			HWND g_hWnd_static17 = _CreateWindowW( WC_STATIC, ST_Contact_Picture_, WS_CHILD | WS_VISIBLE, 420, 20, 100, 15, hWnd, NULL, NULL, NULL );
+			HWND g_hWnd_static18 = _CreateWindowW( WC_STATIC, ST_Contact_Picture_, WS_CHILD | WS_VISIBLE, 420, 20, 100, 15, hWnd, NULL, NULL, NULL );
 			g_hWnd_static_picture = _CreateWindowW( WC_STATIC, NULL, SS_OWNERDRAW | WS_BORDER | WS_CHILD | WS_VISIBLE, 420, 35, 100, 100, hWnd, NULL, NULL, NULL );
 
 			HWND g_hWnd_update_picture = _CreateWindowW( WC_BUTTON, ST_Choose_File___, WS_CHILD | WS_TABSTOP | WS_VISIBLE, 420, 145, 100, 20, hWnd, ( HMENU )BTN_UPDATE_PICTURE, NULL, NULL );
@@ -184,11 +200,32 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			_SendMessageW( g_hWnd_web_page, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_static17, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_ringtones, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_play_ringtone, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_stop_ringtone, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+			_SendMessageW( g_hWnd_static18, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_update_picture, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_remove_picture, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_contact_action, WM_SETFONT, ( WPARAM )hFont, 0 );
+
+
+			node_type *node = dllrbt_get_head( ringtone_list );
+			while ( node != NULL )
+			{
+				ringtoneinfo *rti = ( ringtoneinfo * )node->val;
+
+				if ( rti != NULL )
+				{
+					int add_index = _SendMessageW( g_hWnd_ringtones, CB_ADDSTRING, 0, ( LPARAM )rti->ringtone_file );
+
+					_SendMessageW( g_hWnd_ringtones, CB_SETITEMDATA, add_index, ( LPARAM )rti );
+				}
+
+				node = node->next;
+			}	
 
 			return 0;
 		}
@@ -251,8 +288,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 					bool info_changed = false;	// If this is true, then we'll update the contact.
 
-					contactinfo *ci = ( contactinfo * )GlobalAlloc( GMEM_FIXED, sizeof( contactinfo ) );
-					initialize_contactinfo( &ci );
+					contactinfo *ci = ( contactinfo * )GlobalAlloc( GPTR, sizeof( contactinfo ) );
 
 					int cfg_val_length = 0;
 					char *utf8_val = NULL;
@@ -264,11 +300,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					wchar_t *text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_title, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->title == NULL || ( edit_ci->title != NULL && lstrcmpW( text_val, edit_ci->title ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->title == NULL || ( edit_ci->title != NULL && lstrcmpW( text_val, edit_ci->title ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.title = utf8_val;
 						ci->title = text_val;
@@ -287,11 +323,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_first_name, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->first_name == NULL || ( edit_ci->first_name != NULL && lstrcmpW( text_val, edit_ci->first_name ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->first_name == NULL || ( edit_ci->first_name != NULL && lstrcmpW( text_val, edit_ci->first_name ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.first_name = utf8_val;
 						ci->first_name = text_val;
@@ -311,11 +347,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_last_name, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->last_name == NULL || ( edit_ci->last_name != NULL && lstrcmpW( text_val, edit_ci->last_name ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->last_name == NULL || ( edit_ci->last_name != NULL && lstrcmpW( text_val, edit_ci->last_name ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.last_name = utf8_val;
 						ci->last_name = text_val;
@@ -335,11 +371,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_nickname, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->nickname == NULL || ( edit_ci->nickname != NULL && lstrcmpW( text_val, edit_ci->nickname ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->nickname == NULL || ( edit_ci->nickname != NULL && lstrcmpW( text_val, edit_ci->nickname ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.nickname = utf8_val;
 						ci->nickname = text_val;
@@ -359,11 +395,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_company, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->business_name == NULL || ( edit_ci->business_name != NULL && lstrcmpW( text_val, edit_ci->business_name ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->business_name == NULL || ( edit_ci->business_name != NULL && lstrcmpW( text_val, edit_ci->business_name ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.business_name = utf8_val;
 						ci->business_name = text_val;
@@ -382,11 +418,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_job_title, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->designation == NULL || ( edit_ci->designation != NULL && lstrcmpW( text_val, edit_ci->designation ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->designation == NULL || ( edit_ci->designation != NULL && lstrcmpW( text_val, edit_ci->designation ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.designation = utf8_val;
 						ci->designation = text_val;
@@ -405,11 +441,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_department, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->department == NULL || ( edit_ci->department != NULL && lstrcmpW( text_val, edit_ci->department ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->department == NULL || ( edit_ci->department != NULL && lstrcmpW( text_val, edit_ci->department ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.department = utf8_val;
 						ci->department = text_val;
@@ -428,11 +464,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_profession, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->category == NULL || ( edit_ci->category != NULL && lstrcmpW( text_val, edit_ci->category ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->category == NULL || ( edit_ci->category != NULL && lstrcmpW( text_val, edit_ci->category ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.category = utf8_val;
 						ci->category = text_val;
@@ -451,11 +487,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_email_address, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->email_address == NULL || ( edit_ci->email_address != NULL && lstrcmpW( text_val, edit_ci->email_address ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->email_address == NULL || ( edit_ci->email_address != NULL && lstrcmpW( text_val, edit_ci->email_address ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.email_address = utf8_val;
 						ci->email_address = text_val;
@@ -474,11 +510,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					text_val = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * text_length );
 					_SendMessageW( g_hWnd_web_page, WM_GETTEXT, text_length, ( LPARAM )text_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->web_page == NULL || ( edit_ci->web_page != NULL && lstrcmpW( text_val, edit_ci->web_page ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->web_page == NULL || ( edit_ci->web_page != NULL && lstrcmpW( text_val, edit_ci->web_page ) != 0 ) ) ) )
 					{
 						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, NULL, 0, NULL, NULL );
 						utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-						cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
+						WideCharToMultiByte( CP_UTF8, 0, text_val, -1, utf8_val, cfg_val_length, NULL, NULL );
 
 						ci->contact.web_page = utf8_val;
 						ci->web_page = text_val;
@@ -497,7 +533,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
 					_SendMessageA( g_hWnd_home_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->home_phone_number == NULL || ( edit_ci->contact.home_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.home_phone_number ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->home_phone_number == NULL || ( edit_ci->contact.home_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.home_phone_number ) != 0 ) ) ) )
 					{
 						ci->contact.home_phone_number = utf8_val;
 						//ci->home_phone_number;	// Set if added/updated
@@ -516,7 +552,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
 					_SendMessageA( g_hWnd_cell_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->cell_phone_number == NULL || ( edit_ci->contact.cell_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.cell_phone_number ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->cell_phone_number == NULL || ( edit_ci->contact.cell_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.cell_phone_number ) != 0 ) ) ) )
 					{
 						ci->contact.cell_phone_number = utf8_val;
 						//ci->cell_phone_number;	// Set if added/updated
@@ -535,7 +571,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
 					_SendMessageA( g_hWnd_office_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->office_phone_number == NULL || ( edit_ci->contact.office_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.office_phone_number ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->office_phone_number == NULL || ( edit_ci->contact.office_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.office_phone_number ) != 0 ) ) ) )
 					{
 						ci->contact.office_phone_number = utf8_val;
 						//ci->office_phone_number;	// Set if added/updated
@@ -554,7 +590,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
 					_SendMessageA( g_hWnd_other_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->other_phone_number == NULL || ( edit_ci->contact.other_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.other_phone_number ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->other_phone_number == NULL || ( edit_ci->contact.other_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.other_phone_number ) != 0 ) ) ) )
 					{
 						ci->contact.other_phone_number = utf8_val;
 						//ci->other_phone_number;	// Set if added/updated
@@ -573,7 +609,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
 					_SendMessageA( g_hWnd_work_phone_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->work_phone_number == NULL || ( edit_ci->contact.work_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.work_phone_number ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->work_phone_number == NULL || ( edit_ci->contact.work_phone_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.work_phone_number ) != 0 ) ) ) )
 					{
 						ci->contact.work_phone_number = utf8_val;
 						//ci->work_phone_number;	// Set if added/updated
@@ -592,7 +628,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 					utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * text_length );
 					_SendMessageA( g_hWnd_fax_number, WM_GETTEXT, text_length, ( LPARAM )utf8_val );;
 
-					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->fax_number == NULL || ( edit_ci->contact.fax_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.fax_number ) ) ) != 0 ) )
+					if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->fax_number == NULL || ( edit_ci->contact.fax_number != NULL && lstrcmpA( utf8_val, edit_ci->contact.fax_number ) != 0 ) ) ) )
 					{
 						ci->contact.fax_number = utf8_val;
 						//ci->fax_number;	// Set if added/updated
@@ -604,8 +640,64 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						GlobalFree( utf8_val );
 					}
 
+					int current_ringtone_index = _SendMessageW( g_hWnd_ringtones, CB_GETCURSEL, 0, 0 );
+					if ( current_ringtone_index != CB_ERR )
+					{
+						ringtoneinfo *rti = NULL;
 
+						if ( current_ringtone_index == 0 )
+						{
+							utf8_val = ( char * )GlobalAlloc( GPTR, sizeof( char ) );
+						}
+						else
+						{
+							rti = ( ringtoneinfo * )_SendMessageW( g_hWnd_ringtones, CB_GETITEMDATA, current_ringtone_index, 0 );
+							if ( rti != NULL && rti != ( ringtoneinfo * )CB_ERR )
+							{
+								cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, rti->ringtone_file, -1, NULL, 0, NULL, NULL );
+								utf8_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
+								WideCharToMultiByte( CP_UTF8, 0, rti->ringtone_file, -1, utf8_val, cfg_val_length, NULL, NULL );
+							}
+						}
 
+						if ( edit_ci == NULL || ( edit_ci != NULL && ( edit_ci->ringtone_info == NULL || ( edit_ci->ringtone_info != NULL && edit_ci->ringtone_info->ringtone_path == NULL ) || ( edit_ci->contact.ringtone != NULL && lstrcmpA( utf8_val, edit_ci->contact.ringtone ) != 0 ) ) ) )
+						{
+							ci->contact.ringtone = utf8_val;
+							ci->ringtone_info = rti;
+
+							info_changed = true;
+
+							// Don't handle the empty ringtone.
+							if ( current_ringtone_index != 0 )
+							{
+								// If our ringtone setting is disabled, then ask if the user wants to enable it.
+								if ( !cfg_popup_enable_ringtones )
+								{
+									// Also check if the popup windows setting is disabled and ask the user if they want to enable that as well.
+									if ( !cfg_enable_popups )
+									{
+										if ( _MessageBoxW( hWnd, ST_PROMPT_Popup_windows_and_ringtones, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION | MB_YESNO ) == IDYES )
+										{
+											cfg_enable_popups = true;
+
+											cfg_popup_enable_ringtones = true;
+										}
+									}
+									else
+									{
+										if ( _MessageBoxW( hWnd, ST_PROMPT_Ringtones, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION | MB_YESNO ) == IDYES )
+										{
+											cfg_popup_enable_ringtones = true;
+										}
+									}
+								}
+							}
+						}
+						else
+						{
+							GlobalFree( utf8_val );
+						}
+					}
 
 					bool picture_changed = false;
 
@@ -659,6 +751,65 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 						// mi is freed in the ManageContactInformation thread.
 						CloseHandle( ( HANDLE )_CreateThread( NULL, 0, ManageContactInformation, ( void * )mi, 0, NULL ) );
+					}
+				}
+				break;
+
+				case CB_RINGTONES:
+				{
+					if ( HIWORD( wParam ) == CBN_SELCHANGE )
+					{
+						if ( _SendMessageW( ( HWND )lParam, CB_GETCURSEL, 0, 0 ) == 0 )
+						{
+							_EnableWindow( g_hWnd_play_ringtone, FALSE );
+							_EnableWindow( g_hWnd_stop_ringtone, FALSE );
+						}
+						else
+						{
+							_EnableWindow( g_hWnd_play_ringtone, TRUE );
+							_EnableWindow( g_hWnd_stop_ringtone, TRUE );
+						}
+
+						if ( contact_ringtone_played )
+						{
+							HandleRingtone( RINGTONE_CLOSE, NULL, L"contact" );
+
+							contact_ringtone_played = false;
+						}
+					}
+				}
+				break;
+
+				case BTN_PLAY_RINGTONE:
+				{
+					if ( contact_ringtone_played )
+					{
+						HandleRingtone( RINGTONE_CLOSE, NULL, L"contact" );
+
+						contact_ringtone_played = false;
+					}
+
+					int current_ringtone_index = _SendMessageW( g_hWnd_ringtones, CB_GETCURSEL, 0, 0 );
+					if ( current_ringtone_index > 0 )
+					{
+						ringtoneinfo *rti = ( ringtoneinfo * )_SendMessageW( g_hWnd_ringtones, CB_GETITEMDATA, current_ringtone_index, 0 );
+						if ( rti != NULL && rti != ( ringtoneinfo * )CB_ERR )
+						{
+							HandleRingtone( RINGTONE_PLAY, rti->ringtone_path, L"contact" );
+
+							contact_ringtone_played = true;
+						}
+					}
+				}
+				break;
+
+				case BTN_STOP_RINGTONE:
+				{
+					if ( contact_ringtone_played )
+					{
+						HandleRingtone( RINGTONE_CLOSE, NULL, L"contact" );
+
+						contact_ringtone_played = false;
 					}
 				}
 				break;
@@ -769,6 +920,13 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 		{
 			if ( LOWORD( wParam ) == CW_MODIFY )	// Add/Update contact.
 			{
+				if ( contact_ringtone_played )
+				{
+					HandleRingtone( RINGTONE_CLOSE, NULL, L"contact" );
+
+					contact_ringtone_played = false;
+				}
+
 				// See if there are no updates in progress.
 				if ( contact_update_in_progress == UPDATE_END )
 				{
@@ -820,6 +978,40 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							_EnableWindow( g_hWnd_remove_picture, FALSE );
 						}
 
+						int set_index = 0;
+
+						// Run through our list of ringtones and find a matching file name.
+						if ( edit_ci->ringtone_info != NULL && edit_ci->ringtone_info->ringtone_file != NULL )
+						{
+							int item_count = _SendMessageW( g_hWnd_ringtones, CB_GETCOUNT, 0, 0 );
+							for ( int i = 1; i < item_count; ++i )
+							{
+								ringtoneinfo *rti = ( ringtoneinfo * )_SendMessageW( g_hWnd_ringtones, CB_GETITEMDATA, i, 0 );
+								if ( rti != NULL && rti != ( ringtoneinfo * )CB_ERR )
+								{
+									if ( rti->ringtone_file != NULL && lstrcmpW( rti->ringtone_file, edit_ci->ringtone_info->ringtone_file ) == 0 )
+									{
+										set_index = i;
+
+										break;
+									}
+								}
+							}
+						}
+
+						_SendMessageW( g_hWnd_ringtones, CB_SETCURSEL, set_index, 0 );
+
+						if ( set_index == 0 )
+						{
+							_EnableWindow( g_hWnd_play_ringtone, FALSE );
+							_EnableWindow( g_hWnd_stop_ringtone, FALSE );
+						}
+						else
+						{
+							_EnableWindow( g_hWnd_play_ringtone, TRUE );
+							_EnableWindow( g_hWnd_stop_ringtone, TRUE );
+						}
+
 						_SendMessageW( g_hWnd_first_name, WM_SETTEXT, 0, ( LPARAM )edit_ci->first_name );
 						_SendMessageW( g_hWnd_last_name, WM_SETTEXT, 0, ( LPARAM )edit_ci->last_name );
 						_SendMessageW( g_hWnd_nickname, WM_SETTEXT, 0, ( LPARAM )edit_ci->nickname );
@@ -847,6 +1039,10 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						edit_ci = NULL;
 
 						_EnableWindow( g_hWnd_remove_picture, FALSE );
+
+						_SendMessageW( g_hWnd_ringtones, CB_SETCURSEL, 0, 0 );
+						_EnableWindow( g_hWnd_play_ringtone, FALSE );
+						_EnableWindow( g_hWnd_stop_ringtone, FALSE );
 
 						_SendMessageW( g_hWnd_first_name, WM_SETTEXT, 0, 0 );
 						_SendMessageW( g_hWnd_last_name, WM_SETTEXT, 0, 0 );
@@ -1016,6 +1212,13 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 			}
 
 			g_hWnd_contact = NULL;
+
+			if ( contact_ringtone_played )
+			{
+				HandleRingtone( RINGTONE_CLOSE, NULL, L"contact" );
+
+				contact_ringtone_played = false;
+			}
 
 			return 0;
 		}

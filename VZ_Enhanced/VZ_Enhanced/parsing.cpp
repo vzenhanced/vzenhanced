@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -828,9 +828,13 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 			DoublyLinkedList *del_node = current_node;
 			current_node = current_node->next;
 
-			GlobalFree( ( ( FORM_ELEMENTS * )del_node->data )->name );
-			GlobalFree( ( ( FORM_ELEMENTS * )del_node->data )->value );
-			GlobalFree( ( FORM_ELEMENTS * )del_node->data );
+			FORM_ELEMENTS *fe = ( FORM_ELEMENTS * )del_node->data;
+			if ( fe != NULL )
+			{
+				GlobalFree( fe->name );
+				GlobalFree( fe->value );
+				GlobalFree( fe );
+			}
 			GlobalFree( del_node );
 		}
 
@@ -851,25 +855,27 @@ bool ParseSAMLForm( char *decoded_buffer, char **host, char **resource, char **p
 			{
 				DoublyLinkedList *del_node = current_node;
 				FORM_ELEMENTS *fe = ( FORM_ELEMENTS * )del_node->data;
-
-				if ( i > 0 )
+				if ( fe != NULL )
 				{
-					*( *parameters + parameters_position ) = '&';
+					if ( i > 0 )
+					{
+						*( *parameters + parameters_position ) = '&';
+						++parameters_position;
+					}
+
+					_memcpy_s( *parameters + parameters_position, total_element_length - parameters_position, fe->name, fe->name_length );
+					parameters_position += fe->name_length;
+					*( *parameters + parameters_position ) = '=';
 					++parameters_position;
+					_memcpy_s( *parameters + parameters_position, total_element_length - parameters_position, fe->value, fe->value_length );
+					parameters_position += fe->value_length;
+
+					current_node = current_node->next;
+
+					GlobalFree( fe->name );
+					GlobalFree( fe->value );
+					GlobalFree( fe );
 				}
-
-				_memcpy_s( *parameters + parameters_position, total_element_length - parameters_position, fe->name, fe->name_length );
-				parameters_position += fe->name_length;
-				*( *parameters + parameters_position ) = '=';
-				++parameters_position;
-				_memcpy_s( *parameters + parameters_position, total_element_length - parameters_position, fe->value, fe->value_length );
-				parameters_position += fe->value_length;
-
-				current_node = current_node->next;
-
-				GlobalFree( fe->name );
-				GlobalFree( fe->value );
-				GlobalFree( fe );
 				GlobalFree( del_node );
 			}
 		}
@@ -1123,7 +1129,7 @@ bool ParseCookies( char *decoded_buffer, dllrbt_tree **cookie_tree, char **cooki
 			// Get the cookie name and add it to the tree.
 			if ( *cookie_tree == NULL )
 			{
-				*cookie_tree = dllrbt_create( dllrbt_compare );
+				*cookie_tree = dllrbt_create( dllrbt_compare_a );
 			}
 
 			// Go back to the end of the cookie name if there's any whitespace after it and before the "=".
@@ -1173,10 +1179,12 @@ bool ParseCookies( char *decoded_buffer, dllrbt_tree **cookie_tree, char **cooki
 				if ( itr != NULL )
 				{
 					COOKIE_CONTAINER *occ = ( COOKIE_CONTAINER * )( ( node_type * )itr )->val;
-
-					GlobalFree( occ->cookie_name );
-					GlobalFree( occ->cookie_value );
-					GlobalFree( occ );
+					if ( occ != NULL )
+					{
+						GlobalFree( occ->cookie_name );
+						GlobalFree( occ->cookie_value );
+						GlobalFree( occ );
+					}
 
 					dllrbt_remove( *cookie_tree, itr );
 				}
@@ -2243,7 +2251,7 @@ bool UpdateContactList( char *xml, contactinfo *ci )
 		EnterCriticalSection( &pe_cs );
 		if ( contact_list == NULL )
 		{
-			contact_list = dllrbt_create( dllrbt_compare );
+			contact_list = dllrbt_create( dllrbt_compare_a );
 		}
 
 		// Caller must free ci.
@@ -2281,8 +2289,7 @@ bool BuildContactList( char *xml )
 
 		while ( rtree != NULL )
 		{
-			contactinfo *ci = ( contactinfo * )GlobalAlloc( GMEM_FIXED, sizeof( contactinfo ) );
-			initialize_contactinfo( &ci );
+			contactinfo *ci = ( contactinfo * )GlobalAlloc( GPTR, sizeof( contactinfo ) );
 
 			StackTree *stree = GetElementAttributeValue( rtree, "ContactEntry", 12, "id", 2, &ci->contact.contact_entry_id );
 
@@ -2400,6 +2407,8 @@ bool BuildContactList( char *xml )
 
 				GetElementValue( stree, "Title", 5, &ci->contact.title );
 
+				decode_xml_entities( ci->contact.ringtone );
+
 				decode_xml_entities( ci->contact.web_page );
 				decode_xml_entities( ci->contact.email_address );
 
@@ -2417,7 +2426,7 @@ bool BuildContactList( char *xml )
 				EnterCriticalSection( &pe_cs );
 				if ( contact_list == NULL )
 				{
-					contact_list = dllrbt_create( dllrbt_compare );
+					contact_list = dllrbt_create( dllrbt_compare_a );
 				}
 
 				if ( dllrbt_insert( contact_list, ( void * )ci->contact.contact_entry_id, ( void * )ci ) != DLLRBT_STATUS_OK )

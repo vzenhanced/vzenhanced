@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "globals.h"
 #include "utilities.h"
 #include "message_log_utilities.h"
+#include "ringtone_utilities.h"
 #include "menus.h"
 #include "string_tables.h"
 #include "lite_gdi32.h"
@@ -107,8 +108,8 @@ char cfg_popup_line_order2 = LINE_CALLER_ID;
 char cfg_popup_line_order3 = LINE_PHONE;
 unsigned char cfg_popup_time_format = 0;	// 0 = 12 hour, 1 = 24 hour
 
-bool cfg_popup_play_sound = false;
-wchar_t *cfg_popup_sound = NULL;
+bool cfg_popup_enable_ringtones = false;
+wchar_t *cfg_popup_ringtone = NULL;
 
 char cfg_tab_order1 = 0;		// 0 Call Log
 char cfg_tab_order2 = 1;		// 1 Contact List
@@ -326,9 +327,14 @@ wchar_t *GlobalStrDupW( const wchar_t *_Str )
 }
 
 
-int dllrbt_compare( void *a, void *b )
+int dllrbt_compare_a( void *a, void *b )
 {
 	return lstrcmpA( ( char * )a, ( char * )b );
+}
+
+int dllrbt_compare_w( void *a, void *b )
+{
+	return lstrcmpW( ( wchar_t * )a, ( wchar_t * )b );
 }
 
 int dllrbt_icid_compare( void *a, void *b )
@@ -525,61 +531,6 @@ void free_displayinfo( displayinfo **di )
 	*di = NULL;
 }
 
-void initialize_contactinfo( contactinfo **ci )
-{
-	( *ci )->contact.cell_phone_number = NULL;
-	( *ci )->contact.cell_phone_number_id = NULL;
-	( *ci )->contact.contact_entry_id = NULL;
-	( *ci )->contact.first_name = NULL;
-	( *ci )->contact.home_phone_number = NULL;
-	( *ci )->contact.home_phone_number_id = NULL;
-	( *ci )->contact.last_name = NULL;
-	( *ci )->contact.nickname = NULL;
-	( *ci )->contact.office_phone_number = NULL;
-	( *ci )->contact.office_phone_number_id = NULL;
-	( *ci )->contact.other_phone_number = NULL;
-	( *ci )->contact.other_phone_number_id = NULL;
-	( *ci )->contact.ringtone = NULL;
-
-	( *ci )->contact.title = NULL;
-	( *ci )->contact.business_name = NULL;
-	( *ci )->contact.designation = NULL;
-	( *ci )->contact.department = NULL;
-	( *ci )->contact.category = NULL;
-	( *ci )->contact.work_phone_number_id = NULL;
-	( *ci )->contact.work_phone_number = NULL;
-	( *ci )->contact.fax_number_id = NULL;
-	( *ci )->contact.fax_number = NULL;
-	( *ci )->contact.email_address_id = NULL;
-	( *ci )->contact.email_address = NULL;
-	( *ci )->contact.web_page_id = NULL;
-	( *ci )->contact.web_page = NULL;
-
-	( *ci )->contact.picture_location = NULL;
-
-	( *ci )->first_name = NULL;
-	( *ci )->last_name = NULL;
-	( *ci )->nickname = NULL;
-	( *ci )->home_phone_number = NULL;
-	( *ci )->cell_phone_number = NULL;
-	( *ci )->office_phone_number = NULL;
-	( *ci )->other_phone_number = NULL;
-
-	( *ci )->title = NULL;
-	( *ci )->business_name = NULL;
-	( *ci )->designation = NULL;
-	( *ci )->department = NULL;
-	( *ci )->category = NULL;
-	( *ci )->work_phone_number = NULL;
-	( *ci )->fax_number = NULL;
-	( *ci )->email_address = NULL;
-	( *ci )->web_page = NULL;
-
-	( *ci )->picture_path = NULL;
-
-	( *ci )->displayed = false;	// Not displayed yet.
-}
-
 void free_contactinfo( contactinfo **ci )
 {
 	// Free the strings in our info structure.
@@ -632,6 +583,8 @@ void free_contactinfo( contactinfo **ci )
 	GlobalFree( ( *ci )->web_page );
 
 	GlobalFree( ( *ci )->picture_path );
+
+	// Do not free ( *ci )->ringtone_info or its values.
 
 	// Then free the contactinfo structure.
 	GlobalFree( *ci );
@@ -1006,7 +959,7 @@ char *GetFileExtension( char *path )
 }
 
 
-char *GetFileName( char *path )
+char *GetFileNameA( char *path )
 {
 	if ( path == NULL )
 	{
@@ -1018,6 +971,24 @@ char *GetFileName( char *path )
 	while ( length != 0 && path[ --length ] != '\\' );
 
 	if ( path[ length ] == '\\' )
+	{
+		++length;
+	}
+	return path + length;
+}
+
+wchar_t *GetFileNameW( wchar_t *path )
+{
+	if ( path == NULL )
+	{
+		return NULL;
+	}
+
+	unsigned short length = lstrlenW( path );
+
+	while ( length != 0 && path[ --length ] != L'\\' );
+
+	if ( path[ length ] == L'\\' )
 	{
 		++length;
 	}
@@ -1220,7 +1191,7 @@ void CreatePopup( displayinfo *fi )
 	}
 
 
-	HWND hWnd_popup = _CreateWindowExW( WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( cfg_popup_hide_border ? NULL : WS_THICKFRAME ), left, top, cfg_popup_width, cfg_popup_height, NULL, NULL, NULL, NULL );
+	HWND hWnd_popup = _CreateWindowExW( WS_EX_NOPARENTNOTIFY | WS_EX_NOACTIVATE | WS_EX_TOPMOST, L"popup", NULL, WS_CLIPCHILDREN | WS_POPUP | ( cfg_popup_hide_border ? NULL : WS_THICKFRAME ), left, top, cfg_popup_width, cfg_popup_height, g_hWnd_main, NULL, NULL, NULL );
 
 	_SetWindowLongW( hWnd_popup, GWL_EXSTYLE, _GetWindowLongW( hWnd_popup, GWL_EXSTYLE ) | WS_EX_LAYERED );
 	_SetLayeredWindowAttributes( hWnd_popup, 0, cfg_popup_transparency, LWA_ALPHA );
@@ -1252,8 +1223,16 @@ void CreatePopup( displayinfo *fi )
 	shared_settings->popup_background_color1 = cfg_popup_background_color1;
 	shared_settings->popup_background_color2 = cfg_popup_background_color2;
 	shared_settings->popup_time = cfg_popup_time;
-	shared_settings->popup_play_sound = cfg_popup_play_sound;
-	shared_settings->popup_sound = GlobalStrDupW( cfg_popup_sound );
+
+	// Use the default sound if the contact doesn't have a custom ringtone set.
+	if ( cfg_popup_enable_ringtones )
+	{
+		shared_settings->ringtone_info = ( fi->ringtone_info != NULL ? fi->ringtone_info : default_ringtone );
+	}
+	else
+	{
+		shared_settings->ringtone_info = NULL;
+	}
 
 	LOGFONT lf;
 	_memzero( &lf, sizeof( LOGFONT ) );
@@ -1409,6 +1388,7 @@ THREAD_RETURN cleanup( void *pArguments )
 	kill_update_check_thread();
 	kill_ml_update_thread();
 	kill_ml_worker_thread();
+	kill_ringtone_update_thread();
 
 	// DestroyWindow won't work on a window from a different thread. So we'll send a message to trigger it.
 	_SendMessageW( g_hWnd_main, WM_DESTROY_ALT, 0, 0 );
@@ -1641,11 +1621,12 @@ void cleanup_custom_caller_id()
 	}
 }
 
-char *get_custom_caller_id( char *phone_number )
+char *get_custom_caller_id( char *phone_number, contactinfo **ci )
 {
+	*ci = NULL;
+
 	if ( phone_number != NULL && custom_cid_list != NULL )
 	{
-		contactinfo *ci = NULL;
 		DoublyLinkedList *dll = NULL;
 
 		for ( char i = 0; i < CID_LIST_COUNT; ++i )
@@ -1653,36 +1634,36 @@ char *get_custom_caller_id( char *phone_number )
 			dll = ( DoublyLinkedList * )dllrbt_find( custom_cid_list[ i ], ( void * )phone_number, true );
 			while ( dll != NULL )
 			{
-				ci = ( contactinfo * )dll->data;
+				*ci = ( contactinfo * )dll->data;
 
-				if ( ci != NULL )
+				if ( *ci != NULL )
 				{
 					// If there are multiple people with the same office phone number, then use the business name to identify them.
 					if ( ( i == 2 && dll->prev != NULL ) || i == 3 )
 					{
-						if ( ci->contact.business_name != NULL && ci->contact.business_name[ 0 ] != NULL )
+						if ( ( *ci )->contact.business_name != NULL && ( *ci )->contact.business_name[ 0 ] != NULL )
 						{
-							return GlobalStrDupA( ci->contact.business_name );
+							return GlobalStrDupA( ( *ci )->contact.business_name );
 						}
 					}
 					else
 					{
 						// See if there's a first name available.
-						if ( ci->contact.first_name != NULL && ci->contact.first_name[ 0 ] != NULL )
+						if ( ( *ci )->contact.first_name != NULL && ( *ci )->contact.first_name[ 0 ] != NULL )
 						{
 							// See if there's a last name available.
-							if ( ci->contact.last_name != NULL && ci->contact.last_name[ 0 ] != NULL )
+							if ( ( *ci )->contact.last_name != NULL && ( *ci )->contact.last_name[ 0 ] != NULL )
 							{
-								return combine_names( ci->contact.first_name, ci->contact.last_name );
+								return combine_names( ( *ci )->contact.first_name, ( *ci )->contact.last_name );
 							}
 							else	// If there's no last name, then use the first name.
 							{
-								return GlobalStrDupA( ci->contact.first_name );
+								return GlobalStrDupA( ( *ci )->contact.first_name );
 							}
 						}
-						else if ( ci->contact.nickname != NULL && ci->contact.nickname[ 0 ] != NULL )	// If there's no first name, then try the nickname.
+						else if ( ( *ci )->contact.nickname != NULL && ( *ci )->contact.nickname[ 0 ] != NULL )	// If there's no first name, then try the nickname.
 						{
-							return GlobalStrDupA( ci->contact.nickname );
+							return GlobalStrDupA( ( *ci )->contact.nickname );
 						}
 					}
 				}
@@ -1787,7 +1768,7 @@ void add_custom_caller_id( contactinfo *ci )
 	{
 		if ( custom_cid_list[ i ] == NULL )
 		{
-			 custom_cid_list[ i ] = dllrbt_create( dllrbt_compare );
+			 custom_cid_list[ i ] = dllrbt_create( dllrbt_compare_a );
 		}
 
 		switch ( i )

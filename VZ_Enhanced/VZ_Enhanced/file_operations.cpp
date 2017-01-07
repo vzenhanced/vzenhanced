@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
 RANGE *ignore_range_list[ 16 ];
 RANGE *forward_range_list[ 16 ];
 
+dllrbt_tree *ringtone_list = NULL;
+ringtoneinfo *default_ringtone = NULL;
+
 dllrbt_tree *ignore_list = NULL;
 bool ignore_list_changed = false;
 
@@ -39,6 +42,65 @@ dllrbt_tree *forward_cid_list = NULL;
 bool forward_cid_list_changed = false;
 
 CRITICAL_SECTION auto_save_cs;
+
+void LoadRingtones( dllrbt_tree *list )
+{
+	_wmemcpy_s( app_directory + app_directory_length, MAX_PATH - app_directory_length, L"\\ringtones\\*\0", 13 );
+	app_directory[ app_directory_length + 12 ] = 0;	// Sanity.
+
+	WIN32_FIND_DATA FindFileData;
+	HANDLE hFind = FindFirstFileEx( ( LPCWSTR )app_directory, FindExInfoStandard, &FindFileData, FindExSearchNameMatch, NULL, 0 );
+	if ( hFind != INVALID_HANDLE_VALUE ) 
+	{
+		do
+		{
+			// See if the file is a directory.
+			if ( ( FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) == 0 )
+			{
+				int extension_offset = 0;
+				int file_name_length = 0;
+
+				file_name_length = extension_offset = lstrlenW( FindFileData.cFileName );
+
+				// Find the start of the file extension.
+				while ( extension_offset != 0 && FindFileData.cFileName[ --extension_offset ] != L'.' );
+
+				// Load only wav, mp3, and midi files.
+				if ( ( ( file_name_length - extension_offset ) == 4 &&
+					   ( _StrCmpNIW( FindFileData.cFileName + ( extension_offset + 1 ), L"wav", 3 ) == 0 ||
+						 _StrCmpNIW( FindFileData.cFileName + ( extension_offset + 1 ), L"mp3", 3 ) == 0 ||
+						 _StrCmpNIW( FindFileData.cFileName + ( extension_offset + 1 ), L"mid", 3 ) == 0 ) ) ||
+					 ( ( file_name_length - extension_offset ) == 5 &&
+					   ( _StrCmpNIW( FindFileData.cFileName + ( extension_offset + 1 ), L"wave", 4 ) == 0 ||
+						 _StrCmpNIW( FindFileData.cFileName + ( extension_offset + 1 ), L"midi", 4 ) == 0 ) ) )
+				{
+					int w_file_path_length = app_directory_length + file_name_length + 12;
+
+					ringtoneinfo *rti = ( ringtoneinfo * )GlobalAlloc( GMEM_FIXED, sizeof( ringtoneinfo ) );
+
+					rti->ringtone_path = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * w_file_path_length );
+					_wmemcpy_s( rti->ringtone_path, w_file_path_length, app_directory, app_directory_length + 11 );
+					_wmemcpy_s( rti->ringtone_path + ( app_directory_length + 11 ), w_file_path_length - ( app_directory_length + 11 ), FindFileData.cFileName, file_name_length + 1 );
+					rti->ringtone_path[ app_directory_length + file_name_length + 11 ] = 0;
+
+					rti->ringtone_file = rti->ringtone_path + ( app_directory_length + 11 );
+
+					if ( dllrbt_insert( list, ( void * )rti->ringtone_file, ( void * )rti ) != DLLRBT_STATUS_OK )
+					{
+						// ringtone_file points to the same memory as ringtone_path. So don't free it.
+						GlobalFree( rti->ringtone_path );
+						GlobalFree( rti );
+					}
+				}
+			}
+		}
+		while ( FindNextFile( hFind, &FindFileData ) != 0 );	// Go to the next file.
+
+		FindClose( hFind );	// Close the find file handle.
+
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Loaded_ringtone_directory )
+	}
+}
 
 char read_config()
 {
@@ -407,7 +469,7 @@ char read_config()
 				next += sizeof( char );
 				_memcpy_s( &cfg_popup_time_format, sizeof( bool ), next, sizeof( unsigned char ) );
 				next += sizeof( unsigned char );
-				_memcpy_s( &cfg_popup_play_sound, sizeof( bool ), next, sizeof( bool ) );
+				_memcpy_s( &cfg_popup_enable_ringtones, sizeof( bool ), next, sizeof( bool ) );
 				next += sizeof( bool );
 
 				int string_length = 0;
@@ -520,8 +582,8 @@ char read_config()
 
 					// Read sound.
 					cfg_val_length = MultiByteToWideChar( CP_UTF8, 0, next, string_length, NULL, 0 );	// Include the NULL terminator.
-					cfg_popup_sound = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * cfg_val_length );
-					MultiByteToWideChar( CP_UTF8, 0, next, string_length, cfg_popup_sound, cfg_val_length );
+					cfg_popup_ringtone = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * cfg_val_length );
+					MultiByteToWideChar( CP_UTF8, 0, next, string_length, cfg_popup_ringtone, cfg_val_length );
 
 					next += string_length;
 				}
@@ -928,7 +990,7 @@ char save_config()
 		pos += sizeof( char );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_popup_time_format, sizeof( unsigned char ) );
 		pos += sizeof( unsigned char );
-		_memcpy_s( write_buf + pos, size - pos, &cfg_popup_play_sound, sizeof( bool ) );
+		_memcpy_s( write_buf + pos, size - pos, &cfg_popup_enable_ringtones, sizeof( bool ) );
 		//pos += sizeof( bool );
 
 		DWORD write = 0;
@@ -946,7 +1008,7 @@ char save_config()
 			if ( cfg_username != NULL )
 			{
 				cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_username, -1, NULL, 0, NULL, NULL ) + sizeof( char );	// Add 1 byte for our encoded length.
-				utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
+				utf8_cfg_val = ( char * )GlobalAlloc( GPTR, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 				cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_username, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
 				int length = cfg_val_length - 1;	// Exclude the NULL terminator.
@@ -966,7 +1028,7 @@ char save_config()
 			if ( cfg_password != NULL )
 			{
 				cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_password, -1, NULL, 0, NULL, NULL ) + sizeof( char );	// Add 1 byte for our encoded length.
-				utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
+				utf8_cfg_val = ( char * )GlobalAlloc( GPTR, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 				cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_password, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
 				int length = cfg_val_length - 1;	// Exclude the NULL terminator.
@@ -1033,11 +1095,11 @@ char save_config()
 			WriteFile( hFile_cfg, "\0", 1, &write, NULL );
 		}
 
-		if ( cfg_popup_sound != NULL )
+		if ( cfg_popup_ringtone != NULL )
 		{
-			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_popup_sound, -1, NULL, 0, NULL, NULL );
+			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_popup_ringtone, -1, NULL, 0, NULL, NULL );
 			utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
-			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_popup_sound, -1, utf8_cfg_val, cfg_val_length, NULL, NULL );
+			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_popup_ringtone, -1, utf8_cfg_val, cfg_val_length, NULL, NULL );
 
 			WriteFile( hFile_cfg, utf8_cfg_val, cfg_val_length, &write, NULL );
 
@@ -2397,7 +2459,7 @@ char read_call_log_history( wchar_t *file_path )
 
 					last_entry = offset;	// This value is the ending offset of the last valid entry.
 
-					displayinfo *di = ( displayinfo * )GlobalAlloc( GMEM_FIXED, sizeof( displayinfo ) );
+					displayinfo *di = ( displayinfo * )GlobalAlloc( GPTR, sizeof( displayinfo ) );
 
 					di->ci.call_to = call_to;
 					di->ci.call_from = call_from;
@@ -2406,22 +2468,7 @@ char read_call_log_history( wchar_t *file_path )
 					di->ci.forward_to = forward_to;
 					di->ci.ignored = ignored;
 					di->ci.forwarded = forwarded;
-					di->caller_id = NULL;
-					di->phone_number = NULL;
-					di->reference = NULL;
-					di->forward_to = NULL;
-					di->sent_to = NULL;
-					di->w_forward_caller_id = NULL;
-					di->w_forward_phone_number = NULL;
-					di->w_ignore_caller_id = NULL;
-					di->w_ignore_phone_number = NULL;
-					di->w_time = NULL;
 					di->time.QuadPart = time;
-					di->process_incoming = false;
-					di->ignore_phone_number = false;
-					di->forward_phone_number = false;
-					di->ignore_cid_match_count = 0;
-					di->forward_cid_match_count = 0;
 
 					// Create the node to insert into a linked list.
 					DoublyLinkedList *di_node = DLL_CreateNode( ( void * )di );

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -31,16 +31,22 @@
 
 	//__pragma( comment( lib, "winmm.lib" ) )
 
-	#define _PlaySoundW	PlaySoundW
+	//#define _PlaySoundW	PlaySoundW
+
+	#define _mciSendStringW	mciSendStringW
 
 #else
 
 	#define WINMM_STATE_SHUTDOWN	0
 	#define WINMM_STATE_RUNNING		1
 
-	typedef BOOL ( WINAPI *pPlaySoundW )( LPCWSTR pszSound, HMODULE hmod, DWORD fdwSound );
+	//typedef BOOL ( WINAPI *pPlaySoundW )( LPCWSTR pszSound, HMODULE hmod, DWORD fdwSound );
 
-	extern pPlaySoundW	_PlaySoundW;
+	typedef MCIERROR ( WINAPI *pmciSendStringW )( LPCTSTR lpszCommand, LPTSTR lpszReturnString, UINT cchReturn, HANDLE hwndCallback );
+
+	//extern pPlaySoundW	_PlaySoundW;
+
+	extern pmciSendStringW _mciSendStringW;
 
 	extern unsigned char winmm_state;
 

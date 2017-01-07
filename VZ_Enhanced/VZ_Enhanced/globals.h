@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -111,6 +111,12 @@
 struct contactinfo;
 struct ignoreinfo;
 
+struct ringtoneinfo
+{
+	wchar_t *ringtone_path;
+	wchar_t *ringtone_file;
+};
+
 struct callerinfo
 {
 	char *call_to;
@@ -148,6 +154,8 @@ struct displayinfo
 	callerinfo ci;
 
 	ULARGE_INTEGER time;
+
+	ringtoneinfo *ringtone_info;
 
 	unsigned int forward_cid_match_count;	// Number of forward cid matches.
 	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.
@@ -230,6 +238,7 @@ struct contactinfo
 	};
 
 	wchar_t *picture_path;			// Local path to picture.
+	ringtoneinfo *ringtone_info;	// Local path and file name of the ringtone.
 
 	bool displayed;					// Set to true if it's displayed in the contact list.
 };
@@ -461,6 +470,9 @@ extern CRITICAL_SECTION ml_cs;			// Allow only one message log worker thread to 
 extern CRITICAL_SECTION ml_update_cs;	// Allow only one message log update thread to be active.
 extern CRITICAL_SECTION ml_queue_cs;	// Used when adding/removing values from the message log queue.
 
+extern CRITICAL_SECTION ringtone_update_cs;	// Allow only one ringtone update thread to be active.
+extern CRITICAL_SECTION ringtone_queue_cs;	// Used when adding/removing values from the ringtone queue.
+
 extern HANDLE connection_semaphore;			// Blocks shutdown while the connection thread is active.
 extern HANDLE connection_worker_semaphore;
 extern HANDLE connection_incoming_semaphore;
@@ -485,11 +497,15 @@ extern NOTIFYICONDATA g_nid;			// Tray icon information.
 extern wchar_t *base_directory;
 extern unsigned int base_directory_length;
 
+extern wchar_t *app_directory;
+extern unsigned int app_directory_length;
+
 // Thread variables
 extern bool kill_worker_thread_flag;	// Allow for a clean shutdown.
 
 extern bool kill_ml_update_thread_flag;
 extern bool kill_ml_worker_thread_flag;
+extern bool kill_ringtone_update_thread_flag;
 
 extern bool in_worker_thread;			// Flag to indicate that we're in a worker thread.
 extern bool in_connection_thread;		// Flag to indicate that we're in the connection thread.
@@ -498,6 +514,7 @@ extern bool in_connection_incoming_thread;
 extern bool in_update_check_thread;
 extern bool in_ml_update_thread;
 extern bool in_ml_worker_thread;
+extern bool in_ringtone_update_thread;
 
 extern bool skip_log_draw;				// Prevents WM_DRAWITEM from accessing listview items while we're removing them.
 extern bool skip_contact_draw;
@@ -508,6 +525,9 @@ extern bool skip_forward_cid_draw;
 
 extern RANGE *ignore_range_list[ 16 ];
 extern RANGE *forward_range_list[ 16 ];
+
+extern dllrbt_tree *ringtone_list;
+extern ringtoneinfo *default_ringtone;
 
 extern dllrbt_tree *ignore_list;
 extern bool ignore_list_changed;
@@ -620,8 +640,8 @@ extern char cfg_popup_line_order2;
 extern char cfg_popup_line_order3;
 extern unsigned char cfg_popup_time_format;
 
-extern bool cfg_popup_play_sound;
-extern wchar_t *cfg_popup_sound;
+extern bool cfg_popup_enable_ringtones;
+extern wchar_t *cfg_popup_ringtone;
 
 extern char cfg_tab_order1;
 extern char cfg_tab_order2;
@@ -767,11 +787,10 @@ struct SHARED_SETTINGS	// These are settings that the popup window will need.
 {
 	COLORREF popup_background_color1;
 	COLORREF popup_background_color2;
-	wchar_t *popup_sound;
+	ringtoneinfo *ringtone_info;
 	unsigned short popup_time;
 	unsigned char popup_gradient_direction;
 	bool popup_gradient;
-	bool popup_play_sound;
 };
 
 struct POPUP_SETTINGS

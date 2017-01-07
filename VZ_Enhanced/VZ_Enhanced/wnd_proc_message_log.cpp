@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -129,18 +129,6 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 			_SendMessageW( g_hWnd_clear_log, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_save_log, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_close_log_wnd, WM_SETFONT, ( WPARAM )hFont, 0 );
-
-			// Create the semaphore before we spawn the logging thread so that it can queue up messages. (Unlikely to occur)
-			// Closed in WM_DESTROY in case we don't spawn the logging thread.
-			ml_update_trigger_semaphore = CreateSemaphore( NULL, 0, MAX_ITEM_COUNT, NULL );
-
-			if ( cfg_enable_message_log )
-			{
-				//CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL ) );
-				HANDLE update_message_log_handle = _CreateThread( NULL, 0, UpdateMessageLog, ( void * )NULL, 0, NULL );
-				SetThreadPriority( update_message_log_handle, THREAD_PRIORITY_LOWEST );
-				CloseHandle( update_message_log_handle );
-			}
 
 			return 0;
 		}
@@ -575,12 +563,6 @@ LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 
 		case WM_DESTROY:
 		{
-			// Closed here in case we didn't spawn the logging thread.
-			CloseHandle( ml_update_trigger_semaphore );
-			ml_update_trigger_semaphore = NULL;
-
-			cleanup_message_log_queue();	// Cleaned up here in case we didn't spawn the logging thread and (for some reason) added items to the queue.
-
 			cleanup_message_log();
 
 			_DestroyMenu( g_hMenuSub_message_log );

@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@
 	//typedef int ( WINAPIV *pwcscmp )( const wchar_t *string1, const wchar_t *string2 );
 	//typedef int ( WINAPIV *pwcsncmp )( const wchar_t *string1, const wchar_t *string2, size_t count );
 	//typedef int ( WINAPIV *p_wcsicmp )( const wchar_t *string1, const wchar_t *string2 );
-	typedef int ( WINAPIV *p_wcsnicmp )( const wchar_t *string1, const wchar_t *string2, size_t count );
+	//typedef int ( WINAPIV *p_wcsnicmp )( const wchar_t *string1, const wchar_t *string2, size_t count );
 
 	typedef char * ( WINAPIV *pstrchr )( const char *str, int c );
 	typedef char * ( WINAPIV *pstrstr )( const char *str, const char *strSearch );

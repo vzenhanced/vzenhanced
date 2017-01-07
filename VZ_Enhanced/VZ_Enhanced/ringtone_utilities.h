@@ -16,29 +16,30 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _MENUS_H
-#define _MENUS_H
+#ifndef _RINGTONE_UTILITIES_H
+#define _RINGTONE_UTILITIES_H
 
-#include "lite_comdlg32.h"
+#define MAX_RINGTONE_COUNT		100
+#define PROCESS_RINGTONE_COUNT	32
 
-#define MENU_START_WEB_SERVER		10001
-#define MENU_RESTART_WEB_SERVER		10002
-#define MENU_STOP_WEB_SERVER		10003
-#define MENU_CONNECTION_MANAGER		10004
+#define RINGTONE_PLAY	1
+#define RINGTONE_CLOSE	2
 
-#define MENU_CLOSE_CONNECTION		10005
-#define	MENU_RESOLVE_ADDRESSES		10006
-#define	MENU_SELECT_ALL				10007
+struct RINGTONE_INFO
+{
+	wchar_t *file_path;
+	wchar_t *alias;
+	unsigned char state;
+};
 
-extern "C" __declspec ( dllexport )
-HMENU GetWebServerMenu();
+THREAD_RETURN RingtoneManager( void *pArguments );
 
-void UpdateMenus();
-void EnableDisableMenus( bool enable );
-void CreateContextMenu();
+void cleanup_ringtone_queue();
 
-extern HMENU hMenuSub;
+void kill_ringtone_update_thread();
 
-extern HMENU g_hMenuSub_connection_manager;
+void HandleRingtone( unsigned char state, wchar_t *file_path, wchar_t *alias );
+
+extern HANDLE ringtone_update_trigger_semaphore;
 
 #endif

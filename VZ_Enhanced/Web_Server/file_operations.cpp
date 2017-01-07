@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -424,7 +424,7 @@ char save_config()
 		if ( cfg_authentication_username != NULL )
 		{
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_authentication_username, -1, NULL, 0, NULL, NULL ) + sizeof( char );	// Add 1 byte for our encoded length.
-			utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
+			utf8_cfg_val = ( char * )GlobalAlloc( GPTR, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_authentication_username, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
 			int length = cfg_val_length - 1;	// Exclude the NULL terminator.
@@ -444,7 +444,7 @@ char save_config()
 		if ( cfg_authentication_password != NULL )
 		{
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_authentication_password, -1, NULL, 0, NULL, NULL ) + sizeof( char );	// Add 1 byte for our encoded length.
-			utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
+			utf8_cfg_val = ( char * )GlobalAlloc( GPTR, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_authentication_password, -1, utf8_cfg_val + sizeof( char ), cfg_val_length - sizeof( char ), NULL, NULL );
 
 			int length = cfg_val_length - 1;	// Exclude the NULL terminator.
@@ -464,7 +464,7 @@ char save_config()
 		if ( cfg_certificate_pkcs_password != NULL )
 		{
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_certificate_pkcs_password, -1, NULL, 0, NULL, NULL ) + sizeof( unsigned short );	// Add 2 bytes for our encoded length.
-			utf8_cfg_val = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * cfg_val_length ); // Size includes the null character.
+			utf8_cfg_val = ( char * )GlobalAlloc( GPTR, sizeof( char ) * cfg_val_length ); // Size includes the null character.
 			cfg_val_length = WideCharToMultiByte( CP_UTF8, 0, cfg_certificate_pkcs_password, -1, utf8_cfg_val + sizeof( unsigned short ), cfg_val_length - sizeof( unsigned short ), NULL, NULL );
 
 			int length = cfg_val_length - 1;	// Exclude the NULL terminator.

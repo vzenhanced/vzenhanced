@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@
 
 #ifndef WINMM_USE_STATIC_LIB
 
-	pPlaySoundW	_PlaySoundW;
+	//pPlaySoundW	_PlaySoundW;
+
+	pmciSendStringW _mciSendStringW;
 
 	HMODULE hModule_winmm = NULL;
 
@@ -41,7 +43,9 @@
 			return false;
 		}
 
-		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_winmm, ( void ** )&_PlaySoundW, "PlaySoundW" ) )
+		//VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_winmm, ( void ** )&_PlaySoundW, "PlaySoundW" ) )
+
+		VALIDATE_FUNCTION_POINTER( SetFunctionPointer( hModule_winmm, ( void ** )&_mciSendStringW, "mciSendStringW" ) )
 
 		winmm_state = WINMM_STATE_RUNNING;
 

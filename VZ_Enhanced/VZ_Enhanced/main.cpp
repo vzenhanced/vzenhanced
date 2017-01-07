@@ -1,6 +1,6 @@
 /*
 	VZ Enhanced is a caller ID notifier that can forward and block phone calls.
-	Copyright (C) 2013-2016 Eric Kutcher
+	Copyright (C) 2013-2017 Eric Kutcher
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -60,6 +60,9 @@ int row_height = 0;
 wchar_t *base_directory = NULL;
 unsigned int base_directory_length = 0;
 
+wchar_t *app_directory = NULL;
+unsigned int app_directory_length = 0;
+
 #ifndef NTDLL_USE_STATIC_LIB
 int APIENTRY _WinMain()
 #else
@@ -90,7 +93,13 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	MSG msg;
 	_memzero( &msg, sizeof( MSG ) );
 
-	base_directory = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * MAX_PATH );
+	base_directory = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
+
+	app_directory = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
+
+	app_directory_length = GetModuleFileNameW( NULL, app_directory, MAX_PATH );
+
+	while ( app_directory_length != 0 && app_directory[ --app_directory_length ] != L'\\' );
 
 	// Get the new base directory if the user supplied a path.
 	bool default_directory = true;
@@ -101,7 +110,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		// The first parameter is the path to the executable, second is our switch "-d", and third is the new base directory path.
 		if ( argCount == 3 &&
 			 szArgList[ 1 ][ 0 ] == L'-' && szArgList[ 1 ][ 1 ] == L'd' && szArgList[ 1 ][ 2 ] == 0 &&
-			 GetFileAttributes( szArgList[ 2 ] ) == FILE_ATTRIBUTE_DIRECTORY )
+			 GetFileAttributesW( szArgList[ 2 ] ) == FILE_ATTRIBUTE_DIRECTORY )
 		{
 			base_directory_length = lstrlenW( szArgList[ 2 ] );
 			if ( base_directory_length >= MAX_PATH )
@@ -109,6 +118,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 				base_directory_length = MAX_PATH - 1;
 			}
 			_wmemcpy_s( base_directory, MAX_PATH, szArgList[ 2 ], base_directory_length );
+			base_directory[ base_directory_length ] = 0;	// Sanity.
+
+			default_directory = false;
+		}
+		else if ( argCount == 2 &&
+				  szArgList[ 1 ][ 0 ] == L'-' && szArgList[ 1 ][ 1 ] == L'p' )	// Portable mode (use the application's current directory for our base directory).
+		{
+			base_directory_length = app_directory_length;
+			_wmemcpy_s( base_directory, MAX_PATH, app_directory, base_directory_length );
 			base_directory[ base_directory_length ] = 0;	// Sanity.
 
 			default_directory = false;
@@ -129,9 +147,9 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		base_directory[ base_directory_length ] = 0;	// Sanity.
 
 		// Check to see if the new path exists and create it if it doesn't.
-		if ( GetFileAttributes( base_directory ) == INVALID_FILE_ATTRIBUTES )
+		if ( GetFileAttributesW( base_directory ) == INVALID_FILE_ATTRIBUTES )
 		{
-			CreateDirectory( base_directory, NULL );
+			CreateDirectoryW( base_directory, NULL );
 		}
 	}
 
@@ -167,6 +185,12 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	// Blocks threads from adding/removing from the message log queue.
 	InitializeCriticalSection( &ml_queue_cs );
+
+	// Blocks our ringtone update thread.
+	InitializeCriticalSection( &ringtone_update_cs );
+
+	// Blocks threads from adding/removing from the ringtone queue.
+	InitializeCriticalSection( &ringtone_queue_cs );
 
 	// Blocks threads from auto saving our call log and lists.
 	InitializeCriticalSection( &auto_save_cs );
@@ -215,14 +239,14 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\ignore_phone_numbers\0", 22 );
 	base_directory[ base_directory_length + 21 ] = 0;	// Sanity.
 
-	ignore_list = dllrbt_create( dllrbt_compare );
+	ignore_list = dllrbt_create( dllrbt_compare_a );
 
 	read_ignore_list( base_directory, ignore_list );
 
 	_wmemcpy_s( base_directory + base_directory_length, MAX_PATH - base_directory_length, L"\\forward_phone_numbers\0", 23 );
 	base_directory[ base_directory_length + 22 ] = 0;	// Sanity.
 
-	forward_list = dllrbt_create( dllrbt_compare );
+	forward_list = dllrbt_create( dllrbt_compare_a );
 
 	read_forward_list( base_directory, forward_list );
 
@@ -241,9 +265,11 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	read_forward_cid_list( base_directory, forward_cid_list );
 
 	// Create a tree of linked lists. Each linked list contains a list of displayinfo structs that share the same "call from" phone number.
-	call_log = dllrbt_create( dllrbt_compare );
+	call_log = dllrbt_create( dllrbt_compare_a );
 
-	contact_list = dllrbt_create( dllrbt_compare );
+	contact_list = dllrbt_create( dllrbt_compare_a );
+
+	ringtone_list = dllrbt_create( dllrbt_compare_w );
 
 	if ( web_server_state == WEB_SERVER_STATE_RUNNING )
 	{
@@ -624,13 +650,32 @@ CLEANUP:
 		GlobalFree( cfg_popup_font_face3 );
 	}
 
-	if ( cfg_popup_sound != NULL )
+	if ( cfg_popup_ringtone != NULL )
 	{
-		GlobalFree( cfg_popup_sound );
+		GlobalFree( cfg_popup_ringtone );
 	}
 
+	// Free the values of the ringtone_list.
+	node_type *node = dllrbt_get_head( ringtone_list );
+	while ( node != NULL )
+	{
+		ringtoneinfo *rti = ( ringtoneinfo * )node->val;
+
+		if ( rti != NULL )
+		{
+			// ringtone_file points to the same memory as ringtone_path. So don't free it.
+			GlobalFree( rti->ringtone_path );
+			GlobalFree( rti );
+		}
+
+		node = node->next;
+	}
+
+	dllrbt_delete_recursively( ringtone_list );
+	ringtone_list = NULL;
+
 	// Free the values of the ignore_list.
-	node_type *node = dllrbt_get_head( ignore_list );
+	node = dllrbt_get_head( ignore_list );
 	while ( node != NULL )
 	{
 		ignoreinfo *ii = ( ignoreinfo * )node->val;
@@ -752,6 +797,11 @@ CLEANUP:
 		GlobalFree( base_directory );
 	}
 
+	if ( app_directory != NULL )
+	{
+		GlobalFree( app_directory );
+	}
+
 	// Delete our font.
 	_DeleteObject( hFont );
 
@@ -765,6 +815,8 @@ CLEANUP:
 	DeleteCriticalSection( &ml_cs );	// Message log actions
 	DeleteCriticalSection( &ml_update_cs );	// Message log updates
 	DeleteCriticalSection( &ml_queue_cs );	// Message log queue operations
+	DeleteCriticalSection( &ringtone_update_cs );	// Ringtone updates
+	DeleteCriticalSection( &ringtone_queue_cs );	// Ringtone queue operations
 	DeleteCriticalSection( &auto_save_cs );	// Auto save call log and lists
 
 	if ( fail_type == 1 )
