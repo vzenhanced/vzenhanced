@@ -433,6 +433,8 @@ struct sortinfo
 
 // These are all variables that are shared among the separate .cpp files.
 
+extern SYSTEMTIME g_compile_time;
+
 // Object handles.
 extern HWND g_hWnd_main;				// Handle to our main window.
 extern HWND g_hWnd_login;				// Handle to our login window.

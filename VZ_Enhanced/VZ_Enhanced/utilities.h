@@ -70,6 +70,7 @@ void cleanup_custom_caller_id();
 
 wchar_t *GetMonth( unsigned short month );
 wchar_t *GetDay( unsigned short day );
+void UnixTimeToSystemTime( DWORD t, SYSTEMTIME *st );
 char *url_encode( char *str, unsigned int str_len, unsigned int *enc_len = 0 );
 char is_num( const char *str );
 

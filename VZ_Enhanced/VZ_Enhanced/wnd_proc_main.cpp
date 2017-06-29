@@ -1461,6 +1461,8 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					case MENU_COPY_SEL_COL6:
 					case MENU_COPY_SEL_COL7:
 					case MENU_COPY_SEL_COL8:
+					case MENU_COPY_SEL_COL9:
+					case MENU_COPY_SEL_COL10:
 					case MENU_COPY_SEL_COL21:
 					case MENU_COPY_SEL_COL22:
 					case MENU_COPY_SEL_COL23:
@@ -1708,7 +1710,6 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					case MENU_SEARCH_WITH_7:
 					case MENU_SEARCH_WITH_8:
 					case MENU_SEARCH_WITH_9:
-					case MENU_SEARCH_WITH_10:
 					{
 						MENUITEMINFO mii;
 						_memzero( &mii, sizeof( MENUITEMINFO ) );
@@ -1730,14 +1731,13 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 						{
 							case MENU_SEARCH_WITH_1: { __snwprintf( url, 128, L"http://800notes.com/Phone.aspx/%S", SAFESTRA( phone_number ) ); } break;
 							case MENU_SEARCH_WITH_2: { __snwprintf( url, 128, L"https://www.bing.com/search?q=%S", SAFESTRA( phone_number ) ); } break;
-							case MENU_SEARCH_WITH_3: { __snwprintf( url, 128, L"http://www.callercomplaints.com/SearchResult.aspx?Phone=%S", SAFESTRA( phone_number ) ); } break;
-							case MENU_SEARCH_WITH_4: { __snwprintf( url, 128, L"http://callerr.com/%S", SAFESTRA( phone_number ) ); } break;
-							case MENU_SEARCH_WITH_5: { __snwprintf( url, 128, L"https://www.google.com/search?&q=%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_3: { __snwprintf( url, 128, L"http://callerr.com/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_4: { __snwprintf( url, 128, L"https://www.google.com/search?&q=%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_5: { __snwprintf( url, 128, L"http://www.okcaller.com/detail.php?number=%S", SAFESTRA( phone_number ) ); } break;
 							case MENU_SEARCH_WITH_6: { __snwprintf( url, 128, L"https://www.phonetray.com/lookup/Number/%S", SAFESTRA( phone_number ) ); } break;
-							case MENU_SEARCH_WITH_7: { __snwprintf( url, 128, L"http://safecaller.com/%S", SAFESTRA( phone_number ) ); } break;
-							case MENU_SEARCH_WITH_8: { __snwprintf( url, 128, L"http://www.whitepages.com/phone/%S", SAFESTRA( phone_number ) ); } break;
-							case MENU_SEARCH_WITH_9: { __snwprintf( url, 128, L"http://whocallsme.com/Phone-Number.aspx/%S", SAFESTRA( phone_number ) ); } break;
-							case MENU_SEARCH_WITH_10: { __snwprintf( url, 128, L"http://www.whycall.me/%S.html", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_7: { __snwprintf( url, 128, L"http://www.whitepages.com/phone/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_8: { __snwprintf( url, 128, L"http://whocallsme.com/Phone-Number.aspx/%S", SAFESTRA( phone_number ) ); } break;
+							case MENU_SEARCH_WITH_9: { __snwprintf( url, 128, L"http://www.whycall.me/%S.html", SAFESTRA( phone_number ) ); } break;
 						}
 
 						bool destroy = true;
@@ -2520,7 +2520,13 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_ABOUT:
 					{
-						_MessageBoxW( hWnd, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\nVersion 1.0.2.6\r\n\r\nCopyright \xA9 2013-2017 Eric Kutcher", PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
+						wchar_t msg[ 512 ];
+						__snwprintf( msg, 512, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\n" \
+											   L"Version 1.0.2.7\r\n\r\n" \
+											   L"Built on %s, %s %d, %04d %d:%02d:%02d %s (UTC)\r\n\r\n" \
+											   L"Copyright \xA9 2013-2017 Eric Kutcher", GetDay( g_compile_time.wDayOfWeek ), GetMonth( g_compile_time.wMonth ), g_compile_time.wDay, g_compile_time.wYear, ( g_compile_time.wHour > 12 ? g_compile_time.wHour - 12 : ( g_compile_time.wHour != 0 ? g_compile_time.wHour : 12 ) ), g_compile_time.wMinute, g_compile_time.wSecond, ( g_compile_time.wHour >= 12 ? L"PM" : L"AM" ) );
+
+						_MessageBoxW( hWnd, msg, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
 					}
 					break;
 
@@ -2665,14 +2671,14 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, contact_list_columns, NUM_COLUMNS2 );
 							return TRUE;
 						}
-						else if ( hWnd_parent == g_hWnd_ignore_list && *ignore_list_columns[ 0 ] != -1 )
-						{
-							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, ignore_list_columns, NUM_COLUMNS3 );
-							return TRUE;
-						}
 						else if ( hWnd_parent == g_hWnd_forward_list && *forward_list_columns[ 0 ] != -1 )
 						{
-							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, forward_list_columns, NUM_COLUMNS4 );
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, forward_list_columns, NUM_COLUMNS3 );
+							return TRUE;
+						}
+						else if ( hWnd_parent == g_hWnd_ignore_list && *ignore_list_columns[ 0 ] != -1 )
+						{
+							nmh->pitem->iOrder = GetColumnIndexFromVirtualIndex( nmh->iItem, ignore_list_columns, NUM_COLUMNS4 );
 							return TRUE;
 						}
 						else if ( hWnd_parent == g_hWnd_forward_cid_list && *forward_cid_list_columns[ 0 ] != -1 )

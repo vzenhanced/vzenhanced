@@ -43,6 +43,8 @@
 	#define BASE_DIRECTORY_FLAG CSIDL_LOCAL_APPDATA
 #endif
 
+SYSTEMTIME g_compile_time;
+
 // We want to get these objects before the window is shown.
 
 // Object variables
@@ -88,6 +90,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	#ifndef SHELL32_USE_STATIC_LIB
 		if ( !InitializeShell32() ){ goto UNLOAD_DLLS; }
 	#endif
+
+	_memzero( &g_compile_time, sizeof( SYSTEMTIME ) );
+	if ( hInstance != NULL )
+	{
+		IMAGE_DOS_HEADER *idh = ( IMAGE_DOS_HEADER * )hInstance;
+		IMAGE_NT_HEADERS *inth = ( IMAGE_NT_HEADERS * )( ( BYTE * )idh + idh->e_lfanew );
+
+		UnixTimeToSystemTime( inth->FileHeader.TimeDateStamp, &g_compile_time );
+	}
 
 	unsigned char fail_type = 0;
 	MSG msg;

@@ -726,14 +726,11 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 						if ( info_changed || picture_changed || remove_picture )
 						{
 							updateinfo *ui = ( updateinfo * )GlobalAlloc( GMEM_FIXED, sizeof( updateinfo ) );
-							ui->old_ci = NULL;
-							ui->new_ci = NULL;
+							ui->old_ci = edit_ci;
+							ui->new_ci = ci;
 							ui->remove_picture = remove_picture;
 
 							ui->picture_only = !info_changed;	// If info_changed is false, then only update the picture, else, update the info and/or the picture.
-
-							ui->old_ci = edit_ci;
-							ui->new_ci = ci;
 
 							// Attempt to update this contact.
 							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, UpdateContactInformation, ( void * )ui, 0, NULL ) );

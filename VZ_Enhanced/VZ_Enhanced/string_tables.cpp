@@ -178,11 +178,10 @@ wchar_t *search_string_table[] =
 {
 	L"800Notes",
 	L"Bing",
-	L"CallerComplaints",
 	L"Callerr",
 	L"Google",
+	L"OkCaller",
 	L"PhoneTray",
-	L"SafeCaller",
 	L"WhitePages",
 	L"WhoCallsMe",
 	L"WhyCall.me"

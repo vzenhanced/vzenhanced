@@ -186,18 +186,18 @@ void CreateMenus()
 	mii.wID = MENU_SEARCH_WITH_2;
 	_InsertMenuItemW( g_hMenuSub_search, 1, TRUE, &mii );
 
-	mii.dwTypeData = ST_CallerComplaints;
-	mii.cch = 16;
+	mii.dwTypeData = ST_Callerr;
+	mii.cch = 7;
 	mii.wID = MENU_SEARCH_WITH_3;
 	_InsertMenuItemW( g_hMenuSub_search, 2, TRUE, &mii );
 
-	mii.dwTypeData = ST_Callerr;
-	mii.cch = 7;
+	mii.dwTypeData = ST_Google;
+	mii.cch = 6;
 	mii.wID = MENU_SEARCH_WITH_4;
 	_InsertMenuItemW( g_hMenuSub_search, 3, TRUE, &mii );
 
-	mii.dwTypeData = ST_Google;
-	mii.cch = 6;
+	mii.dwTypeData = ST_OkCaller;
+	mii.cch = 8;
 	mii.wID = MENU_SEARCH_WITH_5;
 	_InsertMenuItemW( g_hMenuSub_search, 4, TRUE, &mii );
 
@@ -206,25 +206,20 @@ void CreateMenus()
 	mii.wID = MENU_SEARCH_WITH_6;
 	_InsertMenuItemW( g_hMenuSub_search, 5, TRUE, &mii );
 
-	mii.dwTypeData = ST_SafeCaller;
+	mii.dwTypeData = ST_WhitePages;
 	mii.cch = 10;
 	mii.wID = MENU_SEARCH_WITH_7;
 	_InsertMenuItemW( g_hMenuSub_search, 6, TRUE, &mii );
 
-	mii.dwTypeData = ST_WhitePages;
+	mii.dwTypeData = ST_WhoCallsMe;
 	mii.cch = 10;
 	mii.wID = MENU_SEARCH_WITH_8;
 	_InsertMenuItemW( g_hMenuSub_search, 7, TRUE, &mii );
 
-	mii.dwTypeData = ST_WhoCallsMe;
+	mii.dwTypeData = ST_WhyCall_me;
 	mii.cch = 10;
 	mii.wID = MENU_SEARCH_WITH_9;
 	_InsertMenuItemW( g_hMenuSub_search, 8, TRUE, &mii );
-
-	mii.dwTypeData = ST_WhyCall_me;
-	mii.cch = 10;
-	mii.wID = MENU_SEARCH_WITH_10;
-	_InsertMenuItemW( g_hMenuSub_search, 9, TRUE, &mii );
 
 
 	// EDIT MENUS
@@ -1046,7 +1041,7 @@ void HandleRightClick( HWND hWnd )
 						l_incoming_menu_showing = true;
 					}
 				}
-				else	// If it's greater than 20 seconds, then remove the menus and disable them from showing again.
+				else	// If it's greater than 30 seconds, then remove the menus and disable them from showing again.
 				{
 					if ( l_incoming_menu_showing )
 					{

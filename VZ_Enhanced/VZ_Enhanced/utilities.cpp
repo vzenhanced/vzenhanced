@@ -508,6 +508,30 @@ wchar_t *GetDay( unsigned short day )
 	return day_string_table[ day ];
 }
 
+void UnixTimeToSystemTime( DWORD t, SYSTEMTIME *st )
+{
+	FILETIME ft;
+	LARGE_INTEGER li;
+
+	// Multipy our time and store the 64bit integer. It's located in edx:eax
+	__asm
+	{
+		mov eax, t;
+		mov ecx, 10000000;
+		mul ecx;
+
+		mov li.HighPart, edx;
+		mov li.LowPart, eax;
+	}
+
+	li.QuadPart += 116444736000000000;
+
+	ft.dwLowDateTime = li.LowPart;
+	ft.dwHighDateTime = li.HighPart;
+
+	FileTimeToSystemTime( &ft, st );
+}
+
 void free_displayinfo( displayinfo **di )
 {
 	// Free the strings in our info structure.

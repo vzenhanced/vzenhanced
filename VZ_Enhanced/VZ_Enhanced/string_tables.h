@@ -360,14 +360,13 @@ extern wchar_t *search_string_table[];
 
 #define ST_800Notes								search_string_table[ 0 ]
 #define ST_Bing									search_string_table[ 1 ]
-#define ST_CallerComplaints						search_string_table[ 2 ]
-#define ST_Callerr								search_string_table[ 3 ]
-#define ST_Google								search_string_table[ 4 ]
+#define ST_Callerr								search_string_table[ 2 ]
+#define ST_Google								search_string_table[ 3 ]
+#define ST_OkCaller								search_string_table[ 4 ]
 #define ST_PhoneTray							search_string_table[ 5 ]
-#define ST_SafeCaller							search_string_table[ 6 ]
-#define ST_WhitePages							search_string_table[ 7 ]
-#define ST_WhoCallsMe							search_string_table[ 8 ]
-#define ST_WhyCall_me							search_string_table[ 9 ]
+#define ST_WhitePages							search_string_table[ 6 ]
+#define ST_WhoCallsMe							search_string_table[ 7 ]
+#define ST_WhyCall_me							search_string_table[ 8 ]
 
 extern wchar_t *options_string_table[];
 
