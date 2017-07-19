@@ -54,8 +54,10 @@ struct UPLOAD_INFO
 
 struct UPDATE_CHECK_INFO
 {
+	char *notes;
 	char *download_url;
-	bool notify;
+	unsigned long version;
+	bool got_update;
 };
 
 struct CONNECTION

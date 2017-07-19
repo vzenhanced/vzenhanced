@@ -165,9 +165,25 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	}
 
 	// We want the base directory to be set before calling InitializeWebServerDLL so that the dll can use the same path.
-	if ( InitializeWebServer() && !InitializeWebServerDLL( base_directory ) )
+	if ( InitializeWebServer() )
 	{
-		UnInitializeWebServer();	// This will also perform UnInitializeWebServerDLL.
+		// Check the plugin's version number.
+		// We should only really change this value if the shared objects change.
+		if ( GetWebServerVersionNumber() < 1023 )
+		{
+			_MessageBoxA( NULL, "The Web Server plugin must be version 1.0.2.3 or higher.", PROGRAM_CAPTION_A, MB_ICONWARNING );
+
+			UnInitializeWebServer();
+		}
+		else	// We support the web server's version.
+		{
+			if ( !InitializeWebServerDLL( base_directory ) )
+			{
+				UnInitializeWebServerDLL();
+
+				UnInitializeWebServer();
+			}
+		}
 	}
 
 	// Blocks our reading thread and various GUI operations.
@@ -380,6 +396,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	wcex.lpfnWndProc    = MessageLogWndProc;
 	wcex.lpszClassName  = L"message_log";
+
+	if ( !_RegisterClassExW( &wcex ) )
+	{
+		fail_type = 1;
+		goto CLEANUP;
+	}
+
+	wcex.lpfnWndProc    = UpdateWndProc;
+	wcex.lpszClassName  = L"update";
 
 	if ( !_RegisterClassExW( &wcex ) )
 	{

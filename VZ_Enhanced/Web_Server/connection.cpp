@@ -1471,7 +1471,7 @@ SOCKET_CONTEXT *UpdateCompletionPort( SOCKET sd, IO_OPERATION ClientIo, bool bIs
 
 		InitializeCriticalSection( &socket_context->write_cs );
 
-		g_hIOCP = CreateIoCompletionPort( ( HANDLE )sd, g_hIOCP, ( DWORD_PTR )socket_context, 0 );
+		g_hIOCP = CreateIoCompletionPort( ( HANDLE )sd, g_hIOCP, ( ULONG_PTR )socket_context, 0 );
 		if ( g_hIOCP == NULL )
 		{
 			if ( socket_context->ssl != NULL )

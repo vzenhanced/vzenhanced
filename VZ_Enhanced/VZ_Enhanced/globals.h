@@ -155,7 +155,7 @@ struct displayinfo
 
 	ULARGE_INTEGER time;
 
-	ringtoneinfo *ringtone_info;
+	contactinfo *contact_info;
 
 	unsigned int forward_cid_match_count;	// Number of forward cid matches.
 	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.
@@ -448,6 +448,7 @@ extern HWND g_hWnd_ignore_phone_number;
 extern HWND g_hWnd_forward_cid;
 extern HWND g_hWnd_ignore_cid;
 extern HWND g_hWnd_message_log;
+extern HWND g_hWnd_update;
 extern HWND g_hWnd_phone_lines;
 extern HWND g_hWnd_call_log;				// Handle to the call log listview control.
 extern HWND g_hWnd_contact_list;
@@ -548,6 +549,7 @@ extern dllrbt_tree *contact_list;
 extern dllrbt_tree *call_log;
 extern bool call_log_changed;
 
+extern unsigned char update_check_state;
 
 extern unsigned char total_tabs;
 
@@ -600,6 +602,7 @@ extern bool cfg_popup_hide_border;
 extern int cfg_popup_width;
 extern int cfg_popup_height;
 extern unsigned char cfg_popup_position;
+extern bool cfg_popup_show_contact_picture;
 extern unsigned short cfg_popup_time;
 extern unsigned char cfg_popup_transparency;
 extern bool cfg_popup_gradient;
@@ -785,8 +788,18 @@ struct WINDOW_SETTINGS
 	bool is_dragging;
 };
 
+struct CONTACT_PICTURE_INFO
+{
+	wchar_t *picture_path;
+	HBITMAP picture;
+	unsigned int height;
+	unsigned int width;
+	bool free_picture_path;	// Used for previewing.
+};
+
 struct SHARED_SETTINGS	// These are settings that the popup window will need.
 {
+	CONTACT_PICTURE_INFO contact_picture_info;
 	COLORREF popup_background_color1;
 	COLORREF popup_background_color2;
 	ringtoneinfo *ringtone_info;

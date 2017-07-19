@@ -30,12 +30,12 @@
 
 // This header value is for the non-standard "App-Name" header field, and is required by the VPNS server.
 // Seems it's only needed when registering and requesting account information.
-#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.7"
+#define APPLICATION_NAME	"VZ-Enhanced-1.0.2.8"
 //#define APPLICATION_NAME	"VoiceZone-Air-1.5.0.16"
 
 #define REFERER				"app:/voicezone.html"
 
-#define USER_AGENT			"VZ-Enhanced/1.0.2.7"
+#define USER_AGENT			"VZ-Enhanced/1.0.2.8"
 //#define USER_AGENT		"Mozilla/5.0 (Windows; U; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) AdobeAIR/4.0"
 
 #define ORIGIN				"app://"
@@ -45,7 +45,7 @@
 #define DEFAULT_PORT		80
 #define DEFAULT_PORT_SECURE	443
 
-#define CURRENT_VERSION		1027
+#define CURRENT_VERSION		1028
 #define VERSION_URL			"https://sites.google.com/site/vzenhanced/version.txt"
 
 CRITICAL_SECTION ct_cs;				// Queues additional connection threads.
@@ -1042,7 +1042,7 @@ int Try_Send_Receive( CONNECTION *con, char *host, char *resource /*for logging 
 	return -1;
 }
 
-void GetVersionNumber( char *version_url, unsigned int &version, char **download_url )
+void GetVersionInfo( char *version_url, unsigned long &version, char **download_url, char **notes )
 {
 	char *resource = NULL;
 	char *host = NULL;
@@ -1056,8 +1056,6 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 	int send_buffer_length = 0;
 
 	char *version_send_buffer = NULL;
-
-	_SetWindowTextW( g_hWnd_main, L"VZ Enhanced - Checking for updates..." );
 
 	if ( !ParseURL( version_url, &host, &resource ) )
 	{
@@ -1121,22 +1119,50 @@ void GetVersionNumber( char *version_url, unsigned int &version, char **download
 		char *file = _StrStrA( response, "\r\n\r\n" );
 		if ( file != NULL )
 		{
-			file += 4;
+			char *line_start = file + 4;
 
-			char *version_end = _StrStrA( file, "\r\n" );
-			if ( version_end != NULL )
+			// Find the end of the version number line.
+			char *line_end = _StrStrA( line_start, "\r\n" );
+			if ( line_end != NULL )
 			{
-				*version_end = 0;
-				version_end += 2;
+				*line_end = 0;
 
-				version = _strtoul( file, NULL, 10 );
+				version = _strtoul( line_start, NULL, 10 );
 
-				if ( content_length >= ( unsigned int )( version_end - file ) )
+				line_start = line_end + 2;
+
+				// Find the end of the download url line.
+				line_end = _StrStrA( line_start, "\r\n" );
+				if ( line_end != NULL )
 				{
-					unsigned int download_url_length = ( content_length - ( version_end - file ) );
+					*line_end = 0;
+
+					unsigned int download_url_length = ( line_end - line_start );
 
 					*download_url = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( download_url_length + 1 ) );
-					_memcpy_s( *download_url, download_url_length + 1, version_end, download_url_length );
+					_memcpy_s( *download_url, download_url_length + 1, line_start, download_url_length );
+
+					*( *download_url + download_url_length ) = 0;	// Sanity.
+
+					line_start = line_end + 2;
+
+					// Find the notes block.
+					if ( content_length >= ( unsigned int )( line_start - ( file + 4 ) ) )
+					{
+						unsigned int notes_length = ( content_length - ( line_start - ( file + 4 ) ) );
+
+						*notes = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( notes_length + 1 ) );
+						_memcpy_s( *notes, notes_length + 1, line_start, notes_length );
+
+						*( *notes + notes_length ) = 0;	// Sanity.
+					}
+				}
+				else if ( content_length >= ( unsigned int )( line_start - ( file + 4 ) ) )	// There's no notes section. Just get the download url.
+				{
+					unsigned int download_url_length = ( content_length - ( line_start - ( file + 4 ) ) );
+
+					*download_url = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * ( download_url_length + 1 ) );
+					_memcpy_s( *download_url, download_url_length + 1, line_start, download_url_length );
 
 					*( *download_url + download_url_length ) = 0;	// Sanity.
 				}
@@ -1152,8 +1178,6 @@ CLEANUP:
 	GlobalFree( resource );
 	GlobalFree( host );
 	GlobalFree( version_send_buffer );
-
-	_SetWindowTextW( g_hWnd_main, PROGRAM_CAPTION );
 }
 
 bool DownloadUpdate( char *download_url )
@@ -1174,8 +1198,6 @@ bool DownloadUpdate( char *download_url )
 	wchar_t *file_path = NULL;
 
 	bool update_status = false;
-
-	_SetWindowTextW( g_hWnd_main, L"VZ Enhanced - Downloading update..." );
 
 	if ( !ParseURL( download_url, &host, &resource ) )
 	{
@@ -1265,8 +1287,6 @@ bool DownloadUpdate( char *download_url )
 
 			update_status = true;
 
-			_SetWindowTextW( g_hWnd_main, PROGRAM_CAPTION );
-
 			OPENFILENAME ofn;
 			_memzero( &ofn, sizeof( OPENFILENAME ) );
 			ofn.lStructSize = sizeof( OPENFILENAME );
@@ -1306,8 +1326,6 @@ CLEANUP:
 	GlobalFree( download_buffer );
 	GlobalFree( file_path );
 
-	_SetWindowTextW( g_hWnd_main, PROGRAM_CAPTION );
-
 	return update_status;
 }
 
@@ -1327,79 +1345,66 @@ THREAD_RETURN CheckForUpdates( void *pArguments )
 
 	update_con.state = CONNECTION_ACTIVE;
 
-	// Check the version.txt file.
-	if ( update_info->download_url == NULL )
+	// Check the version2.txt file.
+	if ( !update_info->got_update )
 	{
-		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Checking_for_updates )
+		//MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Checking_for_updates )
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Checking_for_updates___ )
 
-		unsigned int new_version = 0;
+		GetVersionInfo( VERSION_URL, update_info->version, &( update_info->download_url ), &( update_info->notes ) );
 
-		_EnableMenuItem( g_hMenu, MENU_CHECK_FOR_UPDATES, MF_DISABLED );
+		update_info->got_update = true;
 
-		GetVersionNumber( VERSION_URL, new_version, &( update_info->download_url ) );
-
-		_EnableMenuItem( g_hMenu, MENU_CHECK_FOR_UPDATES, MF_ENABLED );
-
-		if ( new_version == CURRENT_VERSION )
+		if ( update_info->version == CURRENT_VERSION )
 		{
-			if ( update_info->notify )
-			{
-				// Up to date
-				if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 0, NULL ); }
-			}
+			// Up to date.
+			_SendMessageW( g_hWnd_update, WM_PROPAGATE, 0, 0 );
 
-			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_The_program_is_up_to_date )
+			//MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_The_program_is_up_to_date )
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_VZ_Enhanced_is_up_to_date_ )
 		}
-		else if ( new_version > CURRENT_VERSION )
+		else if ( update_info->version > CURRENT_VERSION )
 		{
-			// update_info is freed in WM_ALERT, or passed back to this function to download and then freed.
-			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL )
-			{
-				UPDATE_CHECK_INFO *t_update_info = update_info;
+			// update_info is freed in in the update window, or passed back to this function to download and then freed.
+			_SendMessageW( g_hWnd_update, WM_PROPAGATE, 1, ( LPARAM )update_info );
 
-				update_info = NULL;
+			update_info = NULL;	// We don't want to free this below since it was passed to the update window.
 
-				_SendNotifyMessageW( g_hWnd_main, WM_ALERT, 1, ( LPARAM )t_update_info );
-			}
-
-			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_A_new_version_of_the_program_is_available )
+			//MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_A_new_version_of_the_program_is_available )
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_A_new_version_is_available_ )
 		}
 		else
 		{
-			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 2, NULL ); }
+			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_update, WM_ALERT, 0, NULL ); }
 
-			MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_update_check_could_not_be_completed )
+			//MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_update_check_could_not_be_completed )
+			MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_update_check_has_failed_ )
 		}
 	}
 	else	// If we have a download url, then get the file.
 	{
-		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloading_update )
+		//MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloading_update )
+		MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloading_the_update___ )
 
-		MENUITEMINFO mii;
-		_memzero( &mii, sizeof( MENUITEMINFO ) );
-		mii.cbSize = sizeof( MENUITEMINFO );
-		mii.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
-		mii.fType = MFT_STRING;
-		mii.dwTypeData = ST_Cancel_Update_Download;
-		mii.cch = 13;
-		mii.wID = MENU_CHECK_FOR_UPDATES;
-		mii.fState = MFS_ENABLED;
-		_SetMenuItemInfoW( g_hMenu, MENU_CHECK_FOR_UPDATES, FALSE, &mii );
+		// Disable download button.
+		_SendMessageW( g_hWnd_update, WM_PROPAGATE, 2, 0 );	// Downloading.
 
 		if ( !DownloadUpdate( update_info->download_url ) )
 		{
-			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_main, WM_ALERT, 3, NULL ); }
+			// Will also enable and hide download button.
+			if ( update_con.state != CONNECTION_KILL && update_con.state != CONNECTION_CANCEL ){ _SendNotifyMessageW( g_hWnd_update, WM_ALERT, 1, NULL ); }
 
-			MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_download_could_not_be_completed )
+			//MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_download_could_not_be_completed )
+			MESSAGE_LOG_OUTPUT( ML_WARNING, ST_The_download_has_failed_ )
 		}
 		else
 		{
-			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloaded_update )
-		}
+			// Enable and hide download button.
+			_SendMessageW( g_hWnd_update, WM_PROPAGATE, 3, 0 );	// Downloaded successfully.
 
-		mii.dwTypeData = ST_Check_for__Updates;
-		mii.cch = 18;
-		_SetMenuItemInfoW( g_hMenu, MENU_CHECK_FOR_UPDATES, FALSE, &mii );
+			//MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_Downloaded_update )
+			MESSAGE_LOG_OUTPUT( ML_NOTICE, ST_The_download_has_completed_ )
+		}
 	}
 
 CLEANUP:
@@ -1409,6 +1414,7 @@ CLEANUP:
 
 	if ( update_info != NULL )
 	{
+		GlobalFree( update_info->notes );
 		GlobalFree( update_info->download_url );
 		GlobalFree( update_info );
 	}

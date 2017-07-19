@@ -182,6 +182,12 @@ void UpdateCallLog( displayinfo *di )
 }
 
 extern "C" __declspec ( dllexport )
+unsigned int GetVersionNumber()
+{
+	return VERSION_NUMBER;
+}
+
+extern "C" __declspec ( dllexport )
 bool InitializeWebServerDLL( wchar_t *directory )
 {
 	#ifndef USER32_USE_STATIC_LIB

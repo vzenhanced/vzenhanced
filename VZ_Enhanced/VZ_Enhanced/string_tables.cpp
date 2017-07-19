@@ -76,7 +76,7 @@ wchar_t *menu_string_table[] =
 	L"Call Sent to Phone Number...",
 	L"Call Work Phone Number...",
 	L"Cancel Import",
-	L"Cancel Update Download",
+	/*L"Cancel Update Download",*/
 	L"Check for &Updates",
 	L"Close Tab",
 	L"Contacts",
@@ -190,7 +190,7 @@ wchar_t *search_string_table[] =
 wchar_t *common_message_string_table[] =
 {
 	L"A contact update is in progress.\r\n\r\nWould you like to cancel the update?",
-	L"A new version of VZ Enhanced is available.\r\n\r\nWould you like to download it now?",
+	/*L"A new version of VZ Enhanced is available.\r\n\r\nWould you like to download it now?",*/
 	L"Are you sure you want to delete this contact?",
 	L"Are you sure you want to remove the selected entries?",
 	L"Are you sure you want to remove the selected entries from the forward caller ID name list?",
@@ -218,7 +218,7 @@ wchar_t *common_message_string_table[] =
 	/*L"The Message Log thread is still running.\r\n\r\nPlease wait for it to terminate, or restart the program.",*/
 	L"The update check could not be completed.\r\n\r\nWould you like to visit the VZ Enhanced home page instead?",
 	L"Tree-View image list was not destroyed.",
-	L"VZ Enhanced is up to date.",
+	/*L"VZ Enhanced is up to date.",*/
 	L"You must have at least one column displayed.",
 	L"You must restart the program for this setting to take effect.",
 	L"You must supply a password to log in.",
@@ -286,6 +286,28 @@ wchar_t *login_string_table[] =
 	L"Select the phone number you wish to log in with."
 };
 
+wchar_t *update_string_table[] =
+{
+	L"A new version is available.",
+	L"Checking for updates...",
+	L"Checking For Updates...",
+	L"Download Complete",
+	L"Download Failed",
+	L"Download Update",
+	L"[DOWNLOAD URL]\r\n",
+	L"Downloading the update...",
+	L"Downloading Update...",
+	L"Incomplete Download",
+	L"[NOTES]\r\n",
+	L"The download has completed.",
+	L"The download has failed.",
+	L"The update check has failed.",
+	L"Up To Date",
+	L"Update Check Failed",
+	L"[VERSION]\r\n",
+	L"VZ Enhanced is up to date."
+};
+
 wchar_t *options_string_table[] =
 {
 	L"...",
@@ -330,6 +352,7 @@ wchar_t *options_string_table[] =
 	L"Right",
 	/*L"Sample:",*/
 	L"Screen Position:",
+	L"Show contact picture",
 	L"Show line:",
 	L"Silent startup",
 	L"SSL 2.0",
@@ -478,17 +501,17 @@ wchar_t *common_string_table[] =
 wchar_t *connection_string_table[] =
 {
 	L"A connection could not be established.\r\n\r\nPlease check your network connection and try again.",
-	L"A new version of the program is available.",
+	/*L"A new version of the program is available.",*/
 	L"Added contact.",
 	L"Adding contact.",
-	L"Checking for updates.",
+	/*L"Checking for updates.",*/
 	L"Closed connection.",
 	L"Deleted contact.",
 	L"Deleting contact.",
 	L"Downloaded contact picture(s).",
-	L"Downloaded update.",
+	/*L"Downloaded update.",*/
 	L"Downloading contact picture(s).",
-	L"Downloading update.",
+	/*L"Downloading update.",*/
 	L"Exported contact list.",
 	L"Exporting contact list.",
 	/*L"Failed to connect to SAML server.",
@@ -538,10 +561,10 @@ wchar_t *connection_string_table[] =
 	L"Requesting contact list.",
 	L"Requesting contact picture location(s).",
 	L"Subscribing to available services.",
-	L"The download could not be completed.",
+	/*L"The download could not be completed.",*/
 	L"The login was unsuccessful.\r\n\r\nPlease check your username and password and try again.",
-	L"The program is up to date.",
-	L"The update check could not be completed.",
+	/*L"The program is up to date.",*/
+	/*L"The update check could not be completed.",*/
 	L"Updated contact information.",
 	L"Updated registration.",
 	L"Updating contact information.",

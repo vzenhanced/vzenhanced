@@ -31,6 +31,7 @@ LRESULT CALLBACK CIDWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK PhoneLinesWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK MessageLogWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
+LRESULT CALLBACK UpdateWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
 LRESULT CALLBACK CallLogColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 LRESULT CALLBACK ContactListColumnsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );

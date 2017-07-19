@@ -18,6 +18,7 @@
 
 #include "globals.h"
 #include "lite_gdi32.h"
+#include "lite_gdiplus.h"
 #include "ringtone_utilities.h"
 
 #define BTN_OK			1000
@@ -49,7 +50,48 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 					HandleRingtone( RINGTONE_PLAY, shared_settings->ringtone_info->ringtone_path, alias );
 				}
 
-				_SetWindowPos( hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER );
+				RECT rc;
+				_GetWindowRect( hWnd, &rc );
+				unsigned int height = rc.bottom - rc.top;
+				unsigned int width = rc.right - rc.left;
+
+				if ( shared_settings->contact_picture_info.picture_path != NULL )
+				{
+					bool convert = true;
+					if ( gdiplus_state == GDIPLUS_STATE_SHUTDOWN )
+					{
+						#ifndef GDIPLUS_USE_STATIC_LIB
+							convert = InitializeGDIPlus();
+						#else
+							StartGDIPlus();
+						#endif
+					}
+
+					if ( convert )
+					{
+						RECT rc2;
+						_GetClientRect( hWnd, &rc2 );
+
+						unsigned int fixed_height = ( rc2.bottom - rc2.top );
+						if ( fixed_height > 10 )
+						{
+							fixed_height -= 10;
+						}
+
+						shared_settings->contact_picture_info.picture = ImageToBitmap( shared_settings->contact_picture_info.picture_path, shared_settings->contact_picture_info.height, shared_settings->contact_picture_info.width, fixed_height );
+
+						rc.left -= ( shared_settings->contact_picture_info.width + 5 );
+						width += ( shared_settings->contact_picture_info.width + 5 );
+						
+						if ( shared_settings->contact_picture_info.height > height )
+						{
+							rc.top -= ( shared_settings->contact_picture_info.height - height );
+							height = shared_settings->contact_picture_info.height;
+						}
+					}
+				}
+
+				_SetWindowPos( hWnd, HWND_TOPMOST, rc.left, rc.top, width, height, SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOOWNERZORDER );
 
 				_SetTimer( hWnd, IDT_TIMER, shared_settings->popup_time * 1000, ( TIMERPROC )TimerProc );
 			}
@@ -118,6 +160,19 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 				// Transparent background for text.
 				_SetBkMode( hdcMem, TRANSPARENT );
 
+				unsigned int left_offset = 0;
+				if ( shared_settings->contact_picture_info.picture != NULL )
+				{
+					// Load the image and center it in the frame bitmap.
+					HDC hdcMem2 = _CreateCompatibleDC( hDC );
+					ohbm = ( HBITMAP )_SelectObject( hdcMem2, shared_settings->contact_picture_info.picture );
+					_DeleteObject( ohbm );
+					_BitBlt( hdcMem, 5, ( ( client_rc.bottom - client_rc.top ) - shared_settings->contact_picture_info.height ) / 2, shared_settings->contact_picture_info.width, shared_settings->contact_picture_info.height, hdcMem2, 0, 0, SRCCOPY );
+					_DeleteDC( hdcMem2 );
+
+					left_offset = 5 + shared_settings->contact_picture_info.width;
+				}
+
 				for ( int i = 0; i < 3; ++i )
 				{
 					if ( ll == NULL )
@@ -138,7 +193,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 					RECT rc_line;
 					rc_line.bottom = 5;
-					rc_line.left = 5;
+					rc_line.left = 5 + left_offset;
 					rc_line.right = 5;
 					rc_line.top = 5;
 
@@ -148,7 +203,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						rc_line.bottom = client_rc.bottom - 5;
 						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_NOPREFIX | DT_CALCRECT );
 						rc_line.right = client_rc.right - 5;
-						rc_line.left = 5;
+						rc_line.left = 5 + left_offset;
 					}
 					else if ( i == 1 )
 					{
@@ -156,7 +211,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						rc_line.bottom = client_rc.bottom - 5;
 						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_NOPREFIX | DT_CALCRECT );
 						rc_line.right = client_rc.right - 5;
-						rc_line.left = 5;
+						rc_line.left = 5 + left_offset;
 						LONG tmp_height = rc_line.bottom - rc_line.top;
 						rc_line.top = ( client_rc.bottom - ( rc_line.bottom - rc_line.top ) - 5 ) / 2;
 						rc_line.bottom = rc_line.top + tmp_height;
@@ -168,7 +223,7 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						_DrawTextW( hdcMem, p_s->line_text, -1, &rc_line, DT_NOPREFIX | DT_CALCRECT );
 						rc_line.top = client_rc.bottom - ( rc_line.bottom - rc_line.top ) - 5;
 						rc_line.bottom = client_rc.bottom - 5;
-						rc_line.left = 5;
+						rc_line.left = 5 + left_offset;
 						rc_line.right = client_rc.right - 5;
 					}
 
@@ -326,6 +381,18 @@ LRESULT CALLBACK PopupWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 						wchar_t alias[ 11 ];
 						__snwprintf( alias, 11, L"%lu", ( unsigned int )hWnd );
 						HandleRingtone( RINGTONE_CLOSE, NULL, alias );
+					}
+
+					if ( shared_settings->contact_picture_info.picture != NULL )
+					{
+						_DeleteObject( shared_settings->contact_picture_info.picture );
+					}
+
+					// Don't free contact_picture_info.picture_path if it's from our contactinfo value.
+					// free_picture_path is set to true by the Preview button in the Options.
+					if ( shared_settings->contact_picture_info.free_picture_path )
+					{
+						GlobalFree( shared_settings->contact_picture_info.picture_path );
 					}
 
 					// Do not free shared_settings->ringtone_info.

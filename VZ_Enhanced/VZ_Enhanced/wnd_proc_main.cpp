@@ -54,6 +54,7 @@ HWND g_hWnd_forward_list = NULL;
 HWND g_hWnd_edit = NULL;				// Handle to the listview edit control.
 HWND g_hWnd_tab = NULL;
 HWND g_hWnd_connection_manager = NULL;
+HWND g_hWnd_update = NULL;
 
 WNDPROC ListsProc = NULL;
 WNDPROC TabListsProc = NULL;
@@ -83,13 +84,19 @@ bool main_active = false;	// Ugly work-around for misaligned listview rows when 
 VOID CALLBACK UpdateTimerProc( HWND hWnd, UINT msg, UINT idTimer, DWORD dwTime )
 {
 	// We'll check the setting again in case the user turned it off before the 10 second grace period.
-	if ( cfg_check_for_updates )
+	// We'll also check to see if the update was manually checked.
+	if ( cfg_check_for_updates && update_check_state == 0 )
 	{
-		// Do not notify if it's up to date.
-		UPDATE_CHECK_INFO *update_info = ( UPDATE_CHECK_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( UPDATE_CHECK_INFO ) );
-		update_info->notify = false;
-		update_info->download_url = NULL;
-		CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CheckForUpdates, ( void * )update_info, 0, NULL ) );
+		// Create the update window so that our update check can send messages to it.
+		if ( g_hWnd_update == NULL )
+		{
+			g_hWnd_update = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"update", ST_Checking_For_Updates___, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 510 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 240 ) / 2 ), 510, 240, NULL, NULL, NULL, NULL );
+
+			update_check_state = 2;	// Automatic update check.
+
+			UPDATE_CHECK_INFO *update_info = ( UPDATE_CHECK_INFO * )GlobalAlloc( GPTR, sizeof( UPDATE_CHECK_INFO ) );
+			CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CheckForUpdates, ( void * )update_info, 0, NULL ) );
+		}
 	}
 
 	_KillTimer( hWnd, IDT_UPDATE_TIMER );
@@ -2501,20 +2508,18 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 
 					case MENU_CHECK_FOR_UPDATES:
 					{
-						if ( update_con.state == CONNECTION_ACTIVE )
+						update_check_state = 1;	// Manual update check.
+
+						if ( g_hWnd_update == NULL )
 						{
-							// Forceful shutdown.
-							update_con.state = CONNECTION_CANCEL;
-							CleanupConnection( &update_con );
-						}
-						else
-						{
-							// Notify even if it's up to date.
-							UPDATE_CHECK_INFO *update_info = ( UPDATE_CHECK_INFO * )GlobalAlloc( GMEM_FIXED, sizeof( UPDATE_CHECK_INFO ) );
-							update_info->notify = true;
-							update_info->download_url = NULL;
+							g_hWnd_update = _CreateWindowExW( ( cfg_always_on_top ? WS_EX_TOPMOST : 0 ), L"update", ST_Checking_For_Updates___, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, ( ( _GetSystemMetrics( SM_CXSCREEN ) - 510 ) / 2 ), ( ( _GetSystemMetrics( SM_CYSCREEN ) - 240 ) / 2 ), 510, 240, NULL, NULL, NULL, NULL );
+
+							UPDATE_CHECK_INFO *update_info = ( UPDATE_CHECK_INFO * )GlobalAlloc( GPTR, sizeof( UPDATE_CHECK_INFO ) );
 							CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CheckForUpdates, ( void * )update_info, 0, NULL ) );
 						}
+
+						_ShowWindow( g_hWnd_update, SW_SHOWNORMAL );
+						_SetForegroundWindow( g_hWnd_update );
 					}
 					break;
 
@@ -2522,7 +2527,7 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 					{
 						wchar_t msg[ 512 ];
 						__snwprintf( msg, 512, L"VZ Enhanced is made free under the GPLv3 license.\r\n\r\n" \
-											   L"Version 1.0.2.7\r\n\r\n" \
+											   L"Version 1.0.2.8\r\n\r\n" \
 											   L"Built on %s, %s %d, %04d %d:%02d:%02d %s (UTC)\r\n\r\n" \
 											   L"Copyright \xA9 2013-2017 Eric Kutcher", GetDay( g_compile_time.wDayOfWeek ), GetMonth( g_compile_time.wMonth ), g_compile_time.wDay, g_compile_time.wYear, ( g_compile_time.wHour > 12 ? g_compile_time.wHour - 12 : ( g_compile_time.wHour != 0 ? g_compile_time.wHour : 12 ) ), g_compile_time.wMinute, g_compile_time.wSecond, ( g_compile_time.wHour >= 12 ? L"PM" : L"AM" ) );
 
@@ -2927,82 +2932,6 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 		}
 		break;
 
-		case WM_ALERT:
-		{
-			if ( wParam == 0 )
-			{
-				_MessageBoxW( hWnd, ST_VZ_Enhanced_is_up_to_date, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION );
-			}
-			else if ( wParam == 1 )
-			{
-				if ( _MessageBoxW( hWnd, ST_PROMPT_new_version, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONINFORMATION | MB_YESNO ) == IDYES )
-				{
-					// lParam is freed in CheckForUpdates.
-					CloseHandle( ( HANDLE )_CreateThread( NULL, 0, CheckForUpdates, ( void * )lParam, 0, NULL ) );
-				}
-				else
-				{
-					UPDATE_CHECK_INFO *uci = ( UPDATE_CHECK_INFO * )lParam;
-					if ( uci != NULL )
-					{
-						GlobalFree( uci->download_url );
-						GlobalFree( uci );
-					}
-				}
-			}
-			else if ( wParam == 2 )
-			{
-				if ( _MessageBoxW( hWnd, ST_PROMPT_update_check_failed, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
-				{
-					bool destroy = true;
-					#ifndef OLE32_USE_STATIC_LIB
-						if ( ole32_state == OLE32_STATE_SHUTDOWN )
-						{
-							destroy = InitializeOle32();
-						}
-					#endif
-
-					if ( destroy )
-					{
-						_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
-					}
-
-					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
-
-					if ( destroy )
-					{
-						_CoUninitialize();
-					}
-				}
-			}
-			else if ( wParam == 3 )
-			{
-				if ( _MessageBoxW( hWnd, ST_PROMPT_download_failed, PROGRAM_CAPTION, MB_APPLMODAL | MB_ICONWARNING | MB_YESNO ) == IDYES )
-				{
-					bool destroy = true;
-					#ifndef OLE32_USE_STATIC_LIB
-						if ( ole32_state == OLE32_STATE_SHUTDOWN )
-						{
-							destroy = InitializeOle32();
-						}
-					#endif
-
-					if ( destroy )
-					{
-						_CoInitializeEx( NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
-					}
-
-					_ShellExecuteW( NULL, L"open", HOME_PAGE, NULL, NULL, SW_SHOWNORMAL );
-
-					if ( destroy )
-					{
-						_CoUninitialize();
-					}
-				}
-			}
-		}
-		break;
-
 		case WM_PROPAGATE:
 		{
 			if ( LOWORD( wParam ) == CW_MODIFY )
@@ -3145,6 +3074,11 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 				_EnableWindow( g_hWnd_account, FALSE );
 				_ShowWindow( g_hWnd_account, SW_HIDE );
 			}
+			if ( g_hWnd_update != NULL )
+			{
+				_EnableWindow( g_hWnd_update, FALSE );
+				_ShowWindow( g_hWnd_update, SW_HIDE );
+			}
 			if ( g_hWnd_dial != NULL )
 			{
 				_EnableWindow( g_hWnd_dial, FALSE );
@@ -3238,6 +3172,11 @@ LRESULT CALLBACK MainWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam 
 			if ( g_hWnd_account != NULL )
 			{
 				_DestroyWindow( g_hWnd_account );
+			}
+
+			if ( g_hWnd_update != NULL )
+			{
+				_DestroyWindow( g_hWnd_update );
 			}
 
 			if ( g_hWnd_dial != NULL )

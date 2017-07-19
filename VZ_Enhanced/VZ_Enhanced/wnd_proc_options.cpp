@@ -67,31 +67,32 @@
 #define BTN_APPLY				1027
 
 #define CB_POSITION				1028
-#define	BTN_ENABLE_RINGTONES	1029
-#define CB_DEFAULT_RINGTONE		1030
-#define BTN_PLAY_DEFAULT_RINGTONE	1031
-#define BTN_STOP_DEFAULT_RINGTONE	1032
+#define BTN_CONTACT_PICTURE		1029
+#define	BTN_ENABLE_RINGTONES	1030
+#define CB_DEFAULT_RINGTONE		1031
+#define BTN_PLAY_DEFAULT_RINGTONE	1032
+#define BTN_STOP_DEFAULT_RINGTONE	1033
 
-#define BTN_ENABLE_POPUPS		1033
-#define BTN_RECONNECT			1034
-#define EDIT_RETRIES			1035
-#define BTN_AUTO_LOGIN			1036
+#define BTN_ENABLE_POPUPS		1034
+#define BTN_RECONNECT			1035
+#define EDIT_RETRIES			1036
+#define BTN_AUTO_LOGIN			1037
 
-#define EDIT_TIMEOUT			1037
+#define EDIT_TIMEOUT			1038
 
-#define BTN_TRAY_ICON			1038
-#define BTN_DOWNLOAD_PICTURES	1039
+#define BTN_TRAY_ICON			1039
+#define BTN_DOWNLOAD_PICTURES	1040
 
-#define BTN_SILENT_STARTUP		1040
+#define BTN_SILENT_STARTUP		1041
 
-#define CB_SSL_VERSION			1041
-#define BTN_ENABLE_HISTORY		1042
+#define CB_SSL_VERSION			1042
+#define BTN_ENABLE_HISTORY		1043
 
-#define BTN_ENABLE_MESSAGE_LOG	1043
+#define BTN_ENABLE_MESSAGE_LOG	1044
 
-#define BTN_ALWAYS_ON_TOP		1044
+#define BTN_ALWAYS_ON_TOP		1045
 
-#define BTN_CHECK_FOR_UPDATES	1045
+#define BTN_CHECK_FOR_UPDATES	1046
 
 
 HWND g_hWnd_options_tab = NULL;
@@ -130,6 +131,7 @@ HWND g_hWnd_width = NULL;
 HWND g_hWnd_ud_height = NULL;
 HWND g_hWnd_ud_width = NULL;
 HWND g_hWnd_position = NULL;
+HWND g_hWnd_chk_contact_picture = NULL;
 HWND g_hWnd_static_example = NULL;
 HWND g_hWnd_time = NULL;
 HWND g_hWnd_ud_time = NULL;
@@ -217,12 +219,15 @@ void create_settings()
 		cfg_popup_line_order3 = LINE_PHONE;
 	}
 
-	SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( SHARED_SETTINGS ) );
+	SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GPTR, sizeof( SHARED_SETTINGS ) );
 	shared_settings->popup_background_color1 = cfg_popup_background_color1;
 	shared_settings->popup_background_color2 = cfg_popup_background_color2;
 	shared_settings->popup_gradient = cfg_popup_gradient;
 	shared_settings->popup_gradient_direction = cfg_popup_gradient_direction;
-	shared_settings->ringtone_info = ( cfg_popup_enable_ringtones ? default_ringtone : NULL );
+	if ( cfg_popup_enable_ringtones )
+	{
+		shared_settings->ringtone_info = default_ringtone;
+	}
 
 	LOGFONT lf;
 	_memzero( &lf, sizeof( LOGFONT ) );
@@ -650,6 +655,7 @@ void Enable_Disable_Popup_Windows( BOOL enable )
 	_EnableWindow( g_hWnd_ud_time, enable );
 	_EnableWindow( g_hWnd_transparency, enable );
 	_EnableWindow( g_hWnd_ud_transparency, enable );
+	_EnableWindow( g_hWnd_chk_contact_picture, enable );
 	_EnableWindow( g_hWnd_chk_border, enable );
 	_EnableWindow( g_hWnd_chk_enable_ringtones, enable );
 
@@ -902,6 +908,7 @@ void Set_Window_Settings()
 
 	_EnableWindow( g_hWnd_btn_font_shadow_color, ( cfg_popup_font_shadow1 ? TRUE : FALSE ) );
 
+	_SendMessageW( g_hWnd_chk_contact_picture, BM_SETCHECK, ( cfg_popup_show_contact_picture ? BST_CHECKED : BST_UNCHECKED ), 0 );
 	_SendMessageW( g_hWnd_chk_border, BM_SETCHECK, ( cfg_popup_hide_border ? BST_CHECKED : BST_UNCHECKED ), 0 );
 
 	_SendMessageW( g_hWnd_chk_shadow, BM_SETCHECK, ( cfg_popup_font_shadow1 ? BST_CHECKED : BST_UNCHECKED ), 0 );
@@ -1321,8 +1328,9 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			_SendMessageW( g_hWnd_ud_time, UDM_SETRANGE32, 0, MAX_POPUP_TIME );
 
 
-			g_hWnd_chk_border = _CreateWindowW( WC_BUTTON, ST_Hide_window_border, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 110, 150, 20, hWnd, ( HMENU )BTN_BORDER, NULL, NULL );
+			g_hWnd_chk_border = _CreateWindowW( WC_BUTTON, ST_Hide_window_border, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 110, 130, 20, hWnd, ( HMENU )BTN_BORDER, NULL, NULL );
 
+			g_hWnd_chk_contact_picture = _CreateWindowW( WC_BUTTON, ST_Show_contact_picture, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 130, 110, 130, 20, hWnd, ( HMENU )BTN_CONTACT_PICTURE, NULL, NULL );
 
 			g_hWnd_chk_enable_ringtones = _CreateWindowW( WC_BUTTON, ST_Enable_ringtone_s_, BS_AUTOCHECKBOX | WS_CHILD | WS_TABSTOP | WS_VISIBLE, 0, 130, 150, 20, hWnd, ( HMENU )BTN_ENABLE_RINGTONES, NULL, NULL );
 			g_hWnd_static_default_ringtone = _CreateWindowW( WC_STATIC, ST_Default_ringtone_, WS_CHILD | WS_VISIBLE, 0, 152, 95, 15, hWnd, NULL, NULL, NULL );
@@ -1406,6 +1414,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 			_SendMessageW( g_hWnd_width, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_static_position, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_position, WM_SETFONT, ( WPARAM )hFont, 0 );
+			_SendMessageW( g_hWnd_chk_contact_picture, WM_SETFONT, ( WPARAM )hFont, 0 );
 
 			_SendMessageW( g_hWnd_static_delay, WM_SETFONT, ( WPARAM )hFont, 0 );
 			_SendMessageW( g_hWnd_time, WM_SETFONT, ( WPARAM )hFont, 0 );
@@ -2092,6 +2101,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					_SendMessageA( g_hWnd_transparency, WM_GETTEXT, 4, ( LPARAM )value );
 					int transparency = ( unsigned char )_strtoul( value, NULL, 10 );
 
+					bool show_contact_picture = ( _SendMessageW( g_hWnd_chk_contact_picture, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 					bool popup_hide_border = ( _SendMessageW( g_hWnd_chk_border, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 					unsigned char popup_time_format = ( _SendMessageW( g_hWnd_rad_24_hour, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? 1 : 0 );
 
@@ -2124,6 +2134,17 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 						_GetUserNameW( caller_id_line, &size );
 					}
 
+					wchar_t *program_data_folder = NULL;
+					if ( show_contact_picture )
+					{
+						program_data_folder = ( wchar_t * )GlobalAlloc( GPTR, sizeof( wchar_t ) * MAX_PATH );
+						_SHGetFolderPathW( NULL, CSIDL_COMMON_APPDATA, NULL, 0, program_data_folder );
+
+						int program_data_folder_length = lstrlenW( program_data_folder );
+						_wmemcpy_s( program_data_folder + program_data_folder_length, MAX_PATH - program_data_folder_length, L"\\Microsoft\\User Account Pictures\\User.bmp\0", 42 );
+						program_data_folder[ program_data_folder_length + 41 ] = 0;	// Sanity.
+					}
+
 					wchar_t *time_line = ( wchar_t * )GlobalAlloc( GMEM_FIXED, sizeof( wchar_t ) * 16 );
 
 					SYSTEMTIME SystemTime;
@@ -2141,13 +2162,15 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 					LOGFONT lf;
 					_memzero( &lf, sizeof( LOGFONT ) );
 
-					SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( SHARED_SETTINGS ) );
+					SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GPTR, sizeof( SHARED_SETTINGS ) );
 					shared_settings->popup_gradient = ss->popup_gradient;
 					shared_settings->popup_gradient_direction = ss->popup_gradient_direction;
 					shared_settings->popup_background_color1 = ss->popup_background_color1;
 					shared_settings->popup_background_color2 = ss->popup_background_color2;
 					shared_settings->popup_time = popup_time;
 					shared_settings->ringtone_info = ss->ringtone_info;
+					shared_settings->contact_picture_info.free_picture_path = show_contact_picture;
+					shared_settings->contact_picture_info.picture_path = program_data_folder;
 
 					DoublyLinkedList *t_ll = NULL;
 
@@ -2518,6 +2541,7 @@ LRESULT CALLBACK PopupTabWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 				}
 				break;
 
+				case BTN_CONTACT_PICTURE:
 				case BTN_BORDER:
 				{
 					options_state_changed = true;
@@ -3192,6 +3216,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 						cfg_enable_call_log_history = ( _SendMessageW( g_hWnd_chk_enable_history, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 
+						cfg_popup_show_contact_picture = ( _SendMessageW( g_hWnd_chk_contact_picture, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_popup_hide_border = ( _SendMessageW( g_hWnd_chk_border, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? true : false );
 						cfg_popup_time_format = ( _SendMessageW( g_hWnd_rad_24_hour, BM_GETCHECK, 0, 0 ) == BST_CHECKED ? 1 : 0 );
 
@@ -3244,6 +3269,7 @@ LRESULT CALLBACK OptionsWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 							if ( g_hWnd_columns != NULL ){ _SetWindowPos( g_hWnd_columns, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_contact != NULL ){ _SetWindowPos( g_hWnd_contact, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_account != NULL ){ _SetWindowPos( g_hWnd_account, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
+							if ( g_hWnd_update != NULL ){ _SetWindowPos( g_hWnd_update, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_dial != NULL ){ _SetWindowPos( g_hWnd_dial, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_forward != NULL ){ _SetWindowPos( g_hWnd_forward, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }
 							if ( g_hWnd_ignore_phone_number != NULL ){ _SetWindowPos( g_hWnd_ignore_phone_number, ( cfg_always_on_top ? HWND_TOPMOST : HWND_NOTOPMOST ), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE ); }

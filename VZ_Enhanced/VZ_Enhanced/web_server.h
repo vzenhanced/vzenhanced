@@ -39,6 +39,8 @@ typedef void ( WINAPI *pStopWebServer )();
 typedef WNDPROC ( WINAPI *pGetWebServerTabProc )();
 typedef WNDPROC ( WINAPI *pGetConnectionManagerProc )();
 
+typedef unsigned int ( WINAPI *pGetVersionNumber )();
+
 typedef bool ( WINAPI *pInitializeWebServerDLL )( wchar_t *directory );
 typedef void ( WINAPI *pUnInitializeWebServerDLL )();
 
@@ -55,6 +57,8 @@ extern pStopWebServer				StopWebServer;
 extern pGetWebServerTabProc			GetWebServerTabProc;
 extern pGetConnectionManagerProc	GetConnectionManagerProc;
 
+extern pGetVersionNumber			GetVersionNumber;
+
 extern pInitializeWebServerDLL		InitializeWebServerDLL;
 extern pUnInitializeWebServerDLL	UnInitializeWebServerDLL;
 
@@ -64,6 +68,8 @@ extern unsigned char web_server_state;
 
 bool InitializeWebServer();
 bool UnInitializeWebServer();
+
+unsigned int GetWebServerVersionNumber();
 
 bool WebIgnoreIncomingCall( displayinfo *di );
 bool WebForwardIncomingCall( displayinfo *di, char *forward_to );

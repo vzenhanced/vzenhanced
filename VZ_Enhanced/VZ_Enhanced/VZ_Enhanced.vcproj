@@ -350,6 +350,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wnd_proc_update.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\wnd_subproc_tab.cpp"
 				>
 			</File>

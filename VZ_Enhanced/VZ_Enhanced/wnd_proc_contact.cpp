@@ -893,7 +893,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 						if ( convert )
 						{
-							g_hbm_picture = ImageToBitmap( g_picture_file_path, g_picture_height, g_picture_width );
+							g_hbm_picture = ImageToBitmap( g_picture_file_path, g_picture_height, g_picture_width, 96 );
 						}
 
 						_InvalidateRect( g_hWnd_static_picture, NULL, TRUE );
@@ -965,7 +965,7 @@ LRESULT CALLBACK ContactWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 
 							if ( convert )
 							{
-								g_hbm_picture = ImageToBitmap( edit_ci->picture_path, g_picture_height, g_picture_width );
+								g_hbm_picture = ImageToBitmap( edit_ci->picture_path, g_picture_height, g_picture_width, 96 );
 							}
 
 							_EnableWindow( g_hWnd_remove_picture, TRUE );

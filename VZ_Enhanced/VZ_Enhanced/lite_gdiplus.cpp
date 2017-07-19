@@ -120,7 +120,7 @@ void EndGDIPlus()
 	gdiplus_state = GDIPLUS_STATE_SHUTDOWN;
 }
 
-HBITMAP ImageToBitmap( wchar_t *file_path, unsigned int &height, unsigned int &width )
+HBITMAP ImageToBitmap( wchar_t *file_path, unsigned int &height, unsigned int &width, unsigned int fixed_height )
 {
 	GpImage *image = NULL;
 	GpGraphics *graphics = NULL;
@@ -134,17 +134,17 @@ HBITMAP ImageToBitmap( wchar_t *file_path, unsigned int &height, unsigned int &w
 	float w = ( float )width;
 	float h = ( float )height;
 
-	if ( width > 96 || height > 96 )
+	if ( width > fixed_height || height > fixed_height )
 	{
 		float scale = 0.0f;
 
 		if ( width > height )
 		{
-			scale = 96.0f / w;
+			scale = ( float )fixed_height / w;
 		}
 		else
 		{
-			scale = 96.0f / h;
+			scale = ( float )fixed_height / h;
 		}
 
 		#ifndef NTDLL_USE_STATIC_LIB

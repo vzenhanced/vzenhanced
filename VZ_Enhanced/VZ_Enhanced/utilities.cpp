@@ -61,6 +61,7 @@ bool cfg_check_for_updates = false;
 
 bool cfg_enable_popups = false;
 bool cfg_popup_hide_border = false;
+bool cfg_popup_show_contact_picture = false;
 int cfg_popup_width = MIN_WIDTH / 2;
 int cfg_popup_height = MIN_HEIGHT / 3;
 unsigned char cfg_popup_position = 3;		// 0 = Top Left, 1 = Top Right, 2 = Bottom Left, 3 = Bottom Right
@@ -1241,21 +1242,29 @@ void CreatePopup( displayinfo *fi )
 		__snwprintf( time_line, 16, L"%s%d:%02d", ( st.wHour > 9 ? L"" : L"0" ), st.wHour, st.wMinute );
 	}
 
-	SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GMEM_FIXED, sizeof( SHARED_SETTINGS ) );
+	SHARED_SETTINGS *shared_settings = ( SHARED_SETTINGS * )GlobalAlloc( GPTR, sizeof( SHARED_SETTINGS ) );
 	shared_settings->popup_gradient = cfg_popup_gradient;
 	shared_settings->popup_gradient_direction = cfg_popup_gradient_direction;
 	shared_settings->popup_background_color1 = cfg_popup_background_color1;
 	shared_settings->popup_background_color2 = cfg_popup_background_color2;
 	shared_settings->popup_time = cfg_popup_time;
 
+	if ( cfg_popup_show_contact_picture && fi->contact_info != NULL )
+	{
+		shared_settings->contact_picture_info.picture_path = fi->contact_info->picture_path;	// We don't want to free this.
+	}
+
 	// Use the default sound if the contact doesn't have a custom ringtone set.
 	if ( cfg_popup_enable_ringtones )
 	{
-		shared_settings->ringtone_info = ( fi->ringtone_info != NULL ? fi->ringtone_info : default_ringtone );
-	}
-	else
-	{
-		shared_settings->ringtone_info = NULL;
+		if ( fi->contact_info != NULL && fi->contact_info->ringtone_info != NULL )
+		{
+			shared_settings->ringtone_info = fi->contact_info->ringtone_info;
+		}
+		else
+		{
+			shared_settings->ringtone_info = default_ringtone;
+		}
 	}
 
 	LOGFONT lf;

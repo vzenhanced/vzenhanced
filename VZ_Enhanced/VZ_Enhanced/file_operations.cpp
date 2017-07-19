@@ -115,17 +115,33 @@ char read_config()
 		DWORD read = 0, pos = 0;
 		DWORD fz = GetFileSize( hFile_cfg, NULL );
 
+		int reserved = 1024 - ( 362 + 1 );	// 362 bytes worth of old settings + 1 byte of new settings.
+
 		// Our config file is going to be small. If it's something else, we're not going to read it.
-		if ( fz >= 368 && fz < 10240 )
+		// Add 6 for the strings.
+		if ( fz >= ( 362 + 6 ) && fz < 10240 )
 		{
-			char *cfg_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * fz + 1 );
+			char *cfg_buf = ( char * )GlobalAlloc( GPTR, sizeof( char ) * 10240 + 1 );
 
-			ReadFile( hFile_cfg, cfg_buf, sizeof( char ) * fz, &read, NULL );
+			ReadFile( hFile_cfg, cfg_buf, sizeof( char ) * 10240, &read, NULL );
 
-			cfg_buf[ fz ] = 0;	// Guarantee a NULL terminated buffer.
+			cfg_buf[ 10240 ] = 0;	// Guarantee a NULL terminated buffer.
+
+			unsigned char settings_type = 0;
+			if ( read == fz )
+			{
+				if ( _memcmp( cfg_buf, MAGIC_ID_SETTINGS, 4 ) == 0 )
+				{
+					settings_type = 1; // Old settings.
+				}
+				else if ( _memcmp( cfg_buf, MAGIC_ID_SETTINGSv2, 4 ) == 0 )
+				{
+					settings_type = 2; // New settings.
+				}
+			}
 
 			// Read the config. It must be in the order specified below.
-			if ( read == fz && _memcmp( cfg_buf, MAGIC_ID_SETTINGS, 4 ) == 0 )
+			if ( settings_type != 0 )
 			{
 				char *next = cfg_buf + 4;
 
@@ -472,8 +488,18 @@ char read_config()
 				_memcpy_s( &cfg_popup_enable_ringtones, sizeof( bool ), next, sizeof( bool ) );
 				next += sizeof( bool );
 
+				// New settings and reserved space.
+				if ( settings_type == 2 )
+				{
+					_memcpy_s( &cfg_popup_show_contact_picture, sizeof( bool ), next, sizeof( bool ) );
+					next += sizeof( bool );
+
+					next += reserved;	// Skip past reserved bytes.
+				}
+
 				int string_length = 0;
 				int cfg_val_length = 0;
+
 				if ( ( DWORD )( next - cfg_buf ) < read )
 				{
 					// Length of the string - not including the NULL character.
@@ -642,12 +668,13 @@ char save_config()
 	HANDLE hFile_cfg = CreateFile( base_directory, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
 	if ( hFile_cfg != INVALID_HANDLE_VALUE )
 	{
-		int size = ( sizeof( int ) * 66 ) + ( sizeof( bool ) * 19 ) + ( sizeof( char ) * 75 ) + ( sizeof( unsigned short ) * 2 );// + ( sizeof( wchar_t ) * 96 );
+		int reserved = 1024 - ( 362 + 1 );	// 362 bytes worth of old settings + 1 byte of new settings.
+		int size = ( sizeof( int ) * 66 ) + ( sizeof( bool ) * 20 ) + ( sizeof( char ) * 75 ) + ( sizeof( unsigned short ) * 2 ) + reserved;
 		int pos = 0;
 
 		char *write_buf = ( char * )GlobalAlloc( GMEM_FIXED, sizeof( char ) * size );
 
-		_memcpy_s( write_buf + pos, size - pos, MAGIC_ID_SETTINGS, sizeof( char ) * 4 );	// Magic identifier for the main program's settings.
+		_memcpy_s( write_buf + pos, size - pos, MAGIC_ID_SETTINGSv2, sizeof( char ) * 4 );	// Magic identifier for the main program's settings.
 		pos += ( sizeof( char ) * 4 );
 		
 		_memcpy_s( write_buf + pos, size - pos, &cfg_remember_login, sizeof( bool ) );
@@ -991,11 +1018,20 @@ char save_config()
 		_memcpy_s( write_buf + pos, size - pos, &cfg_popup_time_format, sizeof( unsigned char ) );
 		pos += sizeof( unsigned char );
 		_memcpy_s( write_buf + pos, size - pos, &cfg_popup_enable_ringtones, sizeof( bool ) );
-		//pos += sizeof( bool );
+		pos += sizeof( bool );
+
+		// New settings (v2). //
+
+		_memcpy_s( write_buf + pos, size - pos, &cfg_popup_show_contact_picture, sizeof( bool ) );
+		pos += sizeof( bool );
+
+		// Write Reserved bytes.
+		_memzero( write_buf + pos, size - pos );
+
+		////////////////////////
 
 		DWORD write = 0;
 		WriteFile( hFile_cfg, write_buf, size, &write, NULL );
-
 
 		GlobalFree( write_buf );
 

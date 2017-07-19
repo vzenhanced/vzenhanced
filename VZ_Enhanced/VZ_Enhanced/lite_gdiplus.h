@@ -83,7 +83,7 @@ using namespace Gdiplus::DllExports;
 void StartGDIPlus();
 void EndGDIPlus();
 
-HBITMAP ImageToBitmap( wchar_t *file_path, unsigned int &height, unsigned int &width );
+HBITMAP ImageToBitmap( wchar_t *file_path, unsigned int &height, unsigned int &width, unsigned int fixed_height );
 
 extern unsigned char gdiplus_state;
 

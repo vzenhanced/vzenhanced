@@ -33,6 +33,8 @@
 
 #include "resource.h"
 
+#define VERSION_NUMBER	1023
+
 #define FILETIME_TICKS_PER_SECOND	10000000
 
 #define _wcsicmp_s( a, b ) ( ( a == NULL && b == NULL ) ? 0 : ( a != NULL && b == NULL ) ? 1 : ( a == NULL && b != NULL ) ? -1 : lstrcmpiW( a, b ) )
@@ -159,6 +161,9 @@ WNDPROC GetConnectionManagerProc();
 
 extern "C" __declspec ( dllexport )
 void UpdateCallLog( displayinfo *di );
+
+extern "C" __declspec ( dllexport )
+unsigned int GetVersionNumber();
 
 extern "C" __declspec ( dllexport )
 bool InitializeWebServerDLL( wchar_t *directory );

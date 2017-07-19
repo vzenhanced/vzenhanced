@@ -3642,18 +3642,11 @@ THREAD_RETURN update_call_log( void *pArguments )
 		}
 
 		// If the incoming number matches a contact, then update the caller ID value.
-		contactinfo *ci = NULL;
-		char *custom_caller_id = get_custom_caller_id( di->ci.call_from, &ci );
+		char *custom_caller_id = get_custom_caller_id( di->ci.call_from, &di->contact_info );
 		if ( custom_caller_id != NULL )
 		{
 			GlobalFree( di->ci.caller_id );
 			di->ci.caller_id = custom_caller_id;
-		}
-
-		// If there was a matching contact, then use their ringtone.
-		if ( ci != NULL )
-		{
-			di->ringtone_info = ci->ringtone_info;
 		}
 
 		_SendNotifyMessageW( g_hWnd_main, WM_PROPAGATE, MAKEWPARAM( CW_MODIFY, 0 ), ( LPARAM )di );	// Add entry to listview and show popup.

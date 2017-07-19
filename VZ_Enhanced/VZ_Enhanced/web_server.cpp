@@ -32,6 +32,8 @@ pStopWebServer				StopWebServer;
 pGetWebServerTabProc		GetWebServerTabProc;
 pGetConnectionManagerProc	GetConnectionManagerProc;
 
+pGetVersionNumber			GetVersionNumber;
+
 pInitializeWebServerDLL		InitializeWebServerDLL;
 pUnInitializeWebServerDLL	UnInitializeWebServerDLL;
 
@@ -74,6 +76,21 @@ bool InitializeWebServer()
 	web_server_state = WEB_SERVER_STATE_RUNNING;
 
 	return true;
+}
+
+unsigned int GetWebServerVersionNumber()
+{
+	unsigned int version_number = 0;
+
+	if ( web_server_state != WEB_SERVER_STATE_SHUTDOWN )
+	{
+		if ( SetFunctionPointer( hModule_web_server, ( void ** )&GetVersionNumber, "GetVersionNumber" ) != NULL )
+		{
+			version_number = GetVersionNumber();
+		}
+	}
+
+	return version_number;
 }
 
 void SetCriticalSection( CRITICAL_SECTION *cs )
@@ -230,8 +247,6 @@ bool UnInitializeWebServer()
 {
 	if ( web_server_state != WEB_SERVER_STATE_SHUTDOWN )
 	{
-		UnInitializeWebServerDLL();
-
 		web_server_state = WEB_SERVER_STATE_SHUTDOWN;
 
 		return ( FreeLibrary( hModule_web_server ) == FALSE ? false : true );

@@ -19,6 +19,8 @@
 #ifndef _SHARED_OBJECTS_H
 #define _SHARED_OBJECTS_H
 
+struct contactinfo;
+
 struct ringtoneinfo
 {
 	wchar_t *ringtone_path;
@@ -63,7 +65,7 @@ struct displayinfo
 
 	ULARGE_INTEGER time;
 
-	ringtoneinfo *ringtone_info;
+	contactinfo *contact_info;
 
 	unsigned int forward_cid_match_count;	// Number of forward cid matches.
 	unsigned int ignore_cid_match_count;	// Number of ignore cid matches.
@@ -73,7 +75,6 @@ struct displayinfo
 
 	bool process_incoming;	// false, true = ignore or forward
 };
-
 
 struct CONTACT
 {
